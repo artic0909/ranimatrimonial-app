@@ -189,47 +189,7 @@ class _RaniSplashScreenState extends State<RaniSplashScreen>
               ),
             ),
 
-            // 3. Top Skip Button
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8.0, right: 16.0),
-                  child: TextButton(
-                    onPressed: _navigateToNext,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: Colors.black.withValues(alpha: 0.35),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      shape: const StadiumBorder(
-                        side: BorderSide(
-                          color: RaniColors.gold,
-                          width: 0.8,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Skip',
-                          style: RaniTypography.caption(color: Colors.white),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 10,
-                          color: RaniColors.gold,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+
 
             // 4. Central Showcase: Large, Crisp Authentic Logo & Tagline
             Center(
@@ -348,41 +308,7 @@ class _RaniSplashScreenState extends State<RaniSplashScreen>
               ),
             ),
 
-            // 5. Hallmark Footer: "MODERN • TRADITIONAL • TRUSTED"
-            Positioned(
-              bottom: 34,
-              left: 0,
-              right: 0,
-              child: FadeTransition(
-                opacity: _textFadeAnimation,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      borderRadius: RaniSpacing.roundedFull,
-                      border: Border.all(
-                        color: RaniColors.gold.withValues(alpha: 0.35),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Text(
-                      'MODERN  •  TRADITIONAL  •  TRUSTED',
-                      style: RaniTypography.captionUppercase(
-                        color: RaniColors.gold,
-                      ).copyWith(
-                        letterSpacing: 2.8,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+
           ],
         ),
       ),
