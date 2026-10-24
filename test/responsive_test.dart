@@ -32,10 +32,17 @@ void main() {
   }
 
   group('Screen responsiveness tests across all phone sizes', () {
-    FlutterError.onError = (FlutterErrorDetails details) {
-      debugPrint('OVERFLOW WIDGET DETAILS:');
-      debugPrint(details.toString());
-    };
+    testWidgets('Splash screen fits all screen sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(const RaniSplashScreen()));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+      }
+    });
 
     testWidgets('Profile detail screen fits all screen sizes without overflow', (tester) async {
       final sampleProfile = {
@@ -57,7 +64,7 @@ void main() {
         await tester.pumpWidget(wrapScreen(RaniProfileDetailScreen(profile: sampleProfile)));
         await tester.pumpAndSettle();
 
-        // final ex = tester.takeException();
+        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
       }
     });
 

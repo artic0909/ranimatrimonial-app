@@ -157,10 +157,13 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
                     // Name & Verified Badge
                     Row(
                       children: [
-                        Text(
-                          name,
-                          style: RaniTypography.headingLg(color: RaniColors.ink).copyWith(
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: RaniTypography.headingLg(color: RaniColors.ink).copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 8),
