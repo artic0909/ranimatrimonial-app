@@ -98,40 +98,43 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
             );
           },
         ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/logo.png',
-              height: 28,
-              width: 28,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.favorite,
-                color: RaniColors.gold,
-                size: 24,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/logo.png',
+                height: 28,
+                width: 28,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.favorite,
+                  color: RaniColors.gold,
+                  size: 24,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Rani',
-                  style: RaniTypography.headingSm(color: Colors.white).copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
+              const SizedBox(width: 8),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Rani',
+                    style: RaniTypography.headingSm(color: Colors.white).copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
                   ),
-                ),
-                Text(
-                  'MATRIMONIAL',
-                  style: RaniTypography.captionUppercase(color: RaniColors.gold).copyWith(
-                    fontSize: 8,
-                    letterSpacing: 2.0,
+                  Text(
+                    'MATRIMONIAL',
+                    style: RaniTypography.captionUppercase(color: RaniColors.gold).copyWith(
+                      fontSize: 8,
+                      letterSpacing: 2.0,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
         centerTitle: true,
         actions: [
@@ -180,9 +183,12 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                     children: [
                       const Icon(Icons.search, color: RaniColors.textMuted, size: 20),
                       const SizedBox(width: 10),
-                      Text(
-                        'Search by location, profession...',
-                        style: RaniTypography.bodySm(color: RaniColors.textMuted),
+                      Expanded(
+                        child: Text(
+                          'Search by location, profession...',
+                          style: RaniTypography.bodySm(color: RaniColors.textMuted),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -241,12 +247,16 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Featured Profiles',
-                    style: RaniTypography.headingMd(color: RaniColors.ink).copyWith(
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      'Featured Profiles',
+                      style: RaniTypography.headingMd(color: RaniColors.ink).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
                       Navigator.of(context).push(
@@ -271,27 +281,36 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
             // 2-Column Profile Grid matching the mockup cards
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: RaniSpacing.screenPadding),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  childAspectRatio: 0.68,
-                ),
-                itemCount: _profiles.length,
-                itemBuilder: (context, index) {
-                  final profile = _profiles[index];
-                  return _ProfileFeedCard(
-                    profile: profile,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => RaniProfileDetailScreen(
-                            profile: profile,
-                          ),
-                        ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final aspectRatio = screenWidth < 350
+                      ? 0.60
+                      : (screenWidth < 380 ? 0.65 : 0.68);
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: aspectRatio,
+                    ),
+                    itemCount: _profiles.length,
+                    itemBuilder: (context, index) {
+                      final profile = _profiles[index];
+                      return _ProfileFeedCard(
+                        profile: profile,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => RaniProfileDetailScreen(
+                                profile: profile,
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );
@@ -398,9 +417,9 @@ class _ProfileFeedCardState extends State<_ProfileFeedCard> {
 
             // Card Bottom Details
             Expanded(
-              flex: 5,
+              flex: 6,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -409,12 +428,12 @@ class _ProfileFeedCardState extends State<_ProfileFeedCard> {
                       name,
                       style: RaniTypography.labelMd(color: RaniColors.ink).copyWith(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        fontSize: 13,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       profession,
                       style: RaniTypography.caption(color: RaniColors.textMuted).copyWith(

@@ -207,28 +207,42 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: Checkbox(
-                                  value: _rememberMe,
-                                  activeColor: RaniColors.primary,
-                                  onChanged: (val) {
-                                    setState(() {
-                                      _rememberMe = val ?? true;
-                                    });
-                                  },
-                                ),
+                          Flexible(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _rememberMe = !_rememberMe;
+                                });
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: Checkbox(
+                                      value: _rememberMe,
+                                      activeColor: RaniColors.primary,
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _rememberMe = val ?? true;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      'Remember me',
+                                      style: RaniTypography.bodySm(color: RaniColors.textMuted),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Remember me',
-                                style: RaniTypography.bodySm(color: RaniColors.textMuted),
-                              ),
-                            ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -374,23 +388,26 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
                   ),
                 ),
                 onPressed: _navigateToCreateProfile,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.person_add_alt_1_outlined,
-                      color: RaniColors.primary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Create Profile — Free Registration',
-                      style: RaniTypography.button(color: RaniColors.primary).copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.person_add_alt_1_outlined,
+                        color: RaniColors.primary,
+                        size: 18,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        'Create Profile — Free Registration',
+                        style: RaniTypography.button(color: RaniColors.primary).copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

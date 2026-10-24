@@ -21,19 +21,22 @@ class RaniPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget child = Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (icon != null) ...[
-          icon!,
-          const SizedBox(width: RaniSpacing.xs),
+    Widget child = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (icon != null) ...[
+            icon!,
+            const SizedBox(width: RaniSpacing.xs),
+          ],
+          Text(
+            text,
+            style: RaniTypography.button(color: Colors.white),
+          ),
         ],
-        Text(
-          text,
-          style: RaniTypography.button(color: Colors.white),
-        ),
-      ],
+      ),
     );
 
     return Container(
@@ -48,7 +51,7 @@ class RaniPrimaryButton extends StatelessWidget {
           backgroundColor: RaniColors.primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: RaniColors.neutral,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           shape: const RoundedRectangleBorder(
             borderRadius: RaniSpacing.roundedXs,
           ),
@@ -96,19 +99,22 @@ class RaniGoldCtaButton extends StatelessWidget {
           elevation: 0,
         ),
         onPressed: onPressed,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (icon != null) ...[
-              icon!,
-              const SizedBox(width: RaniSpacing.xs),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                icon!,
+                const SizedBox(width: RaniSpacing.xs),
+              ],
+              Text(
+                text,
+                style: RaniTypography.button(color: RaniColors.link),
+              ),
             ],
-            Text(
-              text,
-              style: RaniTypography.button(color: RaniColors.link),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -152,23 +158,26 @@ class RaniOutlineButton extends StatelessWidget {
             width: RaniSpacing.borderThin,
           ),
           shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           elevation: 0,
         ),
         onPressed: onPressed,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (icon != null) ...[
-              icon!,
-              const SizedBox(width: RaniSpacing.xs),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                icon!,
+                const SizedBox(width: RaniSpacing.xs),
+              ],
+              Text(
+                text,
+                style: RaniTypography.button(color: textColor),
+              ),
             ],
-            Text(
-              text,
-              style: RaniTypography.button(color: textColor),
-            ),
-          ],
+          ),
         ),
       ),
     );

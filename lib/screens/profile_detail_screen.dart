@@ -205,13 +205,15 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
                     const RaniGoldDivider(),
                     const SizedBox(height: RaniSpacing.md),
 
-                    // 4 Quick Stat Pills in horizontal layout
+                    // 4 Quick Stat Pills in responsive horizontal layout
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _buildStatPill(Icons.straighten, height, 'Height'),
+                        const SizedBox(width: 6),
                         _buildStatPill(Icons.temple_hindu_outlined, religion, 'Religion'),
+                        const SizedBox(width: 6),
                         _buildStatPill(Icons.diversity_1_outlined, community, 'Community'),
+                        const SizedBox(width: 6),
                         _buildStatPill(Icons.medical_services_outlined, profession, 'Profession'),
                       ],
                     ),
@@ -286,38 +288,43 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
   }
 
   Widget _buildStatPill(IconData icon, String value, String label) {
-    return Container(
-      width: 72,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: RaniColors.canvas,
-        borderRadius: RaniSpacing.roundedMd,
-        border: Border.all(
-          color: RaniColors.gold.withValues(alpha: 0.4),
-          width: 0.8,
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+        decoration: BoxDecoration(
+          color: RaniColors.canvas,
+          borderRadius: RaniSpacing.roundedMd,
+          border: Border.all(
+            color: RaniColors.gold.withValues(alpha: 0.4),
+            width: 0.8,
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: RaniColors.primary, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: RaniTypography.caption(color: RaniColors.ink).copyWith(
-              fontWeight: FontWeight.w600,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: RaniColors.primary, size: 18),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: RaniTypography.caption(color: RaniColors.ink).copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            label,
-            style: RaniTypography.caption(color: RaniColors.textMuted).copyWith(
-              fontSize: 10,
+            Text(
+              label,
+              style: RaniTypography.caption(color: RaniColors.textMuted).copyWith(
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
