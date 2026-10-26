@@ -9,21 +9,18 @@ import 'login_screen.dart';
 import 'main_navigation_screen.dart';
 
 /// Screen 1: Onboarding Screen
-/// - Slide 0 & 1: Cinematic couple photography slides with gold crest & tagline
-/// - Slide 2 (FINAL SLIDE): Exactly matches the provided design screenshot:
-///   * Warm ivory/cream background
-///   * Top-right "Skip" button in burgundy
-///   * "Welcome to" & "Rani Matrimonial" in burgundy
-///   * "Where trusted families find perfect matches"
-///   * 4 Feature Pills on the left:
-///       1. Verified Profiles (shield-check)
-///       2. Advanced Search (magnifying glass)
-///       3. Safe & Secure (shield-check)
-///       4. Personalized Matches (star-shield)
-///   * Large smiling Indian bride naturally positioned on the right
-///   * 3 Carousel Dots with dot 2 active in burgundy
-///   * "Create Profile" primary button (Radiant Theme Gold) -> opens 60s registration
-///   * "Login" secondary button (Rani Theme Burgundy) -> opens Login screen
+/// - Single Screen layout with smooth fade-in & fade-out transitions between slides
+///   (avoids split-screen sliding of full-screen images)
+/// - Slide 0 & 1: Cinematic couple photography slides with gold crest & brand tagline
+/// - Slide 2 (FINAL SLIDE): Redesigned royal welcome slide following Rani Matrimonial theme:
+///   * Warm royal ivory/cream backdrop with subtle ambient glow
+///   * Regal header with gold flourish, "Welcome to", and "Rani Matrimonial" in burgundy
+///   * 4 Royal Feature Badges (Verified Profiles, Advanced Search, Safe & Secure, Personalized Matches)
+///   * Majestic transparent portrait of the Indian bride using "assets/bride2.png"
+///     framed in a royal arch backdrop
+///   * 3 Interactive Carousel Indicator Dots
+///   * "Create Profile" CTA button in Radiant Theme Gold gradient
+///   * "Login" secondary CTA button in theme burgundy outline
 class RaniOnboardingScreen extends StatefulWidget {
   const RaniOnboardingScreen({super.key});
 
@@ -192,27 +189,70 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _currentPage == 2 ? const Color(0xFFFAF7F2) : RaniColors.surfaceAlt,
-      body: PageView(
-        controller: _pageController,
-        physics: const BouncingScrollPhysics(),
-        onPageChanged: (index) {
-          setState(() {
-            _currentPage = index;
-          });
-        },
-        children: [
-          // Slide 0: Cinematic Couple Photography
-          _buildCoupleSlide(0),
+    return AnimatedBuilder(
+      animation: _pageController,
+      builder: (context, _) {
+        double page = _currentPage.toDouble();
+        if (_pageController.hasClients && _pageController.position.haveDimensions) {
+          page = _pageController.page ?? _currentPage.toDouble();
+        }
 
-          // Slide 1: Cinematic Couple Photography
-          _buildCoupleSlide(1),
+        // Seamlessly lerp scaffold background between dark royal ink and warm ivory
+        final Color scaffoldBg;
+        if (page <= 1.0) {
+          scaffoldBg = RaniColors.surfaceAlt;
+        } else {
+          final t = (page - 1.0).clamp(0.0, 1.0);
+          scaffoldBg = Color.lerp(RaniColors.surfaceAlt, const Color(0xFFFAF7F2), t)!;
+        }
 
-          // Slide 2: EXACT WELCOME SLIDE FROM THE PROVIDED SCREENSHOT
-          _buildFinalWelcomeSlide(),
-        ],
-      ),
+        return Scaffold(
+          backgroundColor: scaffoldBg,
+          body: PageView.builder(
+            controller: _pageController,
+            clipBehavior: Clip.none,
+            physics: const BouncingScrollPhysics(),
+            itemCount: 3,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final double diff = page - index;
+              final double opacity = (1.0 - diff.abs()).clamp(0.0, 1.0);
+
+              final Widget slideWidget;
+              if (index == 0) {
+                slideWidget = _buildCoupleSlide(0);
+              } else if (index == 1) {
+                slideWidget = _buildCoupleSlide(1);
+              } else {
+                slideWidget = _buildFinalWelcomeSlide();
+              }
+
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  // Cancel out PageView's horizontal translation so each slide
+                  // stays stationary at full screen, achieving a pure fade-in/fade-out transition.
+                  final double cancelOffset = diff * constraints.maxWidth;
+
+                  return Transform.translate(
+                    offset: Offset(cancelOffset, 0),
+                    child: Opacity(
+                      opacity: opacity,
+                      child: IgnorePointer(
+                        ignoring: opacity < 0.5,
+                        child: slideWidget,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -234,7 +274,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
           ),
         ),
 
-        // Vignette
+        // Vignette for depth & text contrast
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -264,12 +304,12 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                   child: GestureDetector(
                     onTap: _navigateToLogin,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.black.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
+                          color: Colors.white.withValues(alpha: 0.35),
                           width: 0.8,
                         ),
                       ),
@@ -357,19 +397,36 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
               const Spacer(flex: 1),
 
-              // 3 Carousel Indicator Dots
+              // 3 Carousel Indicator Dots (Interactive)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(3, (i) {
                   final isActive = i == index;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: isActive ? 20 : 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(3),
+                  return GestureDetector(
+                    onTap: () {
+                      _pageController.animateToPage(
+                        i,
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: isActive ? 22 : 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(3.5),
+                        boxShadow: isActive
+                            ? [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                  blurRadius: 4,
+                                ),
+                              ]
+                            : null,
+                      ),
                     ),
                   );
                 }),
@@ -396,14 +453,14 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                           Text(
                             'Swipe to explore',
                             style: RaniTypography.caption(
-                              color: RaniColors.cream.withValues(alpha: 0.8),
+                              color: RaniColors.cream.withValues(alpha: 0.9),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Icon(
                             Icons.arrow_forward_ios,
                             size: 12,
-                            color: RaniColors.gold.withValues(alpha: 0.8),
+                            color: RaniColors.gold.withValues(alpha: 0.9),
                           ),
                         ],
                       ),
@@ -420,16 +477,28 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     );
   }
 
-  /// Slide 2: Exactly matches the provided design screenshot:
-  /// - Full balanced layout filling the screen without cutting buttons off
-  /// - Large, natural bride portrait filling the right side
-  /// - 4 Feature Pills on the left
-  /// - 3 indicator dots
-  /// - "Create Profile" button in Radiant Theme Gold
-  /// - "Login" button in Rani Theme Burgundy
+  /// Slide 2 (3rd onboarding section): Redesigned following the Rani Matrimonial theme
+  /// - Royal warm ivory canvas with subtle ambient gold glow
+  /// - Elegant header with gold flourish & burgundy Playfair Display typography
+  /// - 4 Luxury feature pills with gold-rimmed icon badges
+  /// - "assets/bride2.png" gracefully positioned with a royal arched backdrop
+  /// - 3 Interactive Carousel dots
+  /// - "Create Profile" CTA button in Radiant Theme Gold gradient
+  /// - "Login" secondary CTA button in theme burgundy outline
   Widget _buildFinalWelcomeSlide() {
     return Container(
-      color: const Color(0xFFFAF7F2),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFAF7F2),
+        gradient: RadialGradient(
+          center: Alignment(0.0, -0.3),
+          radius: 1.25,
+          colors: [
+            Color(0xFFFFFDF9), // luminous ivory center
+            Color(0xFFFAF6F0),
+            Color(0xFFF5EEE4), // soft warm champagne edge
+          ],
+        ),
+      ),
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -440,18 +509,26 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // 1. Top Right Skip Button (Matching screenshot)
+                  // 1. Top Right Skip Button
                   Align(
                     alignment: Alignment.centerRight,
                     child: GestureDetector(
                       onTap: _navigateToLogin,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: RaniColors.primary.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: RaniColors.primary.withValues(alpha: 0.22),
+                            width: 1.0,
+                          ),
+                        ),
                         child: Text(
                           'Skip',
                           style: GoogleFonts.outfit(
                             color: RaniColors.primary,
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -461,13 +538,38 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
                   const SizedBox(height: 2),
 
-                  // 2. Title & Subtitle (Playfair Display & Outfit matching screenshot)
+                  // 2. Royal Brand Header
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 1,
+                        color: RaniColors.gold.withValues(alpha: 0.6),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Icon(
+                          Icons.favorite,
+                          size: 13,
+                          color: RaniColors.gold,
+                        ),
+                      ),
+                      Container(
+                        width: 20,
+                        height: 1,
+                        color: RaniColors.gold.withValues(alpha: 0.6),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     'Welcome to',
                     style: GoogleFonts.playfairDisplay(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: RaniColors.ink,
+                      letterSpacing: 0.2,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -497,8 +599,8 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                   const SizedBox(height: 10),
 
                   // 3. Middle Section:
-                  // Left side: 4 Feature Pills
-                  // Right side: The Bride (Large & naturally placed)
+                  // Left: 4 Luxury Feature Pills
+                  // Right: Smiling Bride using assets/bride2.png with Royal Arch Backdrop
                   isShortScreen
                       ? SizedBox(
                           height: 250,
@@ -509,24 +611,17 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
-                                    _buildFeaturePill(Icons.shield_outlined, 'Verified Profiles'),
+                                    _buildFeaturePill(Icons.verified_user_rounded, 'Verified Profiles'),
                                     _buildFeaturePill(Icons.search_rounded, 'Advanced Search'),
-                                    _buildFeaturePill(Icons.shield_outlined, 'Safe & Secure'),
-                                    _buildFeaturePill(Icons.stars_outlined, 'Personalized Matches'),
+                                    _buildFeaturePill(Icons.security_rounded, 'Safe & Secure'),
+                                    _buildFeaturePill(Icons.auto_awesome_rounded, 'Personalized Matches'),
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Expanded(
                                 flex: 5,
-                                child: Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: Image.asset(
-                                    'assets/bride.png',
-                                    fit: BoxFit.contain,
-                                    alignment: Alignment.bottomRight,
-                                  ),
-                                ),
+                                child: _buildBrideShowcase(),
                               ),
                             ],
                           ),
@@ -534,41 +629,26 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                       : Expanded(
                           child: Row(
                             children: [
-                              // Left: 4 Feature Badges exactly as in screenshot
+                              // Left: 4 Feature Badges
                               Expanded(
                                 flex: 6,
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
-                                    _buildFeaturePill(Icons.shield_outlined, 'Verified Profiles'),
+                                    _buildFeaturePill(Icons.verified_user_rounded, 'Verified Profiles'),
                                     _buildFeaturePill(Icons.search_rounded, 'Advanced Search'),
-                                    _buildFeaturePill(Icons.shield_outlined, 'Safe & Secure'),
-                                    _buildFeaturePill(Icons.stars_outlined, 'Personalized Matches'),
+                                    _buildFeaturePill(Icons.security_rounded, 'Safe & Secure'),
+                                    _buildFeaturePill(Icons.auto_awesome_rounded, 'Personalized Matches'),
                                   ],
                                 ),
                               ),
 
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
 
-                              // Right: Smiling Indian Bride naturally filling the height
+                              // Right: Smiling Bride using assets/bride2.png
                               Expanded(
                                 flex: 5,
-                                child: Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: Image.asset(
-                                    'assets/bride.png',
-                                    fit: BoxFit.contain,
-                                    alignment: Alignment.bottomRight,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: const Color(0xFFF3DFCF),
-                                      child: const Icon(
-                                        Icons.person,
-                                        color: RaniColors.primary,
-                                        size: 64,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                child: _buildBrideShowcase(),
                               ),
                             ],
                           ),
@@ -576,20 +656,37 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
                   const SizedBox(height: 12),
 
-                  // 4. Three Carousel Dots directly above buttons (as in screenshot)
+                  // 4. Three Carousel Dots (Interactive)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(3, (i) {
                       final isActive = i == 2;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isActive
-                              ? RaniColors.primary
-                              : const Color(0xFFE2C9BD),
+                      return GestureDetector(
+                        onTap: () {
+                          _pageController.animateToPage(
+                            i,
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: isActive ? 22 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            color: isActive ? RaniColors.primary : const Color(0xFFE2C9BD),
+                            boxShadow: isActive
+                                ? [
+                                    BoxShadow(
+                                      color: RaniColors.primary.withValues(alpha: 0.35),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
                         ),
                       );
                     }),
@@ -597,10 +694,10 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
                   const SizedBox(height: 14),
 
-                  // 5. Golden "Create Profile" Button (Requested by user in theme gold)
+                  // 5. Golden "Create Profile" Button in Radiant Theme Gold
                   Container(
                     width: double.infinity,
-                    height: 48,
+                    height: 50,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
@@ -611,7 +708,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                           Color(0xFFC59424), // Deep Burnished Gold
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
@@ -624,7 +721,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         onTap: () => _showCreateProfileSheet(context),
                         child: Center(
                           child: Text(
@@ -643,21 +740,21 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
                   const SizedBox(height: 10),
 
-                  // 6. Themed "Login" Button (Rani Theme Burgundy)
+                  // 6. Themed "Login" Button (Rani Theme Burgundy Outline)
                   Container(
                     width: double.infinity,
-                    height: 48,
+                    height: 50,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: RaniColors.primary,
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 6,
+                          color: RaniColors.primary.withValues(alpha: 0.05),
+                          blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
@@ -665,7 +762,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         onTap: _navigateToLogin,
                         child: Center(
                           child: Text(
@@ -682,7 +779,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                 ],
               ),
             );
@@ -701,8 +798,104 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     );
   }
 
-  /// Feature Pill exactly as in screenshot:
-  /// Rounded pill with soft peach background, circular icon container, and dark label
+  /// Bride Showcase with assets/bride2.png framed in a royal arch backdrop
+  Widget _buildBrideShowcase() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            // 1. Royal Mughal / Jharokha Arch Backdrop
+            Positioned(
+              right: 0,
+              bottom: 0,
+              top: 8,
+              left: 4,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFFF7E8D8).withValues(alpha: 0.85),
+                      const Color(0xFFFBF1E6).withValues(alpha: 0.45),
+                      Colors.transparent,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(85),
+                    topRight: Radius.circular(85),
+                  ),
+                  border: Border.all(
+                    color: RaniColors.gold.withValues(alpha: 0.35),
+                    width: 1.0,
+                  ),
+                ),
+              ),
+            ),
+
+            // 2. Warm golden ambient aura
+            Positioned(
+              right: 12,
+              top: 16,
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: RaniColors.gold.withValues(alpha: 0.22),
+                      blurRadius: 36,
+                      spreadRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 3. Indian Bride Image using assets/bride2.png
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Image.asset(
+                'assets/bride2.png',
+                fit: BoxFit.contain,
+                alignment: Alignment.bottomRight,
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                  'assets/bride.png',
+                  fit: BoxFit.contain,
+                  alignment: Alignment.bottomRight,
+                ),
+              ),
+            ),
+
+            // 4. Soft subtle feather at the bottom so bride blends gracefully
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 24,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFFFAF7F2).withValues(alpha: 0.0),
+                      const Color(0xFFFAF7F2).withValues(alpha: 0.85),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Feature Pill following Rani Matrimonial design:
+  /// Rounded capsule with soft warm peach background, gold-bordered icon badge, and dark label
   Widget _buildFeaturePill(IconData icon, String title) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -710,9 +903,16 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
         color: const Color(0xFFFBF4ED),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFFEBD8C9),
-          width: 0.8,
+          color: RaniColors.gold.withValues(alpha: 0.35),
+          width: 0.9,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: RaniColors.primary.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -722,10 +922,17 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
             height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFFF3DFD1),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF9ECE1),
+                  Color(0xFFF1D8C4),
+                ],
+              ),
               border: Border.all(
-                color: const Color(0xFFDCBEA8),
-                width: 0.5,
+                color: RaniColors.gold.withValues(alpha: 0.5),
+                width: 0.7,
               ),
             ),
             child: Icon(icon, color: RaniColors.primary, size: 15),
