@@ -12,15 +12,14 @@ import 'main_navigation_screen.dart';
 /// - Single Screen layout with smooth fade-in & fade-out transitions between slides
 ///   (avoids split-screen sliding of full-screen images)
 /// - Slide 0 & 1: Cinematic couple photography slides with gold crest & brand tagline
-/// - Slide 2 (FINAL SLIDE): Redesigned royal welcome slide following Rani Matrimonial theme:
-///   * Warm royal ivory/cream backdrop with subtle ambient glow
-///   * Regal header with gold flourish, "Welcome to", and "Rani Matrimonial" in burgundy
-///   * 4 Royal Feature Badges (Verified Profiles, Advanced Search, Safe & Secure, Personalized Matches)
-///   * Majestic transparent portrait of the Indian bride using "assets/bride2.png"
-///     framed in a royal arch backdrop
-///   * 3 Interactive Carousel Indicator Dots
-///   * "Create Profile" CTA button in Radiant Theme Gold gradient
-///   * "Login" secondary CTA button in theme burgundy outline
+/// - Slide 2 (FINAL SLIDE):
+///   * Content rows have NO outer background or border (clean icon + text)
+///   * Bride image (assets/bride2.png) is rendered BIG from right-bottom expanding upwards & towards top-left
+///   * Centered royal header: "Welcome to Rani Matrimonial" & "Where trusted families find perfect matches"
+///   * 3 Interactive Carousel dots
+///   * "Create Profile" button in Radiant Theme Gold gradient
+///   * "Login" button in theme burgundy outline
+///   * NO Skip buttons anywhere
 class RaniOnboardingScreen extends StatefulWidget {
   const RaniOnboardingScreen({super.key});
 
@@ -38,7 +37,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
       'subtitle': 'MATRIMONIAL',
       'tagline': 'Find Your Perfect Life Partner',
       'description': 'Where genuine hearts & noble families meet with mutual respect',
-      'image': 'assets/indexbanner.jpg',
+      'image': 'assets/couple1.jpg',
     },
     {
       'title': 'Rani',
@@ -256,7 +255,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     );
   }
 
-  /// Slide 0 & 1: Cinematic couple photography slides with elegant gold crest
+  /// Slide 0 & 1: Cinematic couple photography slides with elegant gold crest (NO Skip button)
   Widget _buildCoupleSlide(int index) {
     final slide = _coupleSlides[index];
 
@@ -296,37 +295,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
         SafeArea(
           child: Column(
             children: [
-              // Top Skip button
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 20, top: 8),
-                  child: GestureDetector(
-                    onTap: _navigateToLogin,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.35),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Text(
-                        'Skip',
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const Spacer(flex: 7),
+              const Spacer(flex: 8),
 
               // Brand Crest & Titles
               Padding(
@@ -335,14 +304,14 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 58,
-                      height: 58,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
                             color: RaniColors.gold.withValues(alpha: 0.4),
-                            blurRadius: 16,
+                            blurRadius: 18,
                           ),
                         ],
                       ),
@@ -358,7 +327,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       slide['title']!,
                       style: RaniTypography.headingXl(color: Colors.white).copyWith(
@@ -477,481 +446,339 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     );
   }
 
-  /// Slide 2 (3rd onboarding section): Redesigned following the Rani Matrimonial theme
-  /// - Royal warm ivory canvas with subtle ambient gold glow
-  /// - Elegant header with gold flourish & burgundy Playfair Display typography
-  /// - 4 Luxury feature pills with gold-rimmed icon badges
-  /// - "assets/bride2.png" gracefully positioned with a royal arched backdrop
+  /// Slide 2 (3rd Onboarding Section):
+  /// 1. Content items have NO outer background & NO border (clean icon + text)
+  /// 2. Bride image (assets/bride2.png) is rendered BIG from right-bottom expanding upwards & towards top-left
+  /// - Centered royal header: "Welcome to Rani Matrimonial"
   /// - 3 Interactive Carousel dots
-  /// - "Create Profile" CTA button in Radiant Theme Gold gradient
-  /// - "Login" secondary CTA button in theme burgundy outline
+  /// - Radiant Gold "Create Profile" button & Burgundy outline "Login" button
+  /// - NO Skip buttons anywhere
   Widget _buildFinalWelcomeSlide() {
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFFAF7F2),
         gradient: RadialGradient(
-          center: Alignment(0.0, -0.3),
-          radius: 1.25,
+          center: Alignment(0.3, -0.1),
+          radius: 1.35,
           colors: [
-            Color(0xFFFFFDF9), // luminous ivory center
-            Color(0xFFFAF6F0),
-            Color(0xFFF5EEE4), // soft warm champagne edge
+            Color(0xFFFFFDF8), // bright warm ivory
+            Color(0xFFFAF5EE),
+            Color(0xFFF5EEE3), // warm champagne edge
           ],
         ),
       ),
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isShortScreen = constraints.maxHeight < 620;
+            final isShortScreen = constraints.maxHeight < 640;
+            final contentMaxWidth = constraints.maxWidth;
 
-            final content = Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // 1. Top Right Skip Button
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: _navigateToLogin,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: RaniColors.primary.withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: RaniColors.primary.withValues(alpha: 0.22),
-                            width: 1.0,
+            return Stack(
+              children: [
+                // 1. Warm ambient golden halo aura behind the bride
+                Positioned(
+                  bottom: isShortScreen ? 140 : 180,
+                  right: -20,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 220,
+                      height: 220,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: RaniColors.gold.withValues(alpha: 0.30),
+                            blurRadius: 70,
+                            spreadRadius: 25,
                           ),
-                        ),
-                        child: Text(
-                          'Skip',
-                          style: GoogleFonts.outfit(
-                            color: RaniColors.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 2),
-
-                  // 2. Royal Brand Header
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 1,
-                        color: RaniColors.gold.withValues(alpha: 0.6),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Icon(
-                          Icons.favorite,
-                          size: 13,
-                          color: RaniColors.gold,
-                        ),
-                      ),
-                      Container(
-                        width: 20,
-                        height: 1,
-                        color: RaniColors.gold.withValues(alpha: 0.6),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Welcome to',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: RaniColors.ink,
-                      letterSpacing: 0.2,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Rani Matrimonial',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      color: RaniColors.primary,
-                      letterSpacing: -0.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Where trusted families\nfind perfect matches',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF7A6258),
-                      height: 1.35,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // 3. Middle Section:
-                  // Left: 4 Luxury Feature Pills
-                  // Right: Smiling Bride using assets/bride2.png with Royal Arch Backdrop
-                  isShortScreen
-                      ? SizedBox(
-                          height: 250,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 6,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildFeaturePill(Icons.verified_user_rounded, 'Verified Profiles'),
-                                    _buildFeaturePill(Icons.search_rounded, 'Advanced Search'),
-                                    _buildFeaturePill(Icons.security_rounded, 'Safe & Secure'),
-                                    _buildFeaturePill(Icons.auto_awesome_rounded, 'Personalized Matches'),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 5,
-                                child: _buildBrideShowcase(),
-                              ),
-                            ],
-                          ),
-                        )
-                      : Expanded(
-                          child: Row(
-                            children: [
-                              // Left: 4 Feature Badges
-                              Expanded(
-                                flex: 6,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildFeaturePill(Icons.verified_user_rounded, 'Verified Profiles'),
-                                    _buildFeaturePill(Icons.search_rounded, 'Advanced Search'),
-                                    _buildFeaturePill(Icons.security_rounded, 'Safe & Secure'),
-                                    _buildFeaturePill(Icons.auto_awesome_rounded, 'Personalized Matches'),
-                                  ],
-                                ),
-                              ),
-
-                              const SizedBox(width: 8),
-
-                              // Right: Smiling Bride using assets/bride2.png
-                              Expanded(
-                                flex: 5,
-                                child: _buildBrideShowcase(),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                  const SizedBox(height: 12),
-
-                  // 4. Three Carousel Dots (Interactive)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(3, (i) {
-                      final isActive = i == 2;
-                      return GestureDetector(
-                        onTap: () {
-                          _pageController.animateToPage(
-                            i,
-                            duration: const Duration(milliseconds: 400),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: isActive ? 22 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            color: isActive ? RaniColors.primary : const Color(0xFFE2C9BD),
-                            boxShadow: isActive
-                                ? [
-                                    BoxShadow(
-                                      color: RaniColors.primary.withValues(alpha: 0.35),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // 5. Golden "Create Profile" Button in Radiant Theme Gold
-                  Container(
-                    width: double.infinity,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFFE5B842), // Rich Radiant Gold
-                          Color(0xFFFBE491), // Highlight Gold
-                          Color(0xFFC59424), // Deep Burnished Gold
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
-                          blurRadius: 14,
-                          spreadRadius: 1,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () => _showCreateProfileSheet(context),
-                        child: Center(
-                          child: Text(
-                            'Create Profile',
-                            style: GoogleFonts.outfit(
-                              color: const Color(0xFF3B0000), // Deep wine text on gold
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
-                            ),
+                  ),
+                ),
+
+                // 2. BIG Bride Image (assets/bride2.png):
+                // Anchored at right-bottom, expanding upwards and toward top-left in BIG size!
+                Positioned(
+                  bottom: isShortScreen ? 115 : 130,
+                  right: -25,
+                  top: isShortScreen ? 70 : 85,
+                  width: contentMaxWidth * 0.78, // BIG in size!
+                  child: IgnorePointer(
+                    child: ShaderMask(
+                      shaderCallback: (bounds) {
+                        return const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          stops: [0.0, 0.32, 0.88, 1.0],
+                          colors: [
+                            Colors.transparent, // Soft feather fade on the left
+                            Colors.black,
+                            Colors.black,
+                            Colors.transparent, // Soft feather fade at the right edge
+                          ],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: ShaderMask(
+                        shaderCallback: (bounds) {
+                          return const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            stops: [0.0, 0.78, 1.0],
+                            colors: [
+                              Colors.black,
+                              Colors.black,
+                              Colors.transparent, // Soft feather fade at the bottom
+                            ],
+                          ).createShader(bounds);
+                        },
+                        blendMode: BlendMode.dstIn,
+                        child: Image.asset(
+                          'assets/bride2.png',
+                          fit: BoxFit.contain,
+                          alignment: Alignment.bottomRight,
+                          errorBuilder: (context, error, stackTrace) => Image.asset(
+                            'assets/bride.png',
+                            fit: BoxFit.contain,
+                            alignment: Alignment.bottomRight,
                           ),
                         ),
                       ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 10),
+                // 3. Foreground Content
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 22.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(height: isShortScreen ? 6 : 14),
 
-                  // 6. Themed "Login" Button (Rani Theme Burgundy Outline)
-                  Container(
-                    width: double.infinity,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: RaniColors.primary,
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: RaniColors.primary.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                      // Centered Royal Header
+                      Text(
+                        'Welcome to',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: isShortScreen ? 20 : 22,
+                          fontWeight: FontWeight.w700,
+                          color: RaniColors.ink,
                         ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: _navigateToLogin,
-                        child: Center(
-                          child: Text(
-                            'Login',
-                            style: GoogleFonts.outfit(
-                              color: RaniColors.primary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Rani Matrimonial',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: isShortScreen ? 27 : 32,
+                          fontWeight: FontWeight.w800,
+                          color: RaniColors.primary,
+                          letterSpacing: -0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Where trusted families\nfind perfect matches',
+                        style: GoogleFonts.outfit(
+                          fontSize: isShortScreen ? 12.5 : 14,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF7A6258),
+                          height: 1.35,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Middle: 4 Content Items on the Left - NO BG, NO BORDER!
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildCleanFeatureRow(Icons.verified_user_outlined, 'Verified Profiles'),
+                              SizedBox(height: isShortScreen ? 14 : 20),
+                              _buildCleanFeatureRow(Icons.search_rounded, 'Advanced Search'),
+                              SizedBox(height: isShortScreen ? 14 : 20),
+                              _buildCleanFeatureRow(Icons.shield_outlined, 'Safe & Secure'),
+                              SizedBox(height: isShortScreen ? 14 : 20),
+                              _buildCleanFeatureRow(Icons.stars_outlined, 'Personalized Matches'),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Carousel Dots (Interactive)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(3, (i) {
+                          final isActive = i == 2;
+                          return GestureDetector(
+                            onTap: () {
+                              _pageController.animateToPage(
+                                i,
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: isActive ? 22 : 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                color: isActive ? RaniColors.primary : const Color(0xFFE2C9BD),
+                                boxShadow: isActive
+                                    ? [
+                                        BoxShadow(
+                                          color: RaniColors.primary.withValues(alpha: 0.35),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Primary "Create Profile" Button in Radiant Theme Gold
+                      Container(
+                        width: double.infinity,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFE5B842), // Rich Radiant Gold
+                              Color(0xFFFBE491), // Highlight Gold
+                              Color(0xFFC59424), // Deep Burnished Gold
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
+                              blurRadius: 14,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _showCreateProfileSheet(context),
+                            child: Center(
+                              child: Text(
+                                'Create Profile',
+                                style: GoogleFonts.outfit(
+                                  color: const Color(0xFF3B0000),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 14),
-                ],
-              ),
+                      const SizedBox(height: 10),
+
+                      // Secondary "Login" Button (Rani Theme Burgundy Outline)
+                      Container(
+                        width: double.infinity,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: RaniColors.primary,
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: RaniColors.primary.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: _navigateToLogin,
+                            child: Center(
+                              child: Text(
+                                'Login',
+                                style: GoogleFonts.outfit(
+                                  color: RaniColors.primary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+                    ],
+                  ),
+                ),
+              ],
             );
-
-            if (isShortScreen) {
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: content,
-              );
-            }
-
-            return content;
           },
         ),
       ),
     );
   }
 
-  /// Bride Showcase with assets/bride2.png framed in a royal arch backdrop
-  Widget _buildBrideShowcase() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            // 1. Royal Mughal / Jharokha Arch Backdrop
-            Positioned(
-              right: 0,
-              bottom: 0,
-              top: 8,
-              left: 4,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFFF7E8D8).withValues(alpha: 0.85),
-                      const Color(0xFFFBF1E6).withValues(alpha: 0.45),
-                      Colors.transparent,
-                    ],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(85),
-                    topRight: Radius.circular(85),
-                  ),
-                  border: Border.all(
-                    color: RaniColors.gold.withValues(alpha: 0.35),
-                    width: 1.0,
-                  ),
-                ),
-              ),
+  /// Clean feature row with NO container background and NO outer border:
+  /// Simply a circular icon on the left, and crisp dark text on the right
+  Widget _buildCleanFeatureRow(IconData icon, String title) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFFF3DFD1),
+            border: Border.all(
+              color: const Color(0xFFDCBEA8),
+              width: 0.8,
             ),
-
-            // 2. Warm golden ambient aura
-            Positioned(
-              right: 12,
-              top: 16,
-              child: Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: RaniColors.gold.withValues(alpha: 0.22),
-                      blurRadius: 36,
-                      spreadRadius: 8,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 3. Indian Bride Image using assets/bride2.png
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Image.asset(
-                'assets/bride2.png',
-                fit: BoxFit.contain,
-                alignment: Alignment.bottomRight,
-                errorBuilder: (context, error, stackTrace) => Image.asset(
-                  'assets/bride.png',
-                  fit: BoxFit.contain,
-                  alignment: Alignment.bottomRight,
-                ),
-              ),
-            ),
-
-            // 4. Soft subtle feather at the bottom so bride blends gracefully
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 24,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFFFAF7F2).withValues(alpha: 0.0),
-                      const Color(0xFFFAF7F2).withValues(alpha: 0.85),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// Feature Pill following Rani Matrimonial design:
-  /// Rounded capsule with soft warm peach background, gold-bordered icon badge, and dark label
-  Widget _buildFeaturePill(IconData icon, String title) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFBF4ED),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: RaniColors.gold.withValues(alpha: 0.35),
-          width: 0.9,
+          ),
+          child: Icon(icon, color: RaniColors.primary, size: 16),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: RaniColors.primary.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.outfit(
+            color: const Color(0xFF2C1810),
+            fontWeight: FontWeight.w600,
+            fontSize: 13.5,
+            letterSpacing: 0.2,
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFF9ECE1),
-                  Color(0xFFF1D8C4),
-                ],
-              ),
-              border: Border.all(
-                color: RaniColors.gold.withValues(alpha: 0.5),
-                width: 0.7,
-              ),
-            ),
-            child: Icon(icon, color: RaniColors.primary, size: 15),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              style: GoogleFonts.outfit(
-                color: const Color(0xFF2C1810),
-                fontWeight: FontWeight.w600,
-                fontSize: 12.5,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

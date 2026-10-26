@@ -122,7 +122,7 @@ class _RaniSplashScreenState extends State<RaniSplashScreen>
                     fit: BoxFit.cover,
                     alignment: const Alignment(0.0, -0.2),
                     errorBuilder: (context, error, stackTrace) => Image.asset(
-                      'assets/hero.png',
+                      'assets/couple1.jpg',
                       fit: BoxFit.cover,
                     ),
                   ),
