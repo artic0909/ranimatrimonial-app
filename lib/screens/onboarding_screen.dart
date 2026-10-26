@@ -93,7 +93,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
           scaffoldBg = RaniColors.surfaceAlt;
         } else {
           final t = (page - 1.0).clamp(0.0, 1.0);
-          scaffoldBg = Color.lerp(RaniColors.surfaceAlt, const Color(0xFF720301), t)!;
+          scaffoldBg = Color.lerp(RaniColors.surfaceAlt, const Color(0xFF380007), t)!;
         }
 
         return Scaffold(
@@ -378,26 +378,33 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
           ),
         ),
 
-        // 3. Bottom container: top-left & top-right rounded shape (#720301)
+        // 3. Bottom container: top-left & top-right rounded shape (Logo Dark Reddish Theme)
         Align(
           alignment: Alignment.bottomCenter,
           child: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFF720301),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF4D020D), // Logo authentic rich dark reddish wine
+                  Color(0xFF280005), // Deep dark wine shade
+                ],
+              ),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(32),
                 topRight: Radius.circular(32),
               ),
               border: Border(
                 top: BorderSide(
-                  color: const Color(0xFFE5B842).withValues(alpha: 0.35),
-                  width: 1.2,
+                  color: RaniColors.gold.withValues(alpha: 0.50),
+                  width: 1.5,
                 ),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.55),
+                  color: Colors.black.withValues(alpha: 0.65),
                   blurRadius: 24,
                   spreadRadius: 2,
                   offset: const Offset(0, -6),
@@ -430,11 +437,11 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                           height: 8,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(4),
-                            color: isActive ? const Color(0xFFE5B842) : Colors.white.withValues(alpha: 0.35),
+                            color: isActive ? RaniColors.gold : Colors.white.withValues(alpha: 0.35),
                             boxShadow: isActive
                                 ? [
                                     BoxShadow(
-                                      color: const Color(0xFFE5B842).withValues(alpha: 0.55),
+                                      color: RaniColors.gold.withValues(alpha: 0.60),
                                       blurRadius: 8,
                                       offset: const Offset(0, 1),
                                     ),
@@ -448,7 +455,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
                   const SizedBox(height: 18),
 
-                  // Primary "Create Profile" Button -> Navigates to RaniRegisterScreen
+                  // Primary "Create Profile" Button -> Theme Golden Type Gradient
                   Container(
                     width: double.infinity,
                     height: 50,
@@ -456,19 +463,25 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
+                        stops: [0.0, 0.35, 0.70, 1.0],
                         colors: [
-                          Color(0xFFE5B842), // Rich Radiant Gold
-                          Color(0xFFFBE491), // Highlight Gold
-                          Color(0xFFC59424), // Deep Burnished Gold
+                          Color(0xFFF3DA89), // Light metallic gold highlight
+                          Color(0xFFD4AF37), // Theme core gold (RaniColors.gold)
+                          Color(0xFFC59B27), // Theme secondary gold (RaniColors.goldSecondary)
+                          Color(0xFFA67B1C), // Deep rich gold
                         ],
                       ),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFD4AF37).withValues(alpha: 0.55),
-                          blurRadius: 16,
-                          spreadRadius: 1,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withValues(alpha: 0.30),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                        BoxShadow(
+                          color: RaniColors.gold.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
@@ -481,10 +494,10 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                           child: Text(
                             'Create Profile',
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF3B0000),
+                              color: const Color(0xFF3B0000), // Theme link ink color on gold
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ),
@@ -502,13 +515,13 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: const Color(0xFFE5B842),
+                        color: RaniColors.gold,
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 10,
+                          color: Colors.black.withValues(alpha: 0.20),
+                          blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
@@ -522,7 +535,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                           child: Text(
                             'Login',
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF720301),
+                              color: const Color(0xFF4D020D), // Logo dark reddish color
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.3,

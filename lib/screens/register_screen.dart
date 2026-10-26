@@ -2876,7 +2876,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
             child: Text(
               buttonText,
               style: GoogleFonts.outfit(
-                color: isValid
+                 color: isValid
                     ? const Color(0xFF3B0000) // Deep wine text on gold
                     : Colors.white.withValues(alpha: 0.65),
                 fontSize: 16,
