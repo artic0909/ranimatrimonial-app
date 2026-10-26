@@ -713,6 +713,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
   Widget _buildGlassmorphicContainer() {
     return Container(
       width: double.infinity,
+      constraints: const BoxConstraints(maxWidth: 480),
       decoration: BoxDecoration(
         color: const Color(0x38352822), // Frosted warm dark tint
         borderRadius: BorderRadius.circular(32),
@@ -729,7 +730,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -756,81 +757,154 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     );
   }
 
-  /// Step Header: Clean back chevron, Step text & Milestones (1, 4, 8, 12, 14)
+  /// Step Header: Dedicated responsive back button, Step badge & Milestone bar (1, 4, 8, 12, 14)
   Widget _buildStepHeader() {
-    return Stack(
-      alignment: Alignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (_currentStep > 1)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: GestureDetector(
+        // 1. Top Navigation Row: Back button (left), Step badge (center), Balanced spacer (right)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Responsive Back Button with comfortable touch target
+            GestureDetector(
               onTap: _previousStep,
-              child: const Padding(
-                padding: EdgeInsets.all(4.0),
-                child: Icon(
-                  Icons.chevron_left_rounded,
-                  size: 28,
-                  color: Colors.white,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    width: 1.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 15,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
-          ),
 
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'STEP $_currentStep OF $_totalSteps',
-              style: GoogleFonts.outfit(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2.0,
-                color: const Color(0xFFD4A034),
+            // Step Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD4A034).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFD4A034).withValues(alpha: 0.40),
+                  width: 1.0,
+                ),
+              ),
+              child: Text(
+                'STEP $_currentStep OF $_totalSteps',
+                style: GoogleFonts.outfit(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.8,
+                  color: const Color(0xFFE5B842),
+                ),
               ),
             ),
-            const SizedBox(height: 12),
 
-            // Milestones line: 1 -> 4 -> 8 -> 12 -> 14
-            SizedBox(
-              width: 250,
+            // Symmetrical spacer to ensure exact center alignment of the badge
+            const SizedBox(width: 36, height: 36),
+          ],
+        ),
+
+        const SizedBox(height: 14),
+
+        // 2. Responsive Milestone Bar (1 -> 4 -> 8 -> 12 -> 14)
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final double barWidth = constraints.maxWidth;
+            const double nodeSize = 26.0;
+            const double nodeRadius = nodeSize / 2;
+            final milestones = [1, 4, 8, 12, 14];
+            final progressFactor = ((_currentStep - 1) / (_totalSteps - 1)).clamp(0.0, 1.0);
+
+            return SizedBox(
+              width: barWidth,
+              height: 30,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Container(
-                    height: 2,
-                    color: Colors.white.withValues(alpha: 0.25),
-                  ),
-
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: (_currentStep / _totalSteps).clamp(0.08, 1.0),
-                      child: Container(
-                        height: 2,
-                        color: const Color(0xFFD4A034),
+                  // Background Connecting Track
+                  Positioned(
+                    left: nodeRadius,
+                    right: nodeRadius,
+                    child: Container(
+                      height: 2.5,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.20),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
 
+                  // Active Filled Track
+                  Positioned(
+                    left: nodeRadius,
+                    right: nodeRadius,
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progressFactor,
+                      child: Container(
+                        height: 2.5,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFE5B842), Color(0xFFFBE491)],
+                          ),
+                          borderRadius: BorderRadius.circular(2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFE5B842).withValues(alpha: 0.60),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Milestone Nodes Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [1, 4, 8, 12, 14].map((milestone) {
+                    children: milestones.map((milestone) {
                       final isReached = _currentStep >= milestone;
                       final isCurrent = _currentStep == milestone;
 
                       return Container(
-                        width: 26,
-                        height: 26,
+                        width: nodeSize,
+                        height: nodeSize,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: isReached
                               ? const Color(0xFFD4A034)
-                              : Colors.white.withValues(alpha: 0.30),
+                              : const Color(0xFF382924).withValues(alpha: 0.90),
+                          border: Border.all(
+                            color: isReached
+                                ? const Color(0xFFFFF0B8)
+                                : Colors.white.withValues(alpha: 0.35),
+                            width: 1.2,
+                          ),
                           boxShadow: isCurrent
                               ? [
                                   BoxShadow(
-                                    color: const Color(0xFFD4A034).withValues(alpha: 0.7),
+                                    color: const Color(0xFFD4A034).withValues(alpha: 0.80),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -854,8 +928,8 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                   ),
                 ],
               ),
-            ),
-          ],
+            );
+          },
         ),
       ],
     );
@@ -1291,73 +1365,104 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 4),
+        Text(
+          'Enter birth date as DD / MM / YYYY',
+          style: GoogleFonts.outfit(
+            fontSize: 13,
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 22),
 
+        // Responsive DOB Row with Slashes vertically centered to the input fields
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            _buildDobBox(
-              label: 'DAY (DD)',
-              hint: 'DD',
-              controller: _dayController,
-              focusNode: _dayFocus,
-              width: 74,
-              maxLength: 2,
-              onChanged: (val) {
-                if (val.length == 2) {
-                  _monthFocus.requestFocus();
-                }
-              },
+            // DAY
+            Expanded(
+              flex: 5,
+              child: _buildDobField(
+                label: 'DAY (DD)',
+                hint: 'DD',
+                controller: _dayController,
+                focusNode: _dayFocus,
+                maxLength: 2,
+                onChanged: (val) {
+                  if (val.length == 2) {
+                    _monthFocus.requestFocus();
+                  }
+                },
+              ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0),
-              child: Text(
-                '/',
-                style: GoogleFonts.outfit(
-                  fontSize: 22,
-                  color: const Color(0xFFD4A034),
-                  fontWeight: FontWeight.w600,
+
+            // Slash 1: exactly matching 48px input height
+            SizedBox(
+              height: 48,
+              width: 20,
+              child: Center(
+                child: Text(
+                  '/',
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    color: const Color(0xFFE5B842),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-            _buildDobBox(
-              label: 'MONTH (MM)',
-              hint: 'MM',
-              controller: _monthController,
-              focusNode: _monthFocus,
-              width: 74,
-              maxLength: 2,
-              onChanged: (val) {
-                if (val.length == 2) {
-                  _yearFocus.requestFocus();
-                } else if (val.isEmpty) {
-                  _dayFocus.requestFocus();
-                }
-              },
+
+            // MONTH
+            Expanded(
+              flex: 5,
+              child: _buildDobField(
+                label: 'MONTH (MM)',
+                hint: 'MM',
+                controller: _monthController,
+                focusNode: _monthFocus,
+                maxLength: 2,
+                onChanged: (val) {
+                  if (val.length == 2) {
+                    _yearFocus.requestFocus();
+                  } else if (val.isEmpty) {
+                    _dayFocus.requestFocus();
+                  }
+                },
+              ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0),
-              child: Text(
-                '/',
-                style: GoogleFonts.outfit(
-                  fontSize: 22,
-                  color: const Color(0xFFD4A034),
-                  fontWeight: FontWeight.w600,
+
+            // Slash 2: exactly matching 48px input height
+            SizedBox(
+              height: 48,
+              width: 20,
+              child: Center(
+                child: Text(
+                  '/',
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    color: const Color(0xFFE5B842),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-            _buildDobBox(
-              label: 'YEAR (YYYY)',
-              hint: 'YYYY',
-              controller: _yearController,
-              focusNode: _yearFocus,
-              width: 96,
-              maxLength: 4,
-              onChanged: (val) {
-                if (val.isEmpty) {
-                  _monthFocus.requestFocus();
-                }
-              },
+
+            // YEAR
+            Expanded(
+              flex: 7,
+              child: _buildDobField(
+                label: 'YEAR (YYYY)',
+                hint: 'YYYY',
+                controller: _yearController,
+                focusNode: _yearFocus,
+                maxLength: 4,
+                onChanged: (val) {
+                  if (val.isEmpty) {
+                    _monthFocus.requestFocus();
+                  }
+                },
+              ),
             ),
           ],
         ),
@@ -1365,16 +1470,16 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     );
   }
 
-  Widget _buildDobBox({
+  Widget _buildDobField({
     required String label,
     required String hint,
     required TextEditingController controller,
     required FocusNode focusNode,
-    required double width,
     required int maxLength,
     required ValueChanged<String> onChanged,
   }) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           label,
@@ -1384,10 +1489,11 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
             color: const Color(0xFFD4A034),
             letterSpacing: 0.5,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 6),
         SizedBox(
-          width: width,
           height: 48,
           child: TextField(
             controller: controller,
