@@ -6,6 +6,7 @@ import '../theme/rani_spacing.dart';
 import '../theme/rani_typography.dart';
 import '../components/rani_buttons.dart';
 import 'login_screen.dart';
+import 'register_screen.dart';
 import 'main_navigation_screen.dart';
 
 /// Screen 1: Onboarding Screen
@@ -17,8 +18,8 @@ import 'main_navigation_screen.dart';
 ///   * Bride image (assets/bride2.png) is rendered BIG from right-bottom expanding upwards & towards top-left
 ///   * Centered royal header: "Welcome to Rani Matrimonial" & "Where trusted families find perfect matches"
 ///   * 3 Interactive Carousel dots
-///   * "Create Profile" button in Radiant Theme Gold gradient
-///   * "Login" button in theme burgundy outline
+///   * "Create Profile" button in Radiant Theme Gold gradient -> navigates to RaniRegisterScreen
+///   * "Login" button in theme burgundy outline -> opens Login bottom sheet modal
 ///   * NO Skip buttons anywhere
 class RaniOnboardingScreen extends StatefulWidget {
   const RaniOnboardingScreen({super.key});
@@ -54,6 +55,14 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     super.dispose();
   }
 
+  void _navigateToRegister() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const RaniRegisterScreen(),
+      ),
+    );
+  }
+
   void _navigateToLogin() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -62,124 +71,159 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     );
   }
 
-  void _showCreateProfileSheet(BuildContext context) {
+  void _showLoginBottomSheet(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final identifierController = TextEditingController();
+    final passwordController = TextEditingController();
+    bool obscurePassword = true;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: RaniElevation.lg,
-        ),
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: RaniColors.neutral,
-                    borderRadius: BorderRadius.circular(2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: RaniElevation.lg,
+          ),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            16,
+            22,
+            MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: RaniColors.neutral,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: RaniSpacing.md),
-              Text(
-                'Create Your Profile',
-                style: RaniTypography.headingMd(color: RaniColors.ink).copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Register in 60 seconds to connect with verified matches',
-                style: RaniTypography.bodySm(color: RaniColors.textMuted),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: RaniSpacing.lg),
-              Text(
-                'This profile is for',
-                style: RaniTypography.labelMd(color: RaniColors.ink).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ['Myself', 'My Son', 'My Daughter', 'My Brother', 'My Sister', 'My Friend'].map((type) {
-                  final isSelected = type == 'Myself';
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? RaniColors.primary : Colors.white,
-                      borderRadius: RaniSpacing.roundedFull,
-                      border: Border.all(
-                        color: isSelected ? RaniColors.primary : RaniColors.neutral,
+                  const SizedBox(height: RaniSpacing.md),
+                  Text(
+                    'Welcome Back',
+                    style: RaniTypography.headingMd(color: RaniColors.ink).copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 22,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Login with your Mobile, Email or Matrimonial ID',
+                    style: RaniTypography.bodySm(color: RaniColors.textMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: RaniSpacing.lg),
+                  TextFormField(
+                    controller: identifierController,
+                    decoration: const InputDecoration(
+                      hintText: 'Mobile / Email / Profile ID',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    validator: (val) =>
+                        (val == null || val.trim().isEmpty) ? 'Please enter mobile or email' : null,
+                  ),
+                  const SizedBox(height: RaniSpacing.md),
+                  TextFormField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        ),
+                        onPressed: () {
+                          setModalState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
                       ),
                     ),
-                    child: Text(
-                      type,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : RaniColors.ink,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                    validator: (val) =>
+                        (val == null || val.trim().isEmpty) ? 'Please enter your password' : null,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _navigateToLogin();
+                      },
+                      child: Text(
+                        'Forgot Password?',
+                        style: GoogleFonts.outfit(
+                          color: RaniColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: RaniSpacing.md),
-              TextFormField(
-                decoration: const InputDecoration(
-                  hintText: 'Full Name',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-              ),
-              const SizedBox(height: RaniSpacing.sm),
-              TextFormField(
-                decoration: const InputDecoration(
-                  hintText: 'Mobile Number',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-              ),
-              const SizedBox(height: RaniSpacing.sm),
-              TextFormField(
-                decoration: const InputDecoration(
-                  hintText: 'Email Address',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-              ),
-              const SizedBox(height: RaniSpacing.lg),
-              RaniPrimaryButton(
-                text: 'Register Free & View Matches',
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Profile created! Welcome to Rani Matrimonial.'),
+                  ),
+                  const SizedBox(height: RaniSpacing.sm),
+                  RaniPrimaryButton(
+                    text: 'Login',
+                    onPressed: () {
+                      if (formKey.currentState?.validate() ?? false) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Logging in... Welcome back!'),
+                          ),
+                        );
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const RaniMainNavigationScreen(),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: RaniSpacing.md),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _navigateToRegister();
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          text: "Don't have an account? ",
+                          style: GoogleFonts.outfit(
+                            color: RaniColors.textMuted,
+                            fontSize: 13.5,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'Create Profile',
+                              style: GoogleFonts.outfit(
+                                color: RaniColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  );
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (context) => const RaniMainNavigationScreen(),
-                    ),
-                  );
-                },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -451,7 +495,8 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
   /// 2. Bride image (assets/bride2.png) is rendered BIG from right-bottom expanding upwards & towards top-left
   /// - Centered royal header: "Welcome to Rani Matrimonial"
   /// - 3 Interactive Carousel dots
-  /// - Radiant Gold "Create Profile" button & Burgundy outline "Login" button
+  /// - "Create Profile" button -> Navigates to RaniRegisterScreen
+  /// - "Login" button -> Opens Login Bottom Sheet Modal
   /// - NO Skip buttons anywhere
   Widget _buildFinalWelcomeSlide() {
     return Container(
@@ -652,7 +697,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Primary "Create Profile" Button in Radiant Theme Gold
+                      // Primary "Create Profile" Button -> Navigates to RaniRegisterScreen
                       Container(
                         width: double.infinity,
                         height: 50,
@@ -680,7 +725,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(14),
-                            onTap: () => _showCreateProfileSheet(context),
+                            onTap: _navigateToRegister,
                             child: Center(
                               child: Text(
                                 'Create Profile',
@@ -698,7 +743,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
 
                       const SizedBox(height: 10),
 
-                      // Secondary "Login" Button (Rani Theme Burgundy Outline)
+                      // Secondary "Login" Button -> Opens Login Bottom Sheet Modal
                       Container(
                         width: double.infinity,
                         height: 50,
@@ -721,7 +766,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(14),
-                            onTap: _navigateToLogin,
+                            onTap: () => _showLoginBottomSheet(context),
                             child: Center(
                               child: Text(
                                 'Login',
