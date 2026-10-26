@@ -87,13 +87,13 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
           page = _pageController.page ?? _currentPage.toDouble();
         }
 
-        // Seamlessly lerp scaffold background between dark royal ink and warm ivory
+        // Seamlessly lerp scaffold background between dark royal ink and rich crimson #720301
         final Color scaffoldBg;
         if (page <= 1.0) {
           scaffoldBg = RaniColors.surfaceAlt;
         } else {
           final t = (page - 1.0).clamp(0.0, 1.0);
-          scaffoldBg = Color.lerp(RaniColors.surfaceAlt, const Color(0xFFFAF7F2), t)!;
+          scaffoldBg = Color.lerp(RaniColors.surfaceAlt, const Color(0xFF720301), t)!;
         }
 
         return Scaffold(
@@ -337,337 +337,206 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     );
   }
 
-  /// Slide 2 (3rd Onboarding Section):
-  /// 1. Content items have NO outer background & NO border (clean icon + text)
-  /// 2. Bride image (assets/bride2.png) is rendered BIG from right-bottom expanding upwards & towards top-left
-  /// - Centered royal header: "Welcome to Rani Matrimonial"
-  /// - 3 Interactive Carousel dots
-  /// - "Create Profile" button -> Navigates to RaniRegisterScreen
-  /// - "Login" button -> Opens Login Bottom Sheet Modal
-  /// - NO Skip buttons anywhere
+  /// Slide 2 (Final Slide):
+  /// - Full bleed image "assets/slide3.png" (cultural couples collage + central Rani emblem)
+  /// - Bottom container with top-left & top-right rounded corners (color: #720301)
+  /// - Contains Carousel Dots, "Create Profile" button & "Login" button
   Widget _buildFinalWelcomeSlide() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFFAF7F2),
-        gradient: RadialGradient(
-          center: Alignment(0.3, -0.1),
-          radius: 1.35,
-          colors: [
-            Color(0xFFFFFDF8), // bright warm ivory
-            Color(0xFFFAF5EE),
-            Color(0xFFF5EEE3), // warm champagne edge
-          ],
-        ),
-      ),
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isShortScreen = constraints.maxHeight < 640;
-            final contentMaxWidth = constraints.maxWidth;
-
-            return Stack(
-              children: [
-                // 1. Warm ambient golden halo aura behind the bride
-                Positioned(
-                  bottom: isShortScreen ? 140 : 180,
-                  right: -20,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 220,
-                      height: 220,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: RaniColors.gold.withValues(alpha: 0.30),
-                            blurRadius: 70,
-                            spreadRadius: 25,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 2. BIG Bride Image (assets/bride2.png):
-                // Anchored at right-bottom, expanding upwards and toward top-left in BIG size!
-                Positioned(
-                  bottom: isShortScreen ? 115 : 130,
-                  right: -25,
-                  top: isShortScreen ? 70 : 85,
-                  width: contentMaxWidth * 0.78, // BIG in size!
-                  child: IgnorePointer(
-                    child: ShaderMask(
-                      shaderCallback: (bounds) {
-                        return const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          stops: [0.0, 0.32, 0.88, 1.0],
-                          colors: [
-                            Colors.transparent, // Soft feather fade on the left
-                            Colors.black,
-                            Colors.black,
-                            Colors.transparent, // Soft feather fade at the right edge
-                          ],
-                        ).createShader(bounds);
-                      },
-                      blendMode: BlendMode.dstIn,
-                      child: ShaderMask(
-                        shaderCallback: (bounds) {
-                          return const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            stops: [0.0, 0.78, 1.0],
-                            colors: [
-                              Colors.black,
-                              Colors.black,
-                              Colors.transparent, // Soft feather fade at the bottom
-                            ],
-                          ).createShader(bounds);
-                        },
-                        blendMode: BlendMode.dstIn,
-                        child: Image.asset(
-                          'assets/bride2.png',
-                          fit: BoxFit.contain,
-                          alignment: Alignment.bottomRight,
-                          errorBuilder: (context, error, stackTrace) => Image.asset(
-                            'assets/bride.png',
-                            fit: BoxFit.contain,
-                            alignment: Alignment.bottomRight,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 3. Foreground Content
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(height: isShortScreen ? 6 : 14),
-
-                      // Centered Royal Header
-                      Text(
-                        'Welcome to',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: isShortScreen ? 20 : 22,
-                          fontWeight: FontWeight.w700,
-                          color: RaniColors.ink,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Rani Matrimonial',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: isShortScreen ? 27 : 32,
-                          fontWeight: FontWeight.w800,
-                          color: RaniColors.primary,
-                          letterSpacing: -0.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Where trusted families\nfind perfect matches',
-                        style: GoogleFonts.outfit(
-                          fontSize: isShortScreen ? 12.5 : 14,
-                          fontWeight: FontWeight.w400,
-                          color: const Color(0xFF7A6258),
-                          height: 1.35,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Middle: 4 Content Items on the Left - NO BG, NO BORDER!
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildCleanFeatureRow(Icons.verified_user_outlined, 'Verified Profiles'),
-                              SizedBox(height: isShortScreen ? 14 : 20),
-                              _buildCleanFeatureRow(Icons.search_rounded, 'Advanced Search'),
-                              SizedBox(height: isShortScreen ? 14 : 20),
-                              _buildCleanFeatureRow(Icons.shield_outlined, 'Safe & Secure'),
-                              SizedBox(height: isShortScreen ? 14 : 20),
-                              _buildCleanFeatureRow(Icons.stars_outlined, 'Personalized Matches'),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Carousel Dots (Interactive)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(3, (i) {
-                          final isActive = i == 2;
-                          return GestureDetector(
-                            onTap: () {
-                              _pageController.animateToPage(
-                                i,
-                                duration: const Duration(milliseconds: 400),
-                                curve: Curves.easeInOut,
-                              );
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: isActive ? 22 : 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(4),
-                                color: isActive ? RaniColors.primary : const Color(0xFFE2C9BD),
-                                boxShadow: isActive
-                                    ? [
-                                        BoxShadow(
-                                          color: RaniColors.primary.withValues(alpha: 0.35),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Primary "Create Profile" Button -> Navigates to RaniRegisterScreen
-                      Container(
-                        width: double.infinity,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFE5B842), // Rich Radiant Gold
-                              Color(0xFFFBE491), // Highlight Gold
-                              Color(0xFFC59424), // Deep Burnished Gold
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
-                              blurRadius: 14,
-                              spreadRadius: 1,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: _navigateToRegister,
-                            child: Center(
-                              child: Text(
-                                'Create Profile',
-                                style: GoogleFonts.outfit(
-                                  color: const Color(0xFF3B0000),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // Secondary "Login" Button -> Opens Login Bottom Sheet Modal
-                      Container(
-                        width: double.infinity,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: RaniColors.primary,
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: RaniColors.primary.withValues(alpha: 0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () => _showLoginBottomSheet(context),
-                            child: Center(
-                              child: Text(
-                                'Login',
-                                style: GoogleFonts.outfit(
-                                  color: RaniColors.primary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  /// Clean feature row with NO container background and NO outer border:
-  /// Simply a circular icon on the left, and crisp dark text on the right
-  Widget _buildCleanFeatureRow(IconData icon, String title) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Stack(
+      fit: StackFit.expand,
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFFF3DFD1),
-            border: Border.all(
-              color: const Color(0xFFDCBEA8),
-              width: 0.8,
+        // 1. Full-bleed Artwork: assets/slide3.png
+        Positioned.fill(
+          child: Image.asset(
+            'assets/slide3.png',
+            fit: BoxFit.cover,
+            alignment: const Alignment(0.0, -0.15),
+            errorBuilder: (context, error, stackTrace) => Image.asset(
+              'assets/hero.png',
+              fit: BoxFit.cover,
             ),
           ),
-          child: Icon(icon, color: RaniColors.primary, size: 16),
         ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            color: const Color(0xFF2C1810),
-            fontWeight: FontWeight.w600,
-            fontSize: 13.5,
-            letterSpacing: 0.2,
+
+        // 2. Subtle status bar vignette at top
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 90,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x66000000),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // 3. Bottom container: top-left & top-right rounded shape (#720301)
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFF720301),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(32),
+                topRight: Radius.circular(32),
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: const Color(0xFFE5B842).withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                  offset: const Offset(0, -6),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Carousel Dots (Interactive)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (i) {
+                      final isActive = i == 2;
+                      return GestureDetector(
+                        onTap: () {
+                          _pageController.animateToPage(
+                            i,
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: isActive ? 24 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            color: isActive ? const Color(0xFFE5B842) : Colors.white.withValues(alpha: 0.35),
+                            boxShadow: isActive
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFFE5B842).withValues(alpha: 0.55),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // Primary "Create Profile" Button -> Navigates to RaniRegisterScreen
+                  Container(
+                    width: double.infinity,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFFE5B842), // Rich Radiant Gold
+                          Color(0xFFFBE491), // Highlight Gold
+                          Color(0xFFC59424), // Deep Burnished Gold
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFD4AF37).withValues(alpha: 0.55),
+                          blurRadius: 16,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: _navigateToRegister,
+                        child: Center(
+                          child: Text(
+                            'Create Profile',
+                            style: GoogleFonts.outfit(
+                              color: const Color(0xFF3B0000),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Secondary "Login" Button -> Opens Login Bottom Sheet Modal
+                  Container(
+                    width: double.infinity,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFE5B842),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => _showLoginBottomSheet(context),
+                        child: Center(
+                          child: Text(
+                            'Login',
+                            style: GoogleFonts.outfit(
+                              color: const Color(0xFF720301),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+                ],
+              ),
+            ),
           ),
         ),
       ],
