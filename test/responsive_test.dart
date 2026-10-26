@@ -77,6 +77,16 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+
+        // Drag to final slide (slide 2)
+        await tester.drag(find.byType(PageView), const Offset(-500, 0));
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(PageView), const Offset(-500, 0));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Create Profile'), findsOneWidget);
+        expect(find.text('Login'), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: 'Overflow on last slide on size $size');
       }
     });
 
