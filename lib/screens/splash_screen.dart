@@ -5,6 +5,8 @@ import '../theme/rani_colors.dart';
 import '../theme/rani_spacing.dart';
 import '../theme/rani_typography.dart';
 import 'onboarding_screen.dart';
+import 'main_navigation_screen.dart';
+import '../services/api_service.dart';
 
 /// Cinematic Couple Photography Splash Screen
 /// Matches Screen 1 of the Rani Matrimonial design reference:
@@ -80,10 +82,13 @@ class _RaniSplashScreenState extends State<RaniSplashScreen>
 
   void _navigateToNext() {
     _navTimer?.cancel();
+    final Widget targetScreen = ApiService.instance.isAuthenticated
+        ? const RaniMainNavigationScreen()
+        : const RaniOnboardingScreen();
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const RaniOnboardingScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

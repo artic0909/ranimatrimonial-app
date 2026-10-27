@@ -7,6 +7,8 @@ import '../theme/rani_spacing.dart';
 import '../theme/rani_typography.dart';
 import 'register_screen.dart';
 import 'main_navigation_screen.dart';
+import '../services/api_service.dart';
+import '../components/rani_alert.dart';
 
 /// Screen: Opulent Mobile + 4-Digit OTP Login Screen
 /// Features:
@@ -43,6 +45,8 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
 
   Timer? _timer;
   int _resendSeconds = 25;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -61,7 +65,13 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
   }
 
   void _onStateChanged() {
-    setState(() {});
+    if (_errorMessage != null) {
+      setState(() {
+        _errorMessage = null;
+      });
+    } else {
+      setState(() {});
+    }
   }
 
   void _startTimer() {
@@ -78,30 +88,138 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
     });
   }
 
-  void _sendOtp() {
-    if (_mobileController.text.trim().length == 10) {
+  Future<void> _sendOtp() async {
+    if (_isLoading) return;
+    final mobile = _mobileController.text.trim();
+
+    if (mobile.isEmpty) {
+      RaniAlert.warning(
+        context,
+        'Please enter your 10-digit mobile number.',
+        title: 'Mobile Required',
+      );
+      return;
+    }
+
+    if (mobile.length != 10) {
+      RaniAlert.warning(
+        context,
+        'Please enter a valid 10-digit Indian mobile number.',
+        title: 'Invalid Mobile Number',
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res = await ApiService.instance.sendOtp(mobile);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (res['success'] == true) {
+        setState(() {
+          _otpSent = true;
+          _errorMessage = null;
+        });
+        _startTimer();
+        RaniAlert.success(
+          context,
+          'Verification code sent to +91 $mobile',
+          title: 'OTP Sent',
+        );
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) _otp1Focus.requestFocus();
+        });
+      } else {
+        final msg = res['message'] ?? 'Mobile number not registered.';
+        setState(() {
+          _errorMessage = msg;
+        });
+        final isNotRegistered = msg.toLowerCase().contains('not registered') ||
+            msg.toLowerCase().contains('not found') ||
+            msg.toLowerCase().contains('candidate');
+        RaniAlert.error(
+          context,
+          msg,
+          title: 'Login Failed',
+          actionLabel: isNotRegistered ? 'Register' : null,
+          onAction: isNotRegistered ? () => _navigateToCreateProfile() : null,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _otpSent = true;
+        _isLoading = false;
+        _errorMessage = 'Connection error: $e';
       });
-      _startTimer();
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) _otp1Focus.requestFocus();
-      });
+      RaniAlert.error(
+        context,
+        'Unable to connect to server. Please check your internet connection.',
+        title: 'Network Error',
+      );
     }
   }
 
-  void _verifyAndLogin() {
+  Future<void> _verifyAndLogin() async {
+    if (_isLoading) return;
     final otp = '${_otp1Controller.text}${_otp2Controller.text}${_otp3Controller.text}${_otp4Controller.text}';
-    if (otp.length == 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login verified! Welcome to Rani Matrimonial.'),
-        ),
+    final mobile = _mobileController.text.trim();
+
+    if (otp.length != 4) {
+      RaniAlert.warning(
+        context,
+        'Please enter the complete 4-digit verification code.',
+        title: 'OTP Incomplete',
       );
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const RaniMainNavigationScreen(),
-        ),
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res = await ApiService.instance.verifyOtp(mobile, otp);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (res['success'] == true) {
+        RaniAlert.success(
+          context,
+          'Welcome back to Rani Matrimonial!',
+          title: 'Login Successful',
+        );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const RaniMainNavigationScreen(),
+          ),
+        );
+      } else {
+        final msg = res['message'] ?? 'Invalid OTP code. Please try again.';
+        setState(() {
+          _errorMessage = msg;
+        });
+        RaniAlert.error(
+          context,
+          msg,
+          title: 'Verification Failed',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Connection error: $e';
+      });
+      RaniAlert.error(
+        context,
+        'Connection failed during verification. Please try again.',
+        title: 'Network Error',
       );
     }
   }
@@ -331,11 +449,60 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
           ),
         ),
 
-        const SizedBox(height: 22),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEE2E2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFCA5A5)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFFB91C1C)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFB91C1C),
+                        ),
+                      ),
+                      if (_errorMessage!.contains('not registered')) ...[
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: _navigateToCreateProfile,
+                          child: Text(
+                            'Tap here to Create Profile',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF991B1B),
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 20),
 
         // Send OTP Button
         GestureDetector(
-          onTap: isMobileValid ? _sendOtp : null,
+          onTap: _isLoading ? null : _sendOtp,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             height: 50,
@@ -519,7 +686,7 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
                   ),
                 )
               : GestureDetector(
-                  onTap: _startTimer,
+                  onTap: _isLoading ? null : _sendOtp,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -543,7 +710,7 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
 
         // Verify & Login Button (Radiant Gold Pill)
         GestureDetector(
-          onTap: isOtpValid ? _verifyAndLogin : null,
+          onTap: _isLoading ? null : _verifyAndLogin,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             height: 50,

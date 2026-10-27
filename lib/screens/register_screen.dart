@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'main_navigation_screen.dart';
+import '../services/api_service.dart';
+import '../components/rani_alert.dart';
 
 /// Screen: Complete 14-Step Registration Screen for Rani Matrimonial
 /// Pixel-perfect matching with all 14 design screenshots:
@@ -134,6 +136,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
 
   Timer? _countdownTimer;
   int _resendSeconds = 22;
+  bool _isSubmitting = false;
 
   // Step 14: Profile Picture & Referral
   bool _hasUploadedPhoto = false;
@@ -357,7 +360,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     setState(() {});
   }
 
-  void _startOtpTimer() {
+  Future<void> _startOtpTimer({bool sendOtp = true}) async {
     _countdownTimer?.cancel();
     _resendSeconds = 22;
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -369,6 +372,32 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         timer.cancel();
       }
     });
+
+    if (sendOtp) {
+      final mobile = _mobileController.text.trim();
+      if (mobile.length == 10) {
+        try {
+          final res = await ApiService.instance.sendRegistrationOtp(mobile);
+          if (mounted) {
+            if (res['success'] == true) {
+              RaniAlert.success(
+                context,
+                res['message'] ?? 'Verification code sent to +91 $mobile',
+                title: 'OTP Resent',
+              );
+            } else {
+              RaniAlert.error(
+                context,
+                res['message'] ?? 'Failed to send OTP code.',
+                title: 'OTP Error',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error sending reg OTP: $e');
+        }
+      }
+    }
   }
 
   @override
@@ -484,18 +513,241 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     }
   }
 
-  void _nextStep() {
-    if (!_isCurrentStepValid) return;
+  String? _getStepValidationError() {
+    switch (_currentStep) {
+      case 1:
+        if (_profileFor.isEmpty) return 'Please select who this profile is for.';
+        break;
+      case 2:
+        if (_selectedGender == null) return 'Please select bride or groom.';
+        break;
+      case 3:
+        if (_firstNameController.text.trim().isEmpty) return 'Please enter first name.';
+        if (_lastNameController.text.trim().isEmpty) return 'Please enter last name.';
+        break;
+      case 4:
+        if (_dayController.text.trim().isEmpty || _monthController.text.trim().isEmpty || _yearController.text.trim().isEmpty) {
+          return 'Please enter a complete date of birth (DD / MM / YYYY).';
+        }
+        if (_dayController.text.trim().length < 2 || _monthController.text.trim().length < 2 || _yearController.text.trim().length < 4) {
+          return 'Please enter valid 2-digit day, 2-digit month, and 4-digit year.';
+        }
+        break;
+      case 5:
+        if (_selectedReligion == null) return 'Please select religion.';
+        if (_selectedCommunity == null) return 'Please select community.';
+        break;
+      case 6:
+        if (!_emailController.text.contains('@')) return 'Please enter a valid email address.';
+        if (_mobileController.text.trim().length < 10) return 'Please enter a valid 10-digit mobile number.';
+        break;
+      case 7:
+        if (_countryController.text.trim().isEmpty) return 'Please enter country.';
+        if (_stateController.text.trim().isEmpty) return 'Please enter state.';
+        if (_selectedCity == null) return 'Please select city.';
+        break;
+      case 8:
+        if (_selectedMaritalStatus == null) return 'Please select marital status.';
+        if (_selectedHeight == null) return 'Please select height.';
+        if (_selectedDiet == null) return 'Please select diet preference.';
+        break;
+      case 9:
+        if (_selectedQualification == null) return 'Please select highest qualification.';
+        if (_collegeNameController.text.trim().isEmpty) return 'Please enter college / institute name.';
+        break;
+      case 10:
+        if (_selectedIncome == null) return 'Please select annual income range.';
+        break;
+      case 11:
+        if (_selectedWorkingSector == null) return 'Please select working sector.';
+        if (_professionController.text.trim().isEmpty) return 'Please enter profession.';
+        break;
+      case 12:
+        if (_aboutMeController.text.trim().isEmpty && _selectedHobbies.isEmpty) {
+          return 'Please write a short bio or select at least one hobby.';
+        }
+        break;
+      case 13:
+        final otp = '${_otp1Controller.text}${_otp2Controller.text}${_otp3Controller.text}${_otp4Controller.text}';
+        if (otp.length < 4) return 'Please enter the complete 4-digit OTP code.';
+        break;
+    }
+    return null;
+  }
+
+  Future<void> _nextStep() async {
+    if (_isSubmitting) return;
+
+    final validationError = _getStepValidationError();
+    if (validationError != null) {
+      RaniAlert.warning(
+        context,
+        validationError,
+        title: 'Incomplete Details',
+      );
+      return;
+    }
+
+    if (_currentStep == 12) {
+      // Step 12 -> 13: Send OTP to mobile
+      final mobile = _mobileController.text.trim();
+      setState(() => _isSubmitting = true);
+      try {
+        final res = await ApiService.instance.sendRegistrationOtp(mobile);
+        setState(() => _isSubmitting = false);
+        if (res['success'] == true) {
+          setState(() {
+            _currentStep = 13;
+          });
+          _startOtpTimer(sendOtp: false);
+          if (mounted) {
+            RaniAlert.success(
+              context,
+              res['message'] ?? 'OTP sent to +91 $mobile',
+              title: 'OTP Sent',
+            );
+          }
+        } else {
+          if (mounted) {
+            RaniAlert.error(
+              context,
+              res['message'] ?? 'Failed to send OTP.',
+              title: 'OTP Failed',
+            );
+          }
+        }
+      } catch (e) {
+        setState(() => _isSubmitting = false);
+        if (mounted) {
+          RaniAlert.error(
+            context,
+            'Unable to send verification code. Please check your connection.',
+            title: 'Network Error',
+          );
+        }
+      }
+      return;
+    }
+
+    if (_currentStep == 13) {
+      // Step 13: Verify OTP before allowing Step 14
+      final otp = '${_otp1Controller.text}${_otp2Controller.text}${_otp3Controller.text}${_otp4Controller.text}';
+      final mobile = _mobileController.text.trim();
+      setState(() => _isSubmitting = true);
+      try {
+        final res = await ApiService.instance.verifyRegistrationOtp(mobile, otp);
+        setState(() => _isSubmitting = false);
+        if (res['success'] == true) {
+          setState(() {
+            _currentStep = 14;
+          });
+          if (mounted) {
+            RaniAlert.success(
+              context,
+              'Mobile number verified successfully!',
+              title: 'Verified',
+            );
+          }
+        } else {
+          if (mounted) {
+            RaniAlert.error(
+              context,
+              res['message'] ?? 'Invalid OTP code. Please try again.',
+              title: 'Verification Failed',
+            );
+          }
+        }
+      } catch (e) {
+        setState(() => _isSubmitting = false);
+        if (mounted) {
+          RaniAlert.error(
+            context,
+            'Verification error. Please try again.',
+            title: 'Connection Error',
+          );
+        }
+      }
+      return;
+    }
+
+    if (_currentStep == 14) {
+      // Step 14: Final Submission
+      setState(() => _isSubmitting = true);
+      try {
+        final candidateData = {
+          'profile_for': _profileFor,
+          'gender': _selectedGender == 'Bride' ? 'Female' : 'Male',
+          'first_name': _firstNameController.text.trim(),
+          'middle_name': _middleNameController.text.trim(),
+          'last_name': _lastNameController.text.trim(),
+          'aadhar_number': _aadharController.text.trim().replaceAll(RegExp(r'[^0-9]'), ''),
+          'dob': '${_yearController.text.trim()}-${_monthController.text.trim().padLeft(2, '0')}-${_dayController.text.trim().padLeft(2, '0')}',
+          'religion': _selectedReligion ?? 'Hindu',
+          'community': _selectedCommunity ?? 'Brahmin',
+          'sub_community': _subCommunityController.text.trim(),
+          'email': _emailController.text.trim(),
+          'mobile': _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), ''),
+          'country': _countryController.text.trim().isNotEmpty ? _countryController.text.trim() : 'India',
+          'state': _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : 'West Bengal',
+          'city': _selectedCity ?? 'Kolkata',
+          'police_st': _policeStationController.text.trim(),
+          'pincode': _pincodeController.text.trim(),
+          'full_address': _fullAddressController.text.trim().isNotEmpty ? _fullAddressController.text.trim() : 'Kolkata, West Bengal',
+          'marital_status': _selectedMaritalStatus ?? 'Never Married',
+          'height': _selectedHeight ?? '5\' 6"',
+          'diet': _selectedDiet ?? 'Vegetarian',
+          'highest_qualification': _selectedQualification ?? 'B.Tech / B.E.',
+          'college_name': _collegeNameController.text.trim().isNotEmpty ? _collegeNameController.text.trim() : 'Calcutta University',
+          'college_address': _collegeAddressController.text.trim(),
+          'annual_income': _selectedIncome ?? 'Rs. 10 - 15 Lakh',
+          'working_with': _selectedWorkingSector ?? 'Private Sector',
+          'profession': _professionController.text.trim().isNotEmpty ? _professionController.text.trim() : 'Software Engineer',
+          'designation': _designationController.text.trim(),
+          'company_name': _companyNameController.text.trim(),
+          'company_address': _companyAddressController.text.trim(),
+          'about_yourself': _aboutMeController.text.trim(),
+          'hobbies_interests': _selectedHobbies.toList(),
+          'referral_code': _referralCodeController.text.trim(),
+        };
+
+        final res = await ApiService.instance.registerFinal(candidateData);
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+
+        if (res['success'] == true) {
+          RaniAlert.success(
+            context,
+            'Profile created successfully! Welcome to Rani Matrimonial.',
+            title: 'Registration Completed',
+          );
+          _showCompletionNotice();
+        } else {
+          final errorMsg = res['message'] ?? (res['errors'] != null ? res['errors'].toString() : 'Registration failed. Please check details.');
+          if (mounted) {
+            RaniAlert.error(
+              context,
+              errorMsg,
+              title: 'Registration Failed',
+            );
+          }
+        }
+      } catch (e) {
+        setState(() => _isSubmitting = false);
+        if (mounted) {
+          RaniAlert.error(
+            context,
+            'Registration submission failed. Please check your connection and try again.',
+            title: 'Submission Error',
+          );
+        }
+      }
+      return;
+    }
 
     if (_currentStep < 14) {
       setState(() {
         _currentStep++;
       });
-      if (_currentStep == 13) {
-        _startOtpTimer();
-      }
-    } else {
-      _showCompletionNotice();
     }
   }
 
@@ -2873,17 +3125,26 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           borderRadius: BorderRadius.circular(26),
           onTap: isValid ? _nextStep : null,
           child: Center(
-            child: Text(
-              buttonText,
-              style: GoogleFonts.outfit(
-                 color: isValid
-                    ? const Color(0xFF3B0000) // Deep wine text on gold
-                    : Colors.white.withValues(alpha: 0.65),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF3B0000),
+                      strokeWidth: 2.2,
+                    ),
+                  )
+                : Text(
+                    buttonText,
+                    style: GoogleFonts.outfit(
+                      color: isValid
+                          ? const Color(0xFF3B0000)
+                          : Colors.white.withValues(alpha: 0.65),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
           ),
         ),
       ),
