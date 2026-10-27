@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/rani_colors.dart';
 import '../theme/rani_elevation.dart';
 import '../theme/rani_spacing.dart';
@@ -10,7 +11,7 @@ import 'search_screen.dart';
 /// Matches the design mockup:
 /// - App bar with logo, filter icon, and favorites icon
 /// - Rounded search bar: "Search by location, profession..."
-/// - Filter chips: All, Bride, Groom, Nearby
+/// - Filter tabs: Today's, Shortlisted, My Matches, Accepted
 /// - "Featured Profiles" with "See All"
 /// - 2-Column Profile Grid with photo, heart button, verified badge, name, profession & city
 class RaniHomeScreen extends StatefulWidget {
@@ -21,13 +22,13 @@ class RaniHomeScreen extends StatefulWidget {
 }
 
 class _RaniHomeScreenState extends State<RaniHomeScreen> {
-  String _selectedFilter = 'All';
+  String _selectedFilter = "Today's";
 
   final List<String> _filters = const [
-    'All',
-    'Bride',
-    'Groom',
-    'Nearby',
+    "Today's",
+    'Shortlisted',
+    'My Matches',
+    'Accepted',
   ];
 
   final List<Map<String, dynamic>> _profiles = const [
@@ -198,14 +199,15 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
 
             const SizedBox(height: RaniSpacing.md),
 
-            // Filter Chips row: All, Bride, Groom, Nearby
+            // Filter Tabs row: Today's, Shortlisted, My Matches, Accepted
             SizedBox(
-              height: 38,
+              height: 40,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: RaniSpacing.screenPadding),
                 itemCount: _filters.length,
-                separatorBuilder: (context, index) => const SizedBox(width: RaniSpacing.xs),
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final filter = _filters[index];
                   final isSelected = _selectedFilter == filter;
@@ -215,22 +217,21 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                         _selectedFilter = filter;
                       });
                     },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? RaniColors.primary : Colors.white,
-                        borderRadius: RaniSpacing.roundedFull,
-                        border: Border.all(
-                          color: isSelected ? RaniColors.primary : RaniColors.neutral,
-                          width: 1.0,
-                        ),
+                        color: isSelected ? const Color(0xFF6B0000) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(24),
                       ),
+                      alignment: Alignment.center,
                       child: Text(
                         filter,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : RaniColors.ink,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
+                        style: GoogleFonts.outfit(
+                          color: isSelected ? Colors.white : const Color(0xFF475569),
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          fontSize: 14.5,
+                          letterSpacing: 0.1,
                         ),
                       ),
                     ),
