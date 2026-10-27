@@ -22,12 +22,11 @@ class RaniHomeScreen extends StatefulWidget {
 }
 
 class _RaniHomeScreenState extends State<RaniHomeScreen> {
-  String _selectedFilter = "Today's";
+  String _selectedFilter = "My Matches";
 
   final List<String> _filters = const [
-    "Today's",
-    'Shortlisted',
     'My Matches',
+    'Shortlisted',
     'Accepted',
   ];
 
