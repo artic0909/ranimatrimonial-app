@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'main_navigation_screen.dart';
 import '../services/api_service.dart';
@@ -153,11 +154,11 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     'My Friend',
   ];
 
-  final List<String> _religionOptions = const [
+  List<String> _religionOptions = [
     'Hindu',
     'Muslim',
-    'Sikh',
     'Christian',
+    'Sikh',
     'Jain',
     'Buddhist',
     'Parsi',
@@ -165,21 +166,45 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     'Other',
   ];
 
-  final List<String> _communityOptions = const [
-    'Brahmin',
-    'Rajput',
-    'Agarwal',
-    'Kayastha',
-    'Maratha',
-    'Yadav',
-    'Khatri',
-    'Sunni',
-    'Shia',
-    'Jat',
-    'Baniya',
-    'Gupta',
-    'Other',
-  ];
+  Map<String, List<String>> _religionToCommunities = {
+    'Hindu': [
+      'Brahmin', 'Kshatriya', 'Rajput', 'Maratha', 'Agarwal', 'Kayastha', 'Baidya',
+      'Khatri', 'Arora', 'Yadav', 'Gujjar', 'Lingayat', 'Reddy', 'Nair', 'Ezhava',
+      'Bania', 'Jat', 'Patel', 'Patel - Leva', 'Patel - Kadva', 'Thevar', 'Mudaliar',
+      'Sindhi', 'Maheshwari', 'Kamma', 'Kapu', 'Vokkaliga', 'Nadar', 'SC', 'ST', 'Other',
+    ],
+    'Muslim': [
+      'Sunni', 'Shia', 'Hanafi', 'Shafi', 'Maliki', 'Hanbali', 'Dawoodi Bohra',
+      'Ismaili', 'Sufi', 'Ansari', 'Qureshi', 'Sheikh', 'Syed', 'Pathan', 'Mughal', 'Other',
+    ],
+    'Christian': [
+      'Roman Catholic', 'Protestant', 'Latin Catholic', 'Syrian Catholic',
+      'Pentecostal', 'Baptist', 'Mar Thoma', 'Orthodox', 'Anglican', 'Methodist', 'Other',
+    ],
+    'Sikh': [
+      'Jat', 'Khatri', 'Arora', 'Ramgarhia', 'Ahluwalia', 'Saini', 'Kamboj', 'Mazhabi', 'Bhatia', 'Other',
+    ],
+    'Jain': [
+      'Digambar', 'Shwetambar', 'Agarwal', 'Oswal', 'Khandelwal', 'Porwal', 'Other',
+    ],
+    'Buddhist': [
+      'Theravada', 'Mahayana', 'Navayana / Neo-Buddhist', 'Tibetan', 'Other',
+    ],
+    'Parsi': [
+      'Irani', 'Parsi', 'Other',
+    ],
+    'Jewish': [
+      'Bene Israel', 'Baghdadi', 'Cochin', 'Other',
+    ],
+    'Other': [
+      'Other',
+    ],
+  };
+
+  List<String> get _currentCommunityOptions {
+    if (_selectedReligion == null) return const [];
+    return _religionToCommunities[_selectedReligion] ?? const ['Other'];
+  }
 
   final List<String> _cityOptions = const [
     'Kolkata',
@@ -354,6 +379,48 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     _otp3Focus.addListener(_refreshState);
     _otp4Focus.addListener(_refreshState);
     _referralCodeFocus.addListener(_refreshState);
+
+    _fetchMasterDataFromDb();
+  }
+
+  Future<void> _fetchMasterDataFromDb() async {
+    try {
+      final res = await ApiService.instance.getRegistrationOptions();
+      if (res['success'] == true && res['data'] != null) {
+        final data = res['data'];
+        if (data['religions'] != null && data['religions'] is List) {
+          final List<String> loadedReligions = [];
+          final Map<String, List<String>> loadedMap = {};
+
+          for (var r in data['religions']) {
+            final String rName = r['name']?.toString().trim() ?? '';
+            if (rName.isNotEmpty) {
+              loadedReligions.add(rName);
+              final List<String> comms = [];
+              if (r['communities'] != null && r['communities'] is List) {
+                for (var c in r['communities']) {
+                  final String cName = c['name']?.toString().trim() ?? '';
+                  if (cName.isNotEmpty) {
+                    comms.add(cName);
+                  }
+                }
+              }
+              if (!comms.contains('Other')) comms.add('Other');
+              loadedMap[rName] = comms;
+            }
+          }
+
+          if (mounted && loadedReligions.isNotEmpty) {
+            setState(() {
+              _religionOptions = loadedReligions;
+              _religionToCommunities = loadedMap;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching master options from DB: $e');
+    }
   }
 
   void _refreshState() {
@@ -467,211 +534,359 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
   bool get _isCurrentStepValid {
     switch (_currentStep) {
       case 1:
-        return _profileFor.isNotEmpty;
+        return _profileFor.trim().isNotEmpty;
       case 2:
         return _selectedGender != null;
       case 3:
+        final aadhar = _aadharController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
         return _firstNameController.text.trim().isNotEmpty &&
-            _lastNameController.text.trim().isNotEmpty;
+            _lastNameController.text.trim().isNotEmpty &&
+            aadhar.isNotEmpty &&
+            aadhar.length <= 25;
       case 4:
-        return _dayController.text.trim().length == 2 &&
-            _monthController.text.trim().length == 2 &&
+        return _dayController.text.trim().isNotEmpty &&
+            _monthController.text.trim().isNotEmpty &&
             _yearController.text.trim().length == 4;
       case 5:
         return _selectedReligion != null && _selectedCommunity != null;
       case 6:
         return _emailController.text.contains('@') &&
-            _mobileController.text.trim().length >= 10;
+            _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), '').length == 10;
       case 7:
         return _countryController.text.trim().isNotEmpty &&
             _stateController.text.trim().isNotEmpty &&
-            _selectedCity != null;
+            _selectedCity != null &&
+            _fullAddressController.text.trim().isNotEmpty;
       case 8:
         return _selectedMaritalStatus != null &&
             _selectedHeight != null &&
             _selectedDiet != null;
       case 9:
-        return _selectedQualification != null &&
-            _collegeNameController.text.trim().isNotEmpty;
+        return _selectedQualification != null;
       case 10:
         return _selectedIncome != null;
       case 11:
         return _selectedWorkingSector != null &&
-            _professionController.text.trim().isNotEmpty;
+            _professionController.text.trim().isNotEmpty &&
+            _designationController.text.trim().isNotEmpty;
       case 12:
-        return _aboutMeController.text.trim().isNotEmpty ||
-            _selectedHobbies.isNotEmpty;
+        return _aboutMeController.text.trim().isNotEmpty;
       case 13:
         return _otp1Controller.text.isNotEmpty &&
             _otp2Controller.text.isNotEmpty &&
             _otp3Controller.text.isNotEmpty &&
             _otp4Controller.text.isNotEmpty;
       case 14:
-        return true; // Final step (picture & referral code)
+        return true;
       default:
         return true;
     }
   }
 
-  String? _getStepValidationError() {
-    switch (_currentStep) {
-      case 1:
-        if (_profileFor.isEmpty) return 'Please select who this profile is for.';
-        break;
-      case 2:
-        if (_selectedGender == null) return 'Please select bride or groom.';
-        break;
-      case 3:
-        if (_firstNameController.text.trim().isEmpty) return 'Please enter first name.';
-        if (_lastNameController.text.trim().isEmpty) return 'Please enter last name.';
-        break;
-      case 4:
-        if (_dayController.text.trim().isEmpty || _monthController.text.trim().isEmpty || _yearController.text.trim().isEmpty) {
-          return 'Please enter a complete date of birth (DD / MM / YYYY).';
-        }
-        if (_dayController.text.trim().length < 2 || _monthController.text.trim().length < 2 || _yearController.text.trim().length < 4) {
-          return 'Please enter valid 2-digit day, 2-digit month, and 4-digit year.';
-        }
-        break;
-      case 5:
-        if (_selectedReligion == null) return 'Please select religion.';
-        if (_selectedCommunity == null) return 'Please select community.';
-        break;
-      case 6:
-        if (!_emailController.text.contains('@')) return 'Please enter a valid email address.';
-        if (_mobileController.text.trim().length < 10) return 'Please enter a valid 10-digit mobile number.';
-        break;
-      case 7:
-        if (_countryController.text.trim().isEmpty) return 'Please enter country.';
-        if (_stateController.text.trim().isEmpty) return 'Please enter state.';
-        if (_selectedCity == null) return 'Please select city.';
-        break;
-      case 8:
-        if (_selectedMaritalStatus == null) return 'Please select marital status.';
-        if (_selectedHeight == null) return 'Please select height.';
-        if (_selectedDiet == null) return 'Please select diet preference.';
-        break;
-      case 9:
-        if (_selectedQualification == null) return 'Please select highest qualification.';
-        if (_collegeNameController.text.trim().isEmpty) return 'Please enter college / institute name.';
-        break;
-      case 10:
-        if (_selectedIncome == null) return 'Please select annual income range.';
-        break;
-      case 11:
-        if (_selectedWorkingSector == null) return 'Please select working sector.';
-        if (_professionController.text.trim().isEmpty) return 'Please enter profession.';
-        break;
-      case 12:
-        if (_aboutMeController.text.trim().isEmpty && _selectedHobbies.isEmpty) {
-          return 'Please write a short bio or select at least one hobby.';
-        }
-        break;
-      case 13:
-        final otp = '${_otp1Controller.text}${_otp2Controller.text}${_otp3Controller.text}${_otp4Controller.text}';
-        if (otp.length < 4) return 'Please enter the complete 4-digit OTP code.';
-        break;
-    }
-    return null;
+  void _showWarning(String msg, [String title = 'Missing Information']) {
+    RaniAlert.warning(context, msg, title: title);
   }
 
   Future<void> _nextStep() async {
     if (_isSubmitting) return;
 
-    final validationError = _getStepValidationError();
-    if (validationError != null) {
-      RaniAlert.warning(
-        context,
-        validationError,
-        title: 'Incomplete Details',
-      );
-      return;
+    // STEP 1: Profile For
+    if (_currentStep == 1) {
+      if (_profileFor.trim().isEmpty) {
+        _showWarning('Please select who this profile is for.');
+        return;
+      }
     }
 
+    // STEP 2: Gender
+    if (_currentStep == 2) {
+      if (_selectedGender == null) {
+        _showWarning('Please select gender (Bride or Groom).');
+        return;
+      }
+    }
+
+    // STEP 3: Personal Details (First Name, Last Name, Aadhar Number)
+    if (_currentStep == 3) {
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+      final aadhar = _aadharController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+
+      if (firstName.isEmpty || lastName.isEmpty) {
+        _showWarning('First name and Last name are required.');
+        return;
+      }
+
+      if (aadhar.isEmpty) {
+        _showWarning('Aadhar Number is required.', 'Missing Information');
+        return;
+      }
+
+      if (aadhar.length > 25) {
+        _showWarning('Aadhar Number must be up to 25 digits (only numbers).', 'Invalid Aadhar');
+        return;
+      }
+
+      // Live verification with API: check if Aadhar already exists
+      setState(() => _isSubmitting = true);
+      try {
+        final res = await ApiService.instance.checkUserExists(aadharNumber: aadhar);
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        if (res['exists'] == true) {
+          RaniAlert.error(
+            context,
+            res['message'] ?? 'An account with this Aadhar number already exists.',
+            title: 'Account Exists',
+          );
+          return;
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+      }
+    }
+
+    // STEP 4: Date of Birth
+    if (_currentStep == 4) {
+      final dayStr = _dayController.text.trim();
+      final monthStr = _monthController.text.trim();
+      final yearStr = _yearController.text.trim();
+
+      if (dayStr.isEmpty || monthStr.isEmpty || yearStr.isEmpty || yearStr.length != 4) {
+        _showWarning('Please enter a complete Date of Birth (DD / MM / YYYY).');
+        return;
+      }
+
+      final d = int.tryParse(dayStr);
+      final m = int.tryParse(monthStr);
+      final y = int.tryParse(yearStr);
+      final currentYear = DateTime.now().year;
+
+      if (d == null || m == null || y == null) {
+        _showWarning('Please enter a valid numeric Date of Birth.', 'Invalid Date');
+        return;
+      }
+
+      if (m < 1 || m > 12) {
+        _showWarning('Month must be between 01 and 12.', 'Invalid Month');
+        return;
+      }
+
+      final daysInMonth = DateTime(y, m + 1, 0).day;
+      if (d < 1 || d > daysInMonth) {
+        _showWarning('Invalid day. Month $m in year $y has $daysInMonth days.', 'Invalid Day');
+        return;
+      }
+
+      if (y < 1940 || y > currentYear - 18) {
+        _showWarning('Candidate must be at least 18 years old (Year between 1940 and ${currentYear - 18}).', 'Age Requirement');
+        return;
+      }
+
+      _dayController.text = d.toString().padLeft(2, '0');
+      _monthController.text = m.toString().padLeft(2, '0');
+      _yearController.text = y.toString();
+    }
+
+    // STEP 5: Religion & Community
+    if (_currentStep == 5) {
+      if (_selectedReligion == null || _selectedCommunity == null) {
+        _showWarning('Religion and Community are required.');
+        return;
+      }
+    }
+
+    // STEP 6: Contact Information (Email & Mobile)
+    if (_currentStep == 6) {
+      final email = _emailController.text.trim();
+      final mobile = _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+
+      if (email.isEmpty || mobile.isEmpty) {
+        _showWarning('Email and Mobile number are required.');
+        return;
+      }
+
+      final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$');
+      if (!emailRegex.hasMatch(email)) {
+        _showWarning('Please enter a valid email address.', 'Invalid Email');
+        return;
+      }
+
+      if (mobile.length != 10) {
+        _showWarning('Please enter a valid 10-digit Indian mobile number.', 'Invalid Mobile');
+        return;
+      }
+
+      // Live verification with API: check if Email or Mobile already exists
+      setState(() => _isSubmitting = true);
+      try {
+        final res = await ApiService.instance.checkUserExists(email: email, mobile: mobile);
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        if (res['exists'] == true) {
+          RaniAlert.error(
+            context,
+            res['message'] ?? 'An account with this email or mobile number already exists.',
+            title: 'Account Exists',
+          );
+          return;
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+      }
+    }
+
+    // STEP 7: Location
+    if (_currentStep == 7) {
+      final country = _countryController.text.trim();
+      final state = _stateController.text.trim();
+      final fullAddress = _fullAddressController.text.trim();
+
+      if (country.isEmpty || state.isEmpty || _selectedCity == null) {
+        _showWarning('Country, State, and City are required.');
+        return;
+      }
+
+      if (fullAddress.isEmpty) {
+        _showWarning('Full Address is required.');
+        return;
+      }
+    }
+
+    // STEP 8: Physical & Diet
+    if (_currentStep == 8) {
+      if (_selectedMaritalStatus == null || _selectedHeight == null || _selectedDiet == null) {
+        _showWarning('Physical & Diet details are required.');
+        return;
+      }
+    }
+
+    // STEP 9: Education
+    if (_currentStep == 9) {
+      if (_selectedQualification == null) {
+        _showWarning('Highest Qualification is required.');
+        return;
+      }
+    }
+
+    // STEP 10: Income Details
+    if (_currentStep == 10) {
+      if (_selectedIncome == null) {
+        _showWarning('Annual Income detail is required.');
+        return;
+      }
+    }
+
+    // STEP 11: Career Details
+    if (_currentStep == 11) {
+      final profession = _professionController.text.trim();
+      final designation = _designationController.text.trim();
+
+      if (_selectedWorkingSector == null || profession.isEmpty || designation.isEmpty) {
+        _showWarning('Career details (Working With, Profession, Designation) are required.');
+        return;
+      }
+    }
+
+    // STEP 12: Express Yourself (Bio) -> Sends OTP!
     if (_currentStep == 12) {
+      final bio = _aboutMeController.text.trim();
+      if (bio.isEmpty) {
+        _showWarning('Please write a little about yourself.');
+        return;
+      }
+
       // Step 12 -> 13: Send OTP to mobile
-      final mobile = _mobileController.text.trim();
+      final mobile = _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
       setState(() => _isSubmitting = true);
       try {
         final res = await ApiService.instance.sendRegistrationOtp(mobile);
+        if (!mounted) return;
         setState(() => _isSubmitting = false);
         if (res['success'] == true) {
           setState(() {
             _currentStep = 13;
           });
           _startOtpTimer(sendOtp: false);
-          if (mounted) {
-            RaniAlert.success(
-              context,
-              res['message'] ?? 'OTP sent to +91 $mobile',
-              title: 'OTP Sent',
-            );
-          }
+          RaniAlert.success(
+            context,
+            res['message'] ?? 'A verification code has been sent to +91 $mobile',
+            title: 'OTP Sent',
+          );
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) _otp1Focus.requestFocus();
+          });
         } else {
-          if (mounted) {
-            RaniAlert.error(
-              context,
-              res['message'] ?? 'Failed to send OTP.',
-              title: 'OTP Failed',
-            );
-          }
-        }
-      } catch (e) {
-        setState(() => _isSubmitting = false);
-        if (mounted) {
           RaniAlert.error(
             context,
-            'Unable to send verification code. Please check your connection.',
-            title: 'Network Error',
+            res['message'] ?? 'Failed to send OTP.',
+            title: 'OTP Failed',
           );
         }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        RaniAlert.error(
+          context,
+          'Unable to send verification code. Please check your connection.',
+          title: 'Network Error',
+        );
       }
       return;
     }
 
+    // STEP 13: Verify OTP before allowing Step 14
     if (_currentStep == 13) {
-      // Step 13: Verify OTP before allowing Step 14
       final otp = '${_otp1Controller.text}${_otp2Controller.text}${_otp3Controller.text}${_otp4Controller.text}';
-      final mobile = _mobileController.text.trim();
+      final mobile = _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+
+      if (otp.length != 4) {
+        _showWarning('Please enter the 4-digit OTP.', 'Incomplete OTP');
+        return;
+      }
+
       setState(() => _isSubmitting = true);
       try {
         final res = await ApiService.instance.verifyRegistrationOtp(mobile, otp);
+        if (!mounted) return;
         setState(() => _isSubmitting = false);
         if (res['success'] == true) {
           setState(() {
             _currentStep = 14;
           });
-          if (mounted) {
-            RaniAlert.success(
-              context,
-              'Mobile number verified successfully!',
-              title: 'Verified',
-            );
-          }
+          RaniAlert.success(
+            context,
+            'Mobile number verified successfully.',
+            title: 'Verified!',
+          );
         } else {
-          if (mounted) {
-            RaniAlert.error(
-              context,
-              res['message'] ?? 'Invalid OTP code. Please try again.',
-              title: 'Verification Failed',
-            );
-          }
-        }
-      } catch (e) {
-        setState(() => _isSubmitting = false);
-        if (mounted) {
           RaniAlert.error(
             context,
-            'Verification error. Please try again.',
-            title: 'Connection Error',
+            res['message'] ?? 'Invalid OTP. Please try again.',
+            title: 'Verification Failed',
           );
+          _otp1Controller.clear();
+          _otp2Controller.clear();
+          _otp3Controller.clear();
+          _otp4Controller.clear();
+          _otp1Focus.requestFocus();
         }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        RaniAlert.error(
+          context,
+          'Verification error. Please check your connection and retry.',
+          title: 'Connection Error',
+        );
       }
       return;
     }
 
+    // STEP 14: Final Submission
     if (_currentStep == 14) {
-      // Step 14: Final Submission
       setState(() => _isSubmitting = true);
       try {
         final candidateData = {
@@ -694,7 +909,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           'pincode': _pincodeController.text.trim(),
           'full_address': _fullAddressController.text.trim().isNotEmpty ? _fullAddressController.text.trim() : 'Kolkata, West Bengal',
           'marital_status': _selectedMaritalStatus ?? 'Never Married',
-          'height': _selectedHeight ?? '5\' 6"',
+          'height': _selectedHeight ?? "5' 6\"",
           'diet': _selectedDiet ?? 'Vegetarian',
           'highest_qualification': _selectedQualification ?? 'B.Tech / B.E.',
           'college_name': _collegeNameController.text.trim().isNotEmpty ? _collegeNameController.text.trim() : 'Calcutta University',
@@ -723,23 +938,20 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           _showCompletionNotice();
         } else {
           final errorMsg = res['message'] ?? (res['errors'] != null ? res['errors'].toString() : 'Registration failed. Please check details.');
-          if (mounted) {
-            RaniAlert.error(
-              context,
-              errorMsg,
-              title: 'Registration Failed',
-            );
-          }
-        }
-      } catch (e) {
-        setState(() => _isSubmitting = false);
-        if (mounted) {
           RaniAlert.error(
             context,
-            'Registration submission failed. Please check your connection and try again.',
-            title: 'Submission Error',
+            errorMsg,
+            title: 'Registration Failed',
           );
         }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        RaniAlert.error(
+          context,
+          'Registration submission failed. Please check your connection and try again.',
+          title: 'Submission Error',
+        );
       }
       return;
     }
@@ -1591,8 +1803,12 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                   _buildCleanInputField(
                     controller: _aadharController,
                     focusNode: _aadharFocus,
-                    hintText: '12-digit Aadhar Number',
+                    hintText: 'Aadhar Number (up to 25 digits)',
                     keyboardType: TextInputType.number,
+                    maxLength: 25,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
                   ),
                 ],
               ),
@@ -1825,7 +2041,10 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           items: _religionOptions,
           onSelected: (val) {
             setState(() {
-              _selectedReligion = val;
+              if (_selectedReligion != val) {
+                _selectedReligion = val;
+                _selectedCommunity = null; // Reset community when religion changes
+              }
             });
           },
         ),
@@ -1834,9 +2053,20 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
 
         _buildInputLabel('Community'),
         _buildCleanDropdownSelector(
-          title: 'Select Community',
+          title: _selectedReligion == null
+              ? 'Select Religion First'
+              : 'Select Community',
           value: _selectedCommunity,
-          items: _communityOptions,
+          items: _currentCommunityOptions,
+          onTapOverride: _selectedReligion == null
+              ? () {
+                  RaniAlert.warning(
+                    context,
+                    'Please select your Religion first to view matching communities.',
+                    title: 'Select Religion',
+                  );
+                }
+              : null,
           onSelected: (val) {
             setState(() {
               _selectedCommunity = val;
@@ -2895,6 +3125,8 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     required FocusNode focusNode,
     required String hintText,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     final hasValue = controller.text.isNotEmpty;
 
@@ -2904,6 +3136,9 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         controller: controller,
         focusNode: focusNode,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
+        buildCounter: maxLength != null ? (_, {required currentLength, required isFocused, maxLength}) => null : null,
         cursorColor: const Color(0xFF881337),
         style: GoogleFonts.outfit(
           fontSize: 15,
@@ -2953,11 +3188,16 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     required String? value,
     required List<String> items,
     required ValueChanged<String> onSelected,
+    VoidCallback? onTapOverride,
   }) {
     final hasValue = value != null;
 
     return GestureDetector(
       onTap: () {
+        if (onTapOverride != null) {
+          onTapOverride();
+          return;
+        }
         _showSelectionBottomSheet(
           title: title,
           currentValue: value,
@@ -3123,7 +3363,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(26),
-          onTap: isValid ? _nextStep : null,
+          onTap: _isSubmitting ? null : _nextStep,
           child: Center(
             child: _isSubmitting
                 ? const SizedBox(
