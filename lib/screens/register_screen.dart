@@ -1120,7 +1120,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
               child: _buildGenderCard(
                 title: 'Groom',
                 badge: 'Male',
-                imagePath: 'assets/growm2.png',
+                imagePath: 'assets/groom.png',
                 fallbackImage: 'assets/groom.png',
                 isSelected: _selectedGender == 'Groom',
                 onTap: () {
@@ -1135,7 +1135,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
               child: _buildGenderCard(
                 title: 'Bride',
                 badge: 'Female',
-                imagePath: 'assets/bride2.png',
+                imagePath: 'assets/bride.png',
                 fallbackImage: 'assets/bride.png',
                 isSelected: _selectedGender == 'Bride',
                 onTap: () {
