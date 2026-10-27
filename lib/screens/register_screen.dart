@@ -73,9 +73,11 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
   final FocusNode _mobileFocus = FocusNode();
 
   // Step 7: Location
+  String? _selectedCountry = 'India';
+  String? _selectedState = 'West Bengal';
+  String? _selectedCity;
   final TextEditingController _countryController = TextEditingController(text: 'India');
   final TextEditingController _stateController = TextEditingController(text: 'West Bengal');
-  String? _selectedCity;
   final TextEditingController _policeStationController = TextEditingController();
   final TextEditingController _pincodeController = TextEditingController();
   final TextEditingController _fullAddressController = TextEditingController();
@@ -206,25 +208,67 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     return _religionToCommunities[_selectedReligion] ?? const ['Other'];
   }
 
-  final List<String> _cityOptions = const [
-    'Kolkata',
-    'Howrah',
-    'Durgapur',
-    'Asansol',
-    'Siliguri',
-    'Bardhaman',
-    'Malda',
-    'Baharampur',
-    'Kharagpur',
-    'Shantipur',
-    'Dankuni',
-    'Dhulian',
-    'Ranaghat',
-    'Haldia',
-    'Habra',
-    'Uluberia',
-    'Other',
+  // Location Hierarchy from DB
+  List<String> _countryOptions = const [
+    'India',
+    'United States',
+    'United Kingdom',
+    'Canada',
+    'United Arab Emirates',
+    'Australia',
   ];
+
+  Map<String, List<String>> _countryToStates = {
+    'India': const [
+      'West Bengal',
+      'Maharashtra',
+      'Delhi',
+      'Karnataka',
+      'Tamil Nadu',
+      'Uttar Pradesh',
+      'Gujarat',
+      'Rajasthan',
+      'Kerala',
+      'Punjab',
+      'Haryana',
+      'Madhya Pradesh',
+      'Bihar',
+      'Odisha',
+      'Assam',
+      'Jharkhand',
+      'Uttarakhand',
+      'Goa',
+      'Himachal Pradesh',
+      'Jammu and Kashmir',
+      'Chandigarh',
+      'Telangana',
+      'Andhra Pradesh',
+    ],
+  };
+
+  Map<String, Map<String, List<String>>> _countryStateToCities = {
+    'India': {
+      'West Bengal': const [
+        'Kolkata',
+        'Howrah',
+        'Siliguri',
+        'Durgapur',
+        'Asansol',
+        'Bardhaman',
+        'Kharagpur',
+      ],
+    },
+  };
+
+  List<String> get _currentStateOptions {
+    if (_selectedCountry == null) return const [];
+    return _countryToStates[_selectedCountry] ?? const [];
+  }
+
+  List<String> get _currentCityOptions {
+    if (_selectedCountry == null || _selectedState == null) return const [];
+    return _countryStateToCities[_selectedCountry]?[_selectedState] ?? const [];
+  }
 
   final List<String> _maritalStatusOptions = const [
     'Never Married',
@@ -333,15 +377,22 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
   void initState() {
     super.initState();
     _firstNameController.addListener(_refreshState);
+    _middleNameController.addListener(_refreshState);
     _lastNameController.addListener(_refreshState);
+    _aadharController.addListener(_refreshState);
     _dayController.addListener(_refreshState);
     _monthController.addListener(_refreshState);
     _yearController.addListener(_refreshState);
+    _subCommunityController.addListener(_refreshState);
     _emailController.addListener(_refreshState);
     _mobileController.addListener(_refreshState);
     _countryController.addListener(_refreshState);
     _stateController.addListener(_refreshState);
+    _policeStationController.addListener(_refreshState);
+    _pincodeController.addListener(_refreshState);
+    _fullAddressController.addListener(_refreshState);
     _collegeNameController.addListener(_refreshState);
+    _collegeAddressController.addListener(_refreshState);
     _professionController.addListener(_refreshState);
     _designationController.addListener(_refreshState);
     _companyNameController.addListener(_refreshState);
@@ -414,6 +465,71 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
             setState(() {
               _religionOptions = loadedReligions;
               _religionToCommunities = loadedMap;
+            });
+          }
+        }
+
+        if (data['countries'] != null && data['countries'] is List) {
+          final List<String> loadedCountries = [];
+          final Map<String, List<String>> countryStatesMap = {};
+          final Map<String, Map<String, List<String>>> countryStateCitiesMap = {};
+
+          for (var c in data['countries']) {
+            final String cName = c['name']?.toString().trim() ?? '';
+            if (cName.isNotEmpty) {
+              loadedCountries.add(cName);
+              final List<String> statesList = [];
+              final Map<String, List<String>> stateCitiesMap = {};
+
+              if (c['states'] != null && c['states'] is List) {
+                for (var s in c['states']) {
+                  final String sName = s['name']?.toString().trim() ?? '';
+                  if (sName.isNotEmpty) {
+                    statesList.add(sName);
+                    final List<String> citiesList = [];
+
+                    if (s['cities'] != null && s['cities'] is List) {
+                      for (var city in s['cities']) {
+                        final String cityName = city['name']?.toString().trim() ?? '';
+                        if (cityName.isNotEmpty) {
+                          citiesList.add(cityName);
+                        }
+                      }
+                    }
+                    stateCitiesMap[sName] = citiesList;
+                  }
+                }
+              }
+              countryStatesMap[cName] = statesList;
+              countryStateCitiesMap[cName] = stateCitiesMap;
+            }
+          }
+
+          if (mounted && loadedCountries.isNotEmpty) {
+            setState(() {
+              _countryOptions = loadedCountries;
+              _countryToStates = countryStatesMap;
+              _countryStateToCities = countryStateCitiesMap;
+
+              if (_selectedCountry == null || !_countryOptions.contains(_selectedCountry)) {
+                _selectedCountry = _countryOptions.contains('India') ? 'India' : _countryOptions.first;
+              }
+              _countryController.text = _selectedCountry ?? '';
+
+              final availableStates = _countryToStates[_selectedCountry] ?? [];
+              if (_selectedState == null || !availableStates.contains(_selectedState)) {
+                _selectedState = availableStates.contains('West Bengal')
+                    ? 'West Bengal'
+                    : (availableStates.isNotEmpty ? availableStates.first : null);
+              }
+              _stateController.text = _selectedState ?? '';
+
+              final availableCities = _countryStateToCities[_selectedCountry]?[_selectedState] ?? [];
+              if (_selectedCity == null || !availableCities.contains(_selectedCity)) {
+                _selectedCity = availableCities.contains('Kolkata')
+                    ? 'Kolkata'
+                    : (availableCities.isNotEmpty ? availableCities.first : null);
+              }
             });
           }
         }
@@ -541,8 +657,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         final aadhar = _aadharController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
         return _firstNameController.text.trim().isNotEmpty &&
             _lastNameController.text.trim().isNotEmpty &&
-            aadhar.isNotEmpty &&
-            aadhar.length <= 25;
+            aadhar.length == 12;
       case 4:
         return _dayController.text.trim().isNotEmpty &&
             _monthController.text.trim().isNotEmpty &&
@@ -553,9 +668,14 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         return _emailController.text.contains('@') &&
             _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), '').length == 10;
       case 7:
-        return _countryController.text.trim().isNotEmpty &&
-            _stateController.text.trim().isNotEmpty &&
-            _selectedCity != null &&
+        final hasCountry = (_selectedCountry != null && _selectedCountry!.isNotEmpty) ||
+            _countryController.text.trim().isNotEmpty;
+        final hasState = (_selectedState != null && _selectedState!.isNotEmpty) ||
+            _stateController.text.trim().isNotEmpty;
+        final hasCity = _selectedCity != null && _selectedCity!.isNotEmpty;
+        return hasCountry &&
+            hasState &&
+            hasCity &&
             _fullAddressController.text.trim().isNotEmpty;
       case 8:
         return _selectedMaritalStatus != null &&
@@ -622,8 +742,8 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         return;
       }
 
-      if (aadhar.length > 25) {
-        _showWarning('Aadhar Number must be up to 25 digits (only numbers).', 'Invalid Aadhar');
+      if (aadhar.length != 12) {
+        _showWarning('Aadhar Number must be exactly 12 digits (only numbers).', 'Invalid Aadhar');
         return;
       }
 
@@ -740,11 +860,12 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
 
     // STEP 7: Location
     if (_currentStep == 7) {
-      final country = _countryController.text.trim();
-      final state = _stateController.text.trim();
+      final country = _selectedCountry ?? _countryController.text.trim();
+      final state = _selectedState ?? _stateController.text.trim();
+      final city = _selectedCity;
       final fullAddress = _fullAddressController.text.trim();
 
-      if (country.isEmpty || state.isEmpty || _selectedCity == null) {
+      if (country.isEmpty || state.isEmpty || city == null || city.isEmpty) {
         _showWarning('Country, State, and City are required.');
         return;
       }
@@ -902,8 +1023,8 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           'sub_community': _subCommunityController.text.trim(),
           'email': _emailController.text.trim(),
           'mobile': _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), ''),
-          'country': _countryController.text.trim().isNotEmpty ? _countryController.text.trim() : 'India',
-          'state': _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : 'West Bengal',
+          'country': _selectedCountry ?? (_countryController.text.trim().isNotEmpty ? _countryController.text.trim() : 'India'),
+          'state': _selectedState ?? (_stateController.text.trim().isNotEmpty ? _stateController.text.trim() : 'West Bengal'),
           'city': _selectedCity ?? 'Kolkata',
           'police_st': _policeStationController.text.trim(),
           'pincode': _pincodeController.text.trim(),
@@ -1803,11 +1924,12 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                   _buildCleanInputField(
                     controller: _aadharController,
                     focusNode: _aadharFocus,
-                    hintText: 'Aadhar Number (up to 25 digits)',
+                    hintText: '12-digit Aadhar Number',
                     keyboardType: TextInputType.number,
-                    maxLength: 25,
+                    maxLength: 12,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(12),
                     ],
                   ),
                 ],
@@ -2214,10 +2336,23 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         const SizedBox(height: 18),
 
         _buildInputLabel('Country (Living In)'),
-        _buildCleanInputField(
-          controller: _countryController,
-          focusNode: _countryFocus,
-          hintText: 'India',
+        _buildCleanDropdownSelector(
+          title: 'Select Country',
+          value: _selectedCountry,
+          items: _countryOptions.isNotEmpty ? _countryOptions : ['India'],
+          onSelected: (val) {
+            setState(() {
+              _selectedCountry = val;
+              _countryController.text = val;
+              final states = _countryToStates[val] ?? [];
+              _selectedState = states.isNotEmpty ? states.first : null;
+              _stateController.text = _selectedState ?? '';
+              final cities = _selectedState != null
+                  ? (_countryStateToCities[val]?[_selectedState] ?? [])
+                  : <String>[];
+              _selectedCity = cities.isNotEmpty ? cities.first : null;
+            });
+          },
         ),
 
         const SizedBox(height: 12),
@@ -2229,10 +2364,25 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildInputLabel('State'),
-                  _buildCleanInputField(
-                    controller: _stateController,
-                    focusNode: _stateFocus,
-                    hintText: 'West Bengal',
+                  _buildCleanDropdownSelector(
+                    title: 'Select State',
+                    value: _selectedState,
+                    items: _currentStateOptions,
+                    onTapOverride: _currentStateOptions.isEmpty
+                        ? () {
+                            _showWarning('Please select Country first.');
+                          }
+                        : null,
+                    onSelected: (val) {
+                      setState(() {
+                        _selectedState = val;
+                        _stateController.text = val;
+                        final cities = _selectedCountry != null
+                            ? (_countryStateToCities[_selectedCountry]?[val] ?? [])
+                            : <String>[];
+                        _selectedCity = cities.isNotEmpty ? cities.first : null;
+                      });
+                    },
                   ),
                 ],
               ),
@@ -2246,7 +2396,16 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                   _buildCleanDropdownSelector(
                     title: 'Select City',
                     value: _selectedCity,
-                    items: _cityOptions,
+                    items: _currentCityOptions,
+                    onTapOverride: _currentCityOptions.isEmpty
+                        ? () {
+                            if (_selectedState == null) {
+                              _showWarning('Please select State first.');
+                            } else {
+                              _showWarning('No cities found for .');
+                            }
+                          }
+                        : null,
                     onSelected: (val) {
                       setState(() {
                         _selectedCity = val;
@@ -3241,7 +3400,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     );
   }
 
-  /// Sleek Bottom Sheet for Dropdown Selection
+  /// Sleek Bottom Sheet for Dropdown Selection with optional quick search
   void _showSelectionBottomSheet({
     required String title,
     required String? currentValue,
@@ -3252,71 +3411,136 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.58,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFAF6F0),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        child: Column(
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD0C3B7),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF2C140E),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.separated(
-                physics: const BouncingScrollPhysics(),
-                itemCount: items.length,
-                separatorBuilder: (context, i) => const Divider(
-                  color: Color(0xFFEADFD5),
-                  height: 1,
-                ),
-                itemBuilder: (context, i) {
-                  final item = items[i];
-                  final isSelected = item == currentValue;
+      builder: (context) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filteredItems = searchQuery.isEmpty
+                ? items
+                : items
+                    .where((item) =>
+                        item.toLowerCase().contains(searchQuery.toLowerCase()))
+                    .toList();
 
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    title: Text(
-                      item,
-                      style: GoogleFonts.outfit(
-                        fontSize: 15,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? const Color(0xFF881337) : const Color(0xFF2C140E),
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.62,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFAF6F0),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD0C3B7),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded, color: Color(0xFF881337), size: 20)
-                        : null,
-                    onTap: () {
-                      onSelected(item);
-                      Navigator.of(context).pop();
-                    },
-                  );
-                },
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2C140E),
+                    ),
+                  ),
+                  if (items.length > 5) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFD4C5B9)),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, size: 20, color: Color(0xFF8C7972)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              onChanged: (query) {
+                                setModalState(() {
+                                  searchQuery = query.trim();
+                                });
+                              },
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                color: const Color(0xFF2C140E),
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Search...',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filteredItems.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No options found',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                color: const Color(0xFF8C7972),
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: filteredItems.length,
+                            separatorBuilder: (context, i) => const Divider(
+                              color: Color(0xFFEADFD5),
+                              height: 1,
+                            ),
+                            itemBuilder: (context, i) {
+                              final item = filteredItems[i];
+                              final isSelected = item == currentValue;
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                title: Text(
+                                  item,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 15,
+                                    fontWeight:
+                                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected
+                                        ? const Color(0xFF881337)
+                                        : const Color(0xFF2C140E),
+                                  ),
+                                ),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle_rounded,
+                                        color: Color(0xFF881337), size: 20)
+                                    : null,
+                                onTap: () {
+                                  onSelected(item);
+                                  Navigator.of(context).pop();
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
