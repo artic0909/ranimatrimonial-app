@@ -37,9 +37,9 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   bool _isLoading = true;
   List<dynamic> _matches = [];
   String? _errorMessage;
-  final int _newCount = 61;
-  final int _acceptedCount = 12;
-  final int _shortlistedCount = 8;
+  int _newCount = 0;
+  int _acceptedCount = 0;
+  int _shortlistedCount = 0;
 
   @override
   void initState() {
@@ -54,9 +54,9 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     });
 
     try {
-      String tabParam = 'new';
+      String tabParam = 'todays';
       if (_selectedTab == 'accepted') {
-        tabParam = 'connected';
+        tabParam = 'accepted';
       } else if (_selectedTab == 'shortlisted') {
         tabParam = 'shortlisted';
       }
@@ -65,8 +65,31 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
       if (!mounted) return;
 
       if (res['success'] == true) {
+        final List<dynamic> list = res['matches'] ?? [];
+        final counts = res['counts'];
+
         setState(() {
-          _matches = res['matches'] ?? [];
+          _matches = list;
+          if (counts is Map) {
+            final todays = counts['todays'] ?? counts['my_matches'];
+            if (todays != null) {
+              _newCount = todays is int ? todays : int.tryParse('$todays') ?? _newCount;
+            }
+
+            final accepted = counts['accepted'];
+            if (accepted != null) {
+              _acceptedCount = accepted is int ? accepted : int.tryParse('$accepted') ?? _acceptedCount;
+            }
+
+            final shortlisted = counts['shortlisted'];
+            if (shortlisted != null) {
+              _shortlistedCount = shortlisted is int ? shortlisted : int.tryParse('$shortlisted') ?? _shortlistedCount;
+            }
+          } else {
+            if (_selectedTab == 'new') _newCount = list.length;
+            if (_selectedTab == 'accepted') _acceptedCount = list.length;
+            if (_selectedTab == 'shortlisted') _shortlistedCount = list.length;
+          }
           _isLoading = false;
         });
       } else {
@@ -128,6 +151,14 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         final isShortlisted = res['shortlisted'] == true;
         setState(() {
           candidate['is_shortlisted'] = isShortlisted;
+          if (!isShortlisted && _selectedTab == 'shortlisted') {
+            _matches.remove(candidate);
+          }
+          if (isShortlisted) {
+            _shortlistedCount++;
+          } else {
+            _shortlistedCount = _shortlistedCount > 0 ? _shortlistedCount - 1 : 0;
+          }
         });
         RaniAlert.success(
           context,
@@ -429,17 +460,352 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
       );
     }
 
-    // Single profile per vertical screen view
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: _matches.length,
-      itemBuilder: (context, index) {
-        final candidate = _matches[index];
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-          child: _buildFullImageMatchCard(candidate),
-        );
-      },
+    // 1. Single profile per vertical screen view for NEW tab
+    if (_selectedTab == 'new') {
+      return PageView.builder(
+        scrollDirection: Axis.vertical,
+        itemCount: _matches.length,
+        itemBuilder: (context, index) {
+          final candidate = _matches[index];
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+            child: _buildFullImageMatchCard(candidate),
+          );
+        },
+      );
+    }
+
+    // 2. Scrollable ListView for Accepted and Shortlisted candidates
+    return RefreshIndicator(
+      color: const Color(0xFF750000),
+      onRefresh: _fetchMatches,
+      child: ListView.builder(
+        padding: const EdgeInsets.only(top: 4, bottom: 24),
+        itemCount: _matches.length,
+        itemBuilder: (context, index) {
+          final candidate = _matches[index];
+          return _buildCandidateListCard(
+            candidate,
+            isAcceptedTab: _selectedTab == 'accepted',
+          );
+        },
+      ),
+    );
+  }
+
+  /// Candidate List Card for Accepted & Shortlisted tabs
+  Widget _buildCandidateListCard(dynamic c, {required bool isAcceptedTab}) {
+    final profileId = c['candidate_code'] ?? c['profile_id'] ?? (c['id'] != null ? 'RM${c['id'].toString().padLeft(5, '0')}' : 'RM00024');
+    final firstName = c['first_name'] ?? 'Candidate';
+    final lastName = c['last_name'] ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    final age = c['age']?.toString() ?? '24';
+    final height = c['height']?.toString() ?? "5' 4\"";
+    final religion = c['religion']?.toString() ?? 'Muslim';
+    final community = c['community']?.toString() ?? '';
+    final religionWithCommunity = (community.isNotEmpty && community.toLowerCase() != 'all' && community.toLowerCase() != 'all communities')
+        ? '$religion, $community'
+        : religion;
+    final profession = c['profession']?.toString() ?? c['designation']?.toString() ?? 'Professional';
+    final income = c['annual_income']?.toString() ?? '';
+    final city = c['city']?.toString() ?? 'Kolkata';
+    final state = c['state']?.toString() ?? 'West Bengal';
+    final locationText = (city.isNotEmpty && state.isNotEmpty) ? '$city, $state' : (city.isNotEmpty ? city : state);
+    final photo = c['photo'] ?? c['profile_picture'] ?? '';
+    final isVerified = c['verified'] == true || c['is_verified'] == 1 || (c['bluetick'] != null && c['bluetick']['is_accept'] == 1);
+    final matchScore = c['match_score']?.toString() ?? c['match_percentage']?.toString() ?? '95';
+    final isInterestSent = c['request_type'] == 'sent' || c['is_connected'] == true || isAcceptedTab;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEFE8DE), width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RaniProfileDetailScreen(
+                  profileId: profileId,
+                  initialProfileData: c,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Candidate Photo with match badge
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: SizedBox(
+                            width: 95,
+                            height: 115,
+                            child: photo.toString().isNotEmpty
+                                ? Image.network(
+                                    photo.toString(),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: const Color(0xFFEFE7DC),
+                                      child: const Icon(CupertinoIcons.person_fill, size: 45, color: Color(0xFFB5A795)),
+                                    ),
+                                  )
+                                : Container(
+                                    color: const Color(0xFFEFE7DC),
+                                    child: const Icon(CupertinoIcons.person_fill, size: 45, color: Color(0xFFB5A795)),
+                                  ),
+                          ),
+                        ),
+                        // Match score badge
+                        Positioned(
+                          top: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE5B842),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(CupertinoIcons.star_fill, size: 9, color: Color(0xFF4A0000)),
+                                const SizedBox(width: 2.5),
+                                Text(
+                                  '$matchScore%',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF4A0000),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Info Column
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  fullName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF1E1E1E),
+                                  ),
+                                ),
+                              ),
+                              if (isVerified) ...[
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  CupertinoIcons.checkmark_seal_fill,
+                                  size: 16,
+                                  color: Color(0xFF2196F3),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            'ID: $profileId',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF8E8E93),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '$age yrs, $height • $religionWithCommunity',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF4A4A4A),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(CupertinoIcons.briefcase, size: 12, color: Color(0xFF750000)),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  income.isNotEmpty ? '$profession • $income' : profession,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF555555),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(CupertinoIcons.location_solid, size: 12, color: Color(0xFFD32F2F)),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  locationText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF666666),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: Color(0xFFEFE8DE)),
+                const SizedBox(height: 10),
+
+                // Action Buttons Row
+                if (isAcceptedTab) ...[
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFC8E6C9)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 13, color: Color(0xFF2E7D32)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Connected',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF2E7D32),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF750000),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RaniProfileDetailScreen(
+                                profileId: profileId,
+                                initialProfileData: c,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(CupertinoIcons.chat_bubble_2_fill, size: 14),
+                        label: Text(
+                          'View Contact',
+                          style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      // Shortlist Heart Toggle Button (Filled Red Heart)
+                      GestureDetector(
+                        onTap: () => _toggleShortlist(c),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF0F2),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFFCDD2)),
+                          ),
+                          child: const Icon(CupertinoIcons.heart_fill, size: 18, color: Color(0xFFE53935)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Connect CTA Button
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isInterestSent ? const Color(0xFF2E7D32) : const Color(0xFF750000),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: isInterestSent ? null : () => _sendRoyalInterest(c),
+                          icon: Icon(
+                            isInterestSent ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
+                            size: 15,
+                          ),
+                          label: Text(
+                            isInterestSent ? 'Connected' : 'Connect Now',
+                            style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
