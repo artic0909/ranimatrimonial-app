@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/rani_colors.dart';
-import '../theme/rani_elevation.dart';
-import '../theme/rani_spacing.dart';
-import '../theme/rani_typography.dart';
-import 'profile_detail_screen.dart';
-import 'search_screen.dart';
+import '../components/rani_alert.dart';
+import '../components/rani_matrimonial_loader.dart';
+import '../services/api_service.dart';
+import 'login_screen.dart';
 
-/// Screen 3: Main Feed / Home Screen
-/// Matches the design mockup:
-/// - App bar with logo, filter icon, and favorites icon
-/// - Rounded search bar: "Search by location, profession..."
-/// - Filter tabs: Today's, Shortlisted, My Matches, Accepted
-/// - "Featured Profiles" with "See All"
-/// - 2-Column Profile Grid with photo, heart button, verified badge, name, profession & city
+/// Temporary Home Screen with a clean, functional Logout button
+/// Allows the user to verify login/registration sessions and safely log out.
 class RaniHomeScreen extends StatefulWidget {
   const RaniHomeScreen({super.key});
 
@@ -22,439 +15,304 @@ class RaniHomeScreen extends StatefulWidget {
 }
 
 class _RaniHomeScreenState extends State<RaniHomeScreen> {
-  String _selectedFilter = "My Matches";
+  bool _isLoggingOut = false;
 
-  final List<String> _filters = const [
-    'My Matches',
-    'Shortlisted',
-    'Accepted',
-  ];
-
-  final List<Map<String, dynamic>> _profiles = const [
-    {
-      'name': 'Anirban, 28',
-      'profession': 'Software Engineer',
-      'location': 'Kolkata, West Bengal',
-      'image': 'assets/male/correct1.png',
-      'isVerified': true,
-      'height': '5\'11"',
-      'religion': 'Hindu',
-      'community': 'Bengali',
-      'about':
-          'Senior software engineer passionate about technology, music, and travel. Seeking an understanding partner who values family traditions.',
-    },
-    {
-      'name': 'Priyanka, 26',
-      'profession': 'Doctor',
-      'location': 'Kolkata, West Bengal',
-      'image': 'assets/bride.png',
-      'isVerified': true,
-      'height': '5\'4"',
-      'religion': 'Hindu',
-      'community': 'Bengali',
-      'about':
-          'I am a kind, family-oriented and ambitious person. Looking for a genuine life partner who values family, respect and mutual growth.',
-    },
-    {
-      'name': 'Sneha, 25',
-      'profession': 'Teacher',
-      'location': 'Kolkata, West Bengal',
-      'image': 'assets/female/correct1.png',
-      'isVerified': true,
-      'height': '5\'3"',
-      'religion': 'Hindu',
-      'community': 'Bengali',
-      'about':
-          'Educator who loves literature, arts, and creative learning. Seeking a caring companion with mutual respect.',
-    },
-    {
-      'name': 'Rohan, 29',
-      'profession': 'Investment Banker',
-      'location': 'New Delhi, Delhi',
-      'image': 'assets/groom.png',
-      'isVerified': true,
-      'height': '6\'0"',
-      'religion': 'Hindu',
-      'community': 'Punjabi',
-      'about':
-          'Finance professional based in Delhi. Enjoys sports, literature, and weekend getaways. Looking for someone genuine and grounded.',
-    },
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: RaniColors.canvas,
-      appBar: AppBar(
-        backgroundColor: RaniColors.surfaceAlt,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.tune, color: RaniColors.cream, size: 22),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const RaniSearchScreen(),
-              ),
-            );
-          },
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF26121B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: Color(0xFFD4A034), width: 1.2),
         ),
-        title: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/logo.png',
-                height: 28,
-                width: 28,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.favorite,
-                  color: RaniColors.gold,
-                  size: 24,
+        title: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE5B842), Color(0xFFC59424)],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Rani',
-                    style: RaniTypography.headingSm(color: Colors.white).copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  Text(
-                    'MATRIMONIAL',
-                    style: RaniTypography.captionUppercase(color: RaniColors.gold).copyWith(
-                      fontSize: 8,
-                      letterSpacing: 2.0,
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE5B842).withValues(alpha: 0.35),
+                    blurRadius: 14,
                   ),
                 ],
               ),
-            ],
-          ),
+              child: const Icon(
+                Icons.logout_rounded,
+                size: 28,
+                color: Color(0xFF3B0000),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Confirm Logout',
+              style: GoogleFonts.playfairDisplay(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-        centerTitle: true,
+        content: Text(
+          'Are you sure you want to log out of your Rani Matrimonial account?',
+          style: GoogleFonts.outfit(
+            color: Colors.white.withValues(alpha: 0.88),
+            fontSize: 14,
+            height: 1.4,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border, color: RaniColors.cream, size: 22),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Your saved favorites will appear here.'),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white.withValues(alpha: 0.75),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-              );
-            },
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE5B842),
+                    foregroundColor: const Color(0xFF3B0000),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: Text(
+                    'Logout',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: RaniSpacing.md),
+    );
 
-            // Search Bar ("Search by location, profession...")
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: RaniSpacing.screenPadding),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const RaniSearchScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+    if (shouldLogout != true) return;
+    if (!mounted) return;
+
+    setState(() => _isLoggingOut = true);
+    RaniMatrimonialLoader.show(context, message: 'Logging out safely...');
+
+    try {
+      await ApiService.instance.logout();
+    } catch (e) {
+      debugPrint('Logout error: $e');
+    } finally {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        setState(() => _isLoggingOut = false);
+
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RaniLoginScreen()),
+          (route) => false,
+        );
+
+        RaniAlert.success(
+          context,
+          'You have been logged out successfully.',
+          title: 'Logged Out',
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final candidate = ApiService.instance.candidate;
+    final String candidateName = candidate?['first_name']?.toString() ??
+        candidate?['full_name']?.toString() ??
+        'Royal Member';
+    final String candidateCode = candidate?['candidate_code']?.toString() ??
+        candidate?['profile_id']?.toString() ??
+        '';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF2A0202),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1E0101),
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Rani Matrimonial',
+          style: GoogleFonts.playfairDisplay(
+            color: const Color(0xFFE5B842),
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: Color(0xFFE5B842),
+              size: 22,
+            ),
+            tooltip: 'Logout',
+            onPressed: _isLoggingOut ? null : _handleLogout,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Custom Matrimonial Interlocking Rings Loader / Animation
+                const RaniMatrimonialLoader(size: 96),
+                const SizedBox(height: 28),
+
+                // Welcome Greeting Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: RaniSpacing.roundedMd,
+                    color: const Color(0x384E342E),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: RaniColors.neutral,
-                      width: 1.0,
+                      color: const Color(0xFFD4A034).withValues(alpha: 0.45),
+                      width: 1.2,
                     ),
-                    boxShadow: RaniElevation.sm,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      const Icon(Icons.search, color: RaniColors.textMuted, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Search by location, profession...',
-                          style: RaniTypography.bodySm(color: RaniColors.textMuted),
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        'Welcome, $candidateName',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
                         ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (candidateCode.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE5B842).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFE5B842).withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Text(
+                            'ID: $candidateCode',
+                            style: GoogleFonts.sourceCodePro(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFE5B842),
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      Text(
+                        'Your account is active and verified.\nFull home feed & matching screens will be designed soon.',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withValues(alpha: 0.75),
+                          height: 1.45,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: RaniSpacing.md),
+                const SizedBox(height: 36),
 
-            // Filter Tabs row: Today's, Shortlisted, My Matches, Accepted
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: RaniSpacing.screenPadding),
-                itemCount: _filters.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final filter = _filters[index];
-                  final isSelected = _selectedFilter == filter;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedFilter = filter;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF6B0000) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        filter,
-                        style: GoogleFonts.outfit(
-                          color: isSelected ? Colors.white : const Color(0xFF475569),
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                          fontSize: 14.5,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
+                // Prominent Logout Button
+                Container(
+                  width: double.infinity,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFE5B842), Color(0xFFC79224)],
                     ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: RaniSpacing.lg),
-
-            // "Featured Profiles" & "See All"
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: RaniSpacing.screenPadding),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Featured Profiles',
-                      style: RaniTypography.headingMd(color: RaniColors.ink).copyWith(
-                        fontWeight: FontWeight.w700,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const RaniSearchScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'See All',
-                      style: RaniTypography.labelSm(color: RaniColors.primary).copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: RaniSpacing.sm),
-
-            // 2-Column Profile Grid matching the mockup cards
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: RaniSpacing.screenPadding),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final aspectRatio = screenWidth < 350
-                      ? 0.60
-                      : (screenWidth < 380 ? 0.65 : 0.68);
-
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: aspectRatio,
-                    ),
-                    itemCount: _profiles.length,
-                    itemBuilder: (context, index) {
-                      final profile = _profiles[index];
-                      return _ProfileFeedCard(
-                        profile: profile,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => RaniProfileDetailScreen(
-                                profile: profile,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(26),
+                      onTap: _isLoggingOut ? null : _handleLogout,
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.logout_rounded,
+                              color: Color(0xFF3B0000),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Logout',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF3B0000),
+                                letterSpacing: 0.3,
                               ),
                             ),
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: RaniSpacing.xxl),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileFeedCard extends StatefulWidget {
-  final Map<String, dynamic> profile;
-  final VoidCallback onTap;
-
-  const _ProfileFeedCard({
-    required this.profile,
-    required this.onTap,
-  });
-
-  @override
-  State<_ProfileFeedCard> createState() => _ProfileFeedCardState();
-}
-
-class _ProfileFeedCardState extends State<_ProfileFeedCard> {
-  bool _isFavorite = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final profile = widget.profile;
-    final name = profile['name'] as String;
-    final profession = profile['profession'] as String;
-    final location = profile['location'] as String;
-    final image = profile['image'] as String;
-
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: RaniSpacing.roundedLg,
-          border: Border.all(
-            color: RaniColors.gold.withValues(alpha: 0.35),
-            width: 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Photo with Heart overlay
-            Expanded(
-              flex: 11,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    image,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.topCenter,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: RaniColors.cream,
-                      child: const Icon(Icons.person, color: RaniColors.gold, size: 48),
-                    ),
-                  ),
-                  // Heart button on top-right
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isFavorite = !_isFavorite;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: _isFavorite ? Colors.red : RaniColors.primary,
-                          size: 16,
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // Card Bottom Details
-            Expanded(
-              flex: 6,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      name,
-                      style: RaniTypography.labelMd(color: RaniColors.ink).copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      profession,
-                      style: RaniTypography.caption(color: RaniColors.textMuted).copyWith(
-                        fontSize: 11,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      location,
-                      style: RaniTypography.caption(color: RaniColors.textMuted).copyWith(
-                        fontSize: 10,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

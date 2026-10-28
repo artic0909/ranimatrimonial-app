@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'main_navigation_screen.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';
+import '../components/rani_matrimonial_loader.dart';
 
 /// Screen: Complete 14-Step Registration Screen for Rani Matrimonial
 /// Pixel-perfect matching with all 14 design screenshots:
@@ -3322,15 +3323,8 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: Color(0xFFE5B842),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
+                  const RaniMatrimonialLoader.mini(size: 20),
+                  const SizedBox(width: 12),
                   Text(
                     'Waiting for selfie from phone...',
                     style: GoogleFonts.outfit(
@@ -3964,13 +3958,9 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           onTap: _isSubmitting ? null : _nextStep,
           child: Center(
             child: _isSubmitting
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF3B0000),
-                      strokeWidth: 2.2,
-                    ),
+                ? const RaniMatrimonialLoader.mini(
+                    size: 22,
+                    color: Color(0xFF3B0000),
                   )
                 : Text(
                     buttonText,
