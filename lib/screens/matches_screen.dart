@@ -69,7 +69,12 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         final counts = res['counts'];
 
         setState(() {
-          _matches = list;
+          // Strictly guarantee shortlisted candidates do NOT appear in the NEW tab
+          if (_selectedTab == 'new') {
+            _matches = list.where((m) => m['is_shortlisted'] != true).toList();
+          } else {
+            _matches = list;
+          }
           if (counts is Map) {
             final todays = counts['todays'] ?? counts['my_matches'];
             if (todays != null) {
@@ -86,7 +91,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               _shortlistedCount = shortlisted is int ? shortlisted : int.tryParse('$shortlisted') ?? _shortlistedCount;
             }
           } else {
-            if (_selectedTab == 'new') _newCount = list.length;
+            if (_selectedTab == 'new') _newCount = _matches.length;
             if (_selectedTab == 'accepted') _acceptedCount = list.length;
             if (_selectedTab == 'shortlisted') _shortlistedCount = list.length;
           }
@@ -151,13 +156,33 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         final isShortlisted = res['shortlisted'] == true;
         setState(() {
           candidate['is_shortlisted'] = isShortlisted;
-          if (!isShortlisted && _selectedTab == 'shortlisted') {
-            _matches.remove(candidate);
-          }
           if (isShortlisted) {
-            _shortlistedCount++;
+            // Once shortlisted, remove from NEW tab immediately
+            if (_selectedTab == 'new') {
+              _matches.removeWhere((m) {
+                final mId = m['candidate_code'] ?? m['profile_id'] ?? m['id']?.toString();
+                return mId == profileId || m == candidate;
+              });
+              if (_newCount > 0) _newCount--;
+            }
+            if (res['count'] is int) {
+              _shortlistedCount = res['count'];
+            } else {
+              _shortlistedCount++;
+            }
           } else {
-            _shortlistedCount = _shortlistedCount > 0 ? _shortlistedCount - 1 : 0;
+            // When un-shortlisted from the Shortlisted tab, remove immediately
+            if (_selectedTab == 'shortlisted') {
+              _matches.removeWhere((m) {
+                final mId = m['candidate_code'] ?? m['profile_id'] ?? m['id']?.toString();
+                return mId == profileId || m == candidate;
+              });
+            }
+            if (res['count'] is int) {
+              _shortlistedCount = res['count'];
+            } else {
+              _shortlistedCount = _shortlistedCount > 0 ? _shortlistedCount - 1 : 0;
+            }
           }
         });
         RaniAlert.success(

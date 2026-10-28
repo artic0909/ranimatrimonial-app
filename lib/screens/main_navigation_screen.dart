@@ -160,12 +160,12 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             BottomNavigationBarItem(
               icon: _buildNavBadgeIcon(icon: CupertinoIcons.mail, count: _inboxCount, size: 22),
               activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.mail_solid, count: _inboxCount, size: 22),
-              label: 'Inbox',
+              label: 'Interests',
             ),
             BottomNavigationBarItem(
               icon: _buildNavBadgeIcon(icon: CupertinoIcons.chat_bubble_2, count: _chatCount, size: 23),
               activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.chat_bubble_2_fill, count: _chatCount, size: 23),
-              label: 'Chat',
+              label: 'Wallet',
             ),
             const BottomNavigationBarItem(
               icon: Icon(CupertinoIcons.person, size: 23),
