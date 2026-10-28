@@ -10,14 +10,19 @@ import 'profile_detail_screen.dart';
 /// Sub-tabs: Received, Accepted, Declined
 /// Action: Accept / Decline connection requests, Start WhatsApp Chat
 class RaniInboxScreen extends StatefulWidget {
-  const RaniInboxScreen({super.key});
+  final String initialTab;
+
+  const RaniInboxScreen({
+    super.key,
+    this.initialTab = 'received',
+  });
 
   @override
   State<RaniInboxScreen> createState() => _RaniInboxScreenState();
 }
 
 class _RaniInboxScreenState extends State<RaniInboxScreen> {
-  String _activeTab = 'received';
+  late String _activeTab;
   bool _isLoading = true;
   List<dynamic> _requests = [];
   Map<String, dynamic> _counts = {};
@@ -26,6 +31,7 @@ class _RaniInboxScreenState extends State<RaniInboxScreen> {
   @override
   void initState() {
     super.initState();
+    _activeTab = widget.initialTab;
     _fetchInbox();
   }
 

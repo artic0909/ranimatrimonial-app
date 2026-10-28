@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'main_navigation_screen.dart';
+import 'profile_completion_screen.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';
 import '../components/rani_matrimonial_loader.dart';
@@ -1176,12 +1176,13 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         setState(() => _isSubmitting = false);
 
         if (res['success'] == true) {
-          RaniAlert.success(
-            context,
-            'Profile created successfully! Welcome to Rani Matrimonial.',
-            title: 'Registration Completed',
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => RaniProfileCompletionScreen(
+                initialAadhar: _aadharController.text.trim(),
+              ),
+            ),
           );
-          _showCompletionNotice();
         } else {
           final errorMsg = res['message'] ?? (res['errors'] != null ? res['errors'].toString() : 'Registration failed. Please check details.');
           RaniAlert.error(
@@ -1217,100 +1218,6 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     } else {
       Navigator.of(context).maybePop();
     }
-  }
-
-  void _showCompletionNotice() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF26121B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Column(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFE5B842), Color(0xFFC59424)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFE5B842).withValues(alpha: 0.5),
-                    blurRadius: 20,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                size: 38,
-                color: Color(0xFF3B0000),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Profile Created! 🎉',
-              style: GoogleFonts.playfairDisplay(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 24,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        content: Text(
-          'Congratulations! Your royal profile has been registered and verified successfully.\n\nBegin your journey to find your perfect match now.',
-          style: GoogleFonts.outfit(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 14.5,
-            height: 1.45,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const RaniMainNavigationScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFE5B842), Color(0xFFC59424)],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFE5B842).withValues(alpha: 0.4),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-                child: Text(
-                  'Explore Matches',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    color: const Color(0xFF3B0000),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -3904,32 +3811,56 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                   if (items.length > 5) ...[
                     const SizedBox(height: 12),
                     Container(
-                      height: 40,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFD4C5B9)),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2D6CA), width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, size: 20, color: Color(0xFF8C7972)),
-                          const SizedBox(width: 8),
+                          const Icon(Icons.search, size: 18, color: Color(0xFF750000)),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: TextField(
-                              onChanged: (query) {
-                                setModalState(() {
-                                  searchQuery = query.trim();
-                                });
-                              },
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                color: const Color(0xFF2C140E),
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                inputDecorationTheme: const InputDecorationTheme(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
                               ),
-                              decoration: const InputDecoration(
-                                hintText: 'Search...',
-                                border: InputBorder.none,
-                                isDense: true,
+                              child: TextField(
+                                onChanged: (query) {
+                                  setModalState(() {
+                                    searchQuery = query.trim();
+                                  });
+                                },
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF2C140E),
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Search $title...',
+                                  hintStyle: GoogleFonts.outfit(
+                                    fontSize: 13.5,
+                                    color: const Color(0xFF9E8E85),
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                  isDense: true,
+                                ),
                               ),
                             ),
                           ),

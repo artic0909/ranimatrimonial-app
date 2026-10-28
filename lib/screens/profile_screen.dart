@@ -6,7 +6,7 @@ import '../services/api_service.dart';
 import '../components/rani_alert.dart';
 import '../components/rani_matrimonial_loader.dart';
 import '../components/rani_skeleton_loader.dart';
-import 'welcome_screen.dart';
+import 'splash_screen.dart';
 import 'wallet_screen.dart';
 import 'help_support_screen.dart';
 
@@ -118,7 +118,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
               RaniMatrimonialLoader.hide(context);
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const RaniWelcomeScreen()),
+                MaterialPageRoute(builder: (_) => const RaniSplashScreen()),
                 (route) => false,
               );
             },

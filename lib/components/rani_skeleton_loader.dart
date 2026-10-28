@@ -207,9 +207,10 @@ class RaniSkeletonMatchCard extends StatelessWidget {
                 // Name & age bar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const RaniSkeletonBox(width: 80, height: 14, borderRadius: 4),
-                    const RaniSkeletonBox(width: 32, height: 12, borderRadius: 4),
+                  children: const [
+                    Expanded(child: RaniSkeletonBox(height: 14, borderRadius: 4)),
+                    SizedBox(width: 8),
+                    RaniSkeletonBox(width: 28, height: 12, borderRadius: 4),
                   ],
                 ),
                 const SizedBox(height: 6),
