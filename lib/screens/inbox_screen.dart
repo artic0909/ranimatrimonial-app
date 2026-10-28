@@ -11,10 +11,12 @@ import 'profile_detail_screen.dart';
 /// Action: Accept / Decline connection requests, Start WhatsApp Chat
 class RaniInboxScreen extends StatefulWidget {
   final String initialTab;
+  final bool showAppBar;
 
   const RaniInboxScreen({
     super.key,
     this.initialTab = 'received',
+    this.showAppBar = true,
   });
 
   @override
@@ -121,31 +123,43 @@ class _RaniInboxScreenState extends State<RaniInboxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bodyContent = RefreshIndicator(
+      color: const Color(0xFFD4A034),
+      backgroundColor: const Color(0xFF200707),
+      onRefresh: _fetchInbox,
+      child: _buildBody(),
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFF140505),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF200707),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Royal Inbox',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFFF3E5AB),
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
-          child: _buildSubTabs(),
-        ),
-      ),
-      body: RefreshIndicator(
-        color: const Color(0xFFD4A034),
-        backgroundColor: const Color(0xFF200707),
-        onRefresh: _fetchInbox,
-        child: _buildBody(),
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              backgroundColor: const Color(0xFF200707),
+              elevation: 0,
+              centerTitle: true,
+              title: Text(
+                'Royal Inbox',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFF3E5AB),
+                ),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(52),
+                child: _buildSubTabs(),
+              ),
+            )
+          : null,
+      body: widget.showAppBar
+          ? bodyContent
+          : Column(
+              children: [
+                const SizedBox(height: 8),
+                _buildSubTabs(),
+                Expanded(child: bodyContent),
+              ],
+            ),
     );
   }
 

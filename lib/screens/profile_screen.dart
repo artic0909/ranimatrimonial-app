@@ -12,7 +12,12 @@ import 'help_support_screen.dart';
 
 /// Screen: Candidate Profile & Account Dashboard (matching website my_profile.blade.php)
 class RaniProfileScreen extends StatefulWidget {
-  const RaniProfileScreen({super.key});
+  final bool showAppBar;
+
+  const RaniProfileScreen({
+    super.key,
+    this.showAppBar = true,
+  });
 
   @override
   State<RaniProfileScreen> createState() => _RaniProfileScreenState();
@@ -149,26 +154,28 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF140505),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF200707),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'My Sanctuary',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFFF3E5AB),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFFEF5350)),
-            onPressed: _showLogoutDialog,
-            tooltip: 'Log Out',
-          ),
-        ],
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              backgroundColor: const Color(0xFF200707),
+              elevation: 0,
+              centerTitle: true,
+              title: Text(
+                'My Sanctuary',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFF3E5AB),
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Color(0xFFEF5350)),
+                  onPressed: _showLogoutDialog,
+                  tooltip: 'Log Out',
+                ),
+              ],
+            )
+          : null,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

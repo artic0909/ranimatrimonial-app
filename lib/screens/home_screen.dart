@@ -14,12 +14,14 @@ class RaniHomeScreen extends StatefulWidget {
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenFilter;
   final VoidCallback? onOpenProfile;
+  final bool showCandidateHeader;
 
   const RaniHomeScreen({
     super.key,
     this.onOpenSearch,
     this.onOpenFilter,
     this.onOpenProfile,
+    this.showCandidateHeader = true,
   });
 
   @override
@@ -374,12 +376,13 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
           child: CustomScrollView(
             slivers: [
               // 1. Top Header with Candidate Name & Modern Icons (Replaces RANI MATRIMONIAL text)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  child: _buildCandidateHeader(),
+              if (widget.showCandidateHeader)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: _buildCandidateHeader(),
+                  ),
                 ),
-              ),
 
               // 2. Modern Search Bar
               SliverToBoxAdapter(

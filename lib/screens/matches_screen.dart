@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';
 import '../components/rani_skeleton_loader.dart';
+import '../components/rani_top_bar.dart';
 import 'profile_detail_screen.dart';
 import 'search_screen.dart';
 
@@ -21,11 +22,13 @@ import 'search_screen.dart';
 class RaniMatchesScreen extends StatefulWidget {
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenNotifications;
+  final bool showAppBar;
 
   const RaniMatchesScreen({
     super.key,
     this.onOpenSearch,
     this.onOpenNotifications,
+    this.showAppBar = true,
   });
 
   @override
@@ -210,31 +213,13 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F2),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFAF7F2),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        shape: const Border(), // Explicitly removes bottom border line
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.line_horizontal_3, color: Color(0xFF1E1E1E), size: 24),
-          onPressed: () {},
-        ),
-        title: Text(
-          'Matches',
-          style: GoogleFonts.outfit(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1A1A1A),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(CupertinoIcons.bell, color: Color(0xFF1E1E1E), size: 22),
-            onPressed: widget.onOpenNotifications,
-          ),
-        ],
-      ),
+      appBar: widget.showAppBar
+          ? RaniTopBar(
+              title: 'Matches',
+              notificationCount: 3,
+              onNotificationPressed: widget.onOpenNotifications,
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [

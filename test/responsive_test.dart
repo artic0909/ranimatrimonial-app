@@ -10,6 +10,7 @@ import 'package:ranimatrimonial_app/screens/search_screen.dart';
 import 'package:ranimatrimonial_app/screens/profile_completion_screen.dart';
 import 'package:ranimatrimonial_app/screens/aadhaar_verification_screen.dart';
 import 'package:ranimatrimonial_app/screens/matches_screen.dart';
+import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
 
 void main() {
@@ -171,6 +172,18 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
 
         await tester.pumpWidget(wrapScreen(const RaniMatchesScreen()));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+      }
+    });
+
+    testWidgets('Main navigation screen fits all screen sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen()));
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
