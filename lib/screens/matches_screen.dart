@@ -33,12 +33,13 @@ class RaniMatchesScreen extends StatefulWidget {
 }
 
 class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
-  String _selectedTab = 'new'; // 'new' or 'accepted'
+  String _selectedTab = 'new'; // 'new', 'accepted', 'shortlisted'
   bool _isLoading = true;
   List<dynamic> _matches = [];
   String? _errorMessage;
   final int _newCount = 61;
   final int _acceptedCount = 12;
+  final int _shortlistedCount = 8;
 
   @override
   void initState() {
@@ -53,7 +54,13 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     });
 
     try {
-      final tabParam = _selectedTab == 'accepted' ? 'connected' : 'new';
+      String tabParam = 'new';
+      if (_selectedTab == 'accepted') {
+        tabParam = 'connected';
+      } else if (_selectedTab == 'shortlisted') {
+        tabParam = 'shortlisted';
+      }
+
       final res = await ApiService.instance.getMatches(tab: tabParam);
       if (!mounted) return;
 
@@ -175,14 +182,14 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Tabs Row: Filter icon | (bar) NEW 61 Accepted 12 (Horizontally scrollable for small screens)
+            // Tabs Row: Filter icon | (bar) NEW 61 Accepted 12 Shortlisted 8 (Theme styled)
             SizedBox(
               height: 42,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  // Filter icon
+                  // Filter icon (Theme Burgundy)
                   GestureDetector(
                     onTap: () {
                       if (widget.onOpenSearch != null) {
@@ -203,7 +210,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                         border: Border.all(color: const Color(0xFFE8DFD5)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
+                            color: const Color(0xFF750000).withValues(alpha: 0.08),
                             blurRadius: 4,
                             offset: const Offset(0, 1),
                           ),
@@ -212,7 +219,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       child: const Icon(
                         CupertinoIcons.slider_horizontal_3,
                         size: 18,
-                        color: Color(0xFF1E1E1E),
+                        color: Color(0xFF750000), // Brand Royal Burgundy
                       ),
                     ),
                   ),
@@ -224,7 +231,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                     child: Container(
                       width: 1.5,
                       height: 22,
-                      color: const Color(0xFFD6CDC1),
+                      color: const Color(0xFFD4AF37).withValues(alpha: 0.5), // Brand Gold tint
                     ),
                   ),
 
@@ -253,6 +260,19 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       child: _buildTabPill('Accepted $_acceptedCount', _selectedTab == 'accepted'),
                     ),
                   ),
+
+                  const SizedBox(width: 8),
+
+                  // Shortlisted 8
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedTab = 'shortlisted');
+                        _fetchMatches();
+                      },
+                      child: _buildTabPill('Shortlisted $_shortlistedCount', _selectedTab == 'shortlisted'),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -273,16 +293,24 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF26121B) : Colors.white,
+        gradient: isSelected
+            ? const LinearGradient(
+                colors: [Color(0xFF8B0000), Color(0xFF6B0000)], // Royal Burgundy Theme
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: isSelected ? null : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSelected ? const Color(0xFF26121B) : const Color(0xFFE8DFD5),
+          color: isSelected ? const Color(0xFF8B0000) : const Color(0xFFE8DFD5),
+          width: 1.2,
         ),
         boxShadow: [
           if (isSelected)
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 4,
+              color: const Color(0xFF750000).withValues(alpha: 0.32),
+              blurRadius: 6,
               offset: const Offset(0, 2),
             ),
         ],
@@ -292,7 +320,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         style: GoogleFonts.outfit(
           fontSize: 12.5,
           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-          color: isSelected ? Colors.white : const Color(0xFF4A4A4A),
+          color: isSelected ? Colors.white : const Color(0xFF5A0812), // Theme Burgundy for text
           letterSpacing: 0.2,
         ),
       ),
@@ -338,6 +366,17 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     }
 
     if (_matches.isEmpty) {
+      String emptyTitle = 'No Matches Right Now';
+      String emptySubtitle = 'Explore other categories or adjust your filters to discover compatible candidates.';
+
+      if (_selectedTab == 'accepted') {
+        emptyTitle = 'No Accepted Matches';
+        emptySubtitle = 'When other members accept your connect requests, they will show up here.';
+      } else if (_selectedTab == 'shortlisted') {
+        emptyTitle = 'No Shortlisted Profiles';
+        emptySubtitle = 'Tap the heart icon on any match card to save candidates to your shortlist.';
+      }
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -355,7 +394,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                _selectedTab == 'accepted' ? 'No Accepted Matches' : 'No Matches Right Now',
+                emptyTitle,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -364,9 +403,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _selectedTab == 'accepted'
-                    ? 'When other members accept your connect requests, they will show up here.'
-                    : 'Explore other categories or adjust your filters to discover compatible candidates.',
+                emptySubtitle,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF6B6B6B)),
               ),
@@ -467,7 +504,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       child: const Icon(CupertinoIcons.person_fill, size: 80, color: Colors.white70),
                     ),
 
-              // 2. Bottom Dark Gradient Overlay for optimal legibility
+              // 2. Bottom Royal Burgundy Gradient Overlay for optimal legibility
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -476,9 +513,9 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withValues(alpha: 0.1),
-                        Colors.black.withValues(alpha: 0.52),
-                        Colors.black.withValues(alpha: 0.94),
+                        const Color(0xFF260003).withValues(alpha: 0.15),
+                        const Color(0xFF200003).withValues(alpha: 0.65),
+                        const Color(0xFF150002).withValues(alpha: 0.96),
                       ],
                       stops: const [0.42, 0.62, 0.80, 1.0],
                     ),
@@ -497,7 +534,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.25),
+                        color: const Color(0xFF750000).withValues(alpha: 0.25),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -506,14 +543,14 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(CupertinoIcons.star_fill, size: 12, color: Color(0xFF26121B)),
+                      const Icon(CupertinoIcons.star_fill, size: 12, color: Color(0xFF4A0000)),
                       const SizedBox(width: 4),
                       Text(
                         '$matchScore% Match',
                         style: GoogleFonts.outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF26121B),
+                          color: const Color(0xFF4A0000), // Theme Burgundy
                         ),
                       ),
                     ],
