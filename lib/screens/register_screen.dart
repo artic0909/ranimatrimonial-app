@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'main_navigation_screen.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';
@@ -141,8 +143,11 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
   int _resendSeconds = 22;
   bool _isSubmitting = false;
 
-  // Step 14: Profile Picture & Referral
-  bool _hasUploadedPhoto = false;
+  // Step 14: Profile Picture, Selfie & Referral
+  File? _profilePictureFile;
+  File? _selfieFile;
+  String? _selfieData;
+  Timer? _selfiePollTimer;
   final TextEditingController _referralCodeController = TextEditingController();
   final FocusNode _referralCodeFocus = FocusNode();
 
@@ -754,6 +759,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     _otp3Focus.dispose();
     _otp4Focus.dispose();
     _referralCodeFocus.dispose();
+    _selfiePollTimer?.cancel();
 
     super.dispose();
   }
@@ -1158,7 +1164,12 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           'referral_code': _referralCodeController.text.trim(),
         };
 
-        final res = await ApiService.instance.registerFinal(candidateData);
+        final res = await ApiService.instance.registerFinal(
+          candidateData,
+          profilePictureFile: _profilePictureFile,
+          selfieImageFile: _selfieFile,
+          selfieData: _selfieData,
+        );
         if (!mounted) return;
         setState(() => _isSubmitting = false);
 
@@ -3141,6 +3152,258 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     );
   }
 
+  /// Pick profile picture from gallery
+  Future<void> _pickProfilePicture() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        setState(() {
+          _profilePictureFile = File(picked.path);
+        });
+        if (mounted) {
+          RaniAlert.success(
+            context,
+            'Profile picture selected successfully.',
+            title: 'Photo Uploaded',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking profile picture: $e');
+      if (mounted) {
+        RaniAlert.error(
+          context,
+          'Unable to access gallery. Please check permissions.',
+          title: 'Photo Error',
+        );
+      }
+    }
+  }
+
+  /// Take live selfie with front camera
+  Future<void> _takeLiveSelfie() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        setState(() {
+          _selfieFile = File(picked.path);
+        });
+        if (mounted) {
+          RaniAlert.success(
+            context,
+            'Live selfie captured and verified!',
+            title: 'Selfie Verified',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error taking live selfie: $e');
+      if (mounted) {
+        RaniAlert.error(
+          context,
+          'Unable to open camera. Please check camera permissions.',
+          title: 'Camera Error',
+        );
+      }
+    }
+  }
+
+  /// Send selfie capture link to WhatsApp and poll for completion
+  Future<void> _linkToPhoneSelfie() async {
+    final mobile = _mobileController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    if (mobile.length != 10) {
+      _showWarning('Please enter a valid 10-digit mobile number in Step 6.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final res = await ApiService.instance.sendSelfieLink(mobile);
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+
+      if (res['success'] == true) {
+        _showPhoneSelfiePollingDialog(mobile);
+      } else {
+        RaniAlert.error(
+          context,
+          res['message'] ?? 'Failed to send WhatsApp verification link.',
+          title: 'Link Failed',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      RaniAlert.error(
+        context,
+        'Could not send link. Please verify internet connection.',
+        title: 'Connection Error',
+      );
+    }
+  }
+
+  /// Show polling dialog for Phone Selfie capture
+  void _showPhoneSelfiePollingDialog(String mobile) {
+    _selfiePollTimer?.cancel();
+    int attempts = 0;
+    const maxAttempts = 60; // Up to 3 minutes
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF26121B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: Color(0xFFD4A034), width: 1.2),
+          ),
+          title: Column(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE5B842), Color(0xFFC59424)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFE5B842).withValues(alpha: 0.4),
+                      blurRadius: 16,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.smartphone_rounded,
+                  size: 32,
+                  color: Color(0xFF3B0000),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Link Sent to Phone',
+                style: GoogleFonts.playfairDisplay(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'A secure selfie link has been sent via WhatsApp to +91 $mobile.\n\nPlease open WhatsApp, click the link, and complete your selfie verification on your phone.',
+                style: GoogleFonts.outfit(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontSize: 13.5,
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Color(0xFFE5B842),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Waiting for selfie from phone...',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFFE5B842),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  _selfiePollTimer?.cancel();
+                  Navigator.of(dialogContext).pop();
+                },
+                child: Text(
+                  'Cancel & Try Another Way',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    _selfiePollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      attempts++;
+      if (attempts >= maxAttempts) {
+        timer.cancel();
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+          RaniAlert.warning(
+            context,
+            'Selfie verification timed out. You can take a live selfie directly or try again.',
+            title: 'Verification Timeout',
+          );
+        }
+        return;
+      }
+
+      try {
+        final statusData = await ApiService.instance.checkSelfieStatus(mobile);
+        if (statusData['success'] == true && statusData['selfie_data'] != null) {
+          timer.cancel();
+          if (mounted) {
+            setState(() {
+              _selfieData = statusData['selfie_data'] as String;
+            });
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+            RaniAlert.success(
+              context,
+              'Your live selfie was successfully verified via phone.',
+              title: 'Selfie Verified!',
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Polling selfie error: $e');
+      }
+    });
+  }
+
   /// Step 14: "Profile Picture" (Screenshot 4 - Final Step)
   Widget _buildStep14ProfilePicture() {
     return Column(
@@ -3159,11 +3422,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
 
         // Main Upload Box
         GestureDetector(
-          onTap: () {
-            setState(() {
-              _hasUploadedPhoto = !_hasUploadedPhoto;
-            });
-          },
+          onTap: _pickProfilePicture,
           child: Container(
             width: double.infinity,
             height: 125,
@@ -3171,8 +3430,8 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
               color: const Color(0x384E342E),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: const Color(0xFFD4A034),
-                width: 1.2,
+                color: _profilePictureFile != null ? const Color(0xFFE5B842) : const Color(0xFFD4A034),
+                width: _profilePictureFile != null ? 1.8 : 1.2,
               ),
             ),
             child: Center(
@@ -3194,15 +3453,26 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                         ),
                       ],
                     ),
-                    child: Icon(
-                      _hasUploadedPhoto ? Icons.check_circle_rounded : Icons.image_outlined,
-                      color: const Color(0xFF3B0000),
-                      size: 28,
-                    ),
+                    child: _profilePictureFile != null
+                        ? ClipOval(
+                            child: Image.file(
+                              _profilePictureFile!,
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.image_outlined,
+                            color: Color(0xFF3B0000),
+                            size: 28,
+                          ),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    _hasUploadedPhoto ? 'Photo Uploaded (Tap to Change)' : 'Upload Profile Picture',
+                    _profilePictureFile != null
+                        ? 'Photo Uploaded (Tap to Change)'
+                        : 'Upload Profile Picture',
                     style: GoogleFonts.outfit(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
@@ -3222,36 +3492,32 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
           children: [
             Expanded(
               child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _hasUploadedPhoto = true;
-                  });
-                },
+                onTap: _takeLiveSelfie,
                 child: Container(
                   height: 58,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD5CCC4),
+                    color: _selfieFile != null ? const Color(0xFFFAF6F0) : const Color(0xFFD5CCC4),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFC4B8AC),
-                      width: 1.0,
+                      color: _selfieFile != null ? const Color(0xFFD4A034) : const Color(0xFFC4B8AC),
+                      width: _selfieFile != null ? 1.8 : 1.0,
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.camera_alt_outlined,
+                      Icon(
+                        _selfieFile != null ? Icons.check_circle_rounded : Icons.camera_alt_outlined,
                         size: 20,
-                        color: Color(0xFFD4A034),
+                        color: _selfieFile != null ? const Color(0xFF1B5E20) : const Color(0xFFD4A034),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Take Live Selfie',
+                        _selfieFile != null ? 'Selfie Taken ✓' : 'Take Live Selfie',
                         style: GoogleFonts.outfit(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF4A181E),
+                          color: _selfieFile != null ? const Color(0xFF1B5E20) : const Color(0xFF4A181E),
                         ),
                       ),
                     ],
@@ -3262,36 +3528,32 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _hasUploadedPhoto = true;
-                  });
-                },
+                onTap: _linkToPhoneSelfie,
                 child: Container(
                   height: 58,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD5CCC4),
+                    color: _selfieData != null ? const Color(0xFFFAF6F0) : const Color(0xFFD5CCC4),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFC4B8AC),
-                      width: 1.0,
+                      color: _selfieData != null ? const Color(0xFFD4A034) : const Color(0xFFC4B8AC),
+                      width: _selfieData != null ? 1.8 : 1.0,
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.smartphone_rounded,
+                      Icon(
+                        _selfieData != null ? Icons.check_circle_rounded : Icons.smartphone_rounded,
                         size: 20,
-                        color: Color(0xFFD4A034),
+                        color: _selfieData != null ? const Color(0xFF1B5E20) : const Color(0xFFD4A034),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Link to Phone',
+                        _selfieData != null ? 'Phone Verified ✓' : 'Link to Phone',
                         style: GoogleFonts.outfit(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF4A181E),
+                          color: _selfieData != null ? const Color(0xFF1B5E20) : const Color(0xFF4A181E),
                         ),
                       ),
                     ],
