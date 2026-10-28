@@ -511,6 +511,268 @@ class ApiService {
   }
 
   // ==========================================
+  // MATCHES & CONNECTIONS
+  // ==========================================
+
+  /// Fetch candidate matches by tab ('all', 'new', 'shortlisted', 'connected', etc.)
+  Future<Map<String, dynamic>> getMatches({String tab = 'all', int page = 1}) async {
+    final uri = Uri.parse('$baseUrl/matches?tab=$tab&page=$page');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Get candidate profile details by token or ID
+  Future<Map<String, dynamic>> getProfileDetails(dynamic id) async {
+    final uri = Uri.parse('$baseUrl/matches/profile/$id');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Send Interest / Connection Request
+  Future<Map<String, dynamic>> sendInterest(String profileId) async {
+    final uri = Uri.parse('$baseUrl/matches/send-interest');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'profile_id': profileId}),
+    );
+    return _processResponse(response);
+  }
+
+  /// Respond to an Interest (accept / decline)
+  Future<Map<String, dynamic>> respondInterest(String profileId, String action) async {
+    final uri = Uri.parse('$baseUrl/matches/respond-interest');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'profile_id': profileId,
+        'action': action,
+      }),
+    );
+    return _processResponse(response);
+  }
+
+  /// Toggle candidate shortlist
+  Future<Map<String, dynamic>> toggleShortlist(String profileId) async {
+    final uri = Uri.parse('$baseUrl/matches/toggle-shortlist');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'profile_id': profileId}),
+    );
+    return _processResponse(response);
+  }
+
+  /// Request WhatsApp Chat unlock
+  Future<Map<String, dynamic>> requestWhatsAppChat(String profileId) async {
+    final uri = Uri.parse('$baseUrl/matches/request-whatsapp-chat');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'profile_id': profileId}),
+    );
+    return _processResponse(response);
+  }
+
+  /// Respond to WhatsApp Chat unlock request (accept / decline)
+  Future<Map<String, dynamic>> respondWhatsAppChat(String profileId, String action) async {
+    final uri = Uri.parse('$baseUrl/matches/respond-whatsapp-chat');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'profile_id': profileId,
+        'action': action,
+      }),
+    );
+    return _processResponse(response);
+  }
+
+  // ==========================================
+  // INBOX
+  // ==========================================
+
+  /// Fetch Inbox connection requests ('received', 'accepted', 'declined')
+  Future<Map<String, dynamic>> getInbox({String tab = 'received'}) async {
+    final uri = Uri.parse('$baseUrl/inbox?tab=$tab');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  // ==========================================
+  // SEARCH & FILTERS
+  // ==========================================
+
+  /// Get search filter master options
+  Future<Map<String, dynamic>> getSearchOptions() async {
+    final uri = Uri.parse('$baseUrl/search/options');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Search candidate profiles dynamically
+  Future<Map<String, dynamic>> searchProfiles(Map<String, dynamic> filters) async {
+    final uri = Uri.parse('$baseUrl/search/filter');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode(filters),
+    );
+    return _processResponse(response);
+  }
+
+  // ==========================================
+  // ROYAL WALLET
+  // ==========================================
+
+  /// Fetch wallet balance, summary and recharge plans
+  Future<Map<String, dynamic>> getWallet() async {
+    final uri = Uri.parse('$baseUrl/wallet');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Fetch wallet transactions
+  Future<Map<String, dynamic>> getWalletTransactions({String? type, String? search, int page = 1}) async {
+    final params = <String, String>{'page': page.toString()};
+    if (type != null && type.isNotEmpty && type != 'all') {
+      params['type'] = type;
+    }
+    if (search != null && search.isNotEmpty) {
+      params['search'] = search;
+    }
+    final uri = Uri.parse('$baseUrl/wallet/transactions').replace(queryParameters: params);
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Add Money / Direct credit recharge
+  Future<Map<String, dynamic>> addMoney({
+    required double amount,
+    String? paymentMethod,
+    String? customNote,
+  }) async {
+    final uri = Uri.parse('$baseUrl/wallet/add-money');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'amount': amount,
+        'payment_method': paymentMethod ?? 'UPI',
+        'custom_note': customNote,
+      }),
+    );
+    return _processResponse(response);
+  }
+
+  /// Spend Money / Direct debit
+  Future<Map<String, dynamic>> spendMoney({
+    required double amount,
+    required String purpose,
+    String? referenceId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/wallet/spend-money');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'amount': amount,
+        'purpose': purpose,
+        'reference_id': referenceId,
+      }),
+    );
+    return _processResponse(response);
+  }
+
+  /// Create Razorpay Order
+  Future<Map<String, dynamic>> createRazorpayOrder(double amount) async {
+    final uri = Uri.parse('$baseUrl/wallet/razorpay/create-order');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'amount': amount}),
+    );
+    return _processResponse(response);
+  }
+
+  /// Verify Razorpay Payment Signature
+  Future<Map<String, dynamic>> verifyRazorpayPayment(Map<String, dynamic> paymentData) async {
+    final uri = Uri.parse('$baseUrl/wallet/razorpay/verify-payment');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode(paymentData),
+    );
+    return _processResponse(response);
+  }
+
+  // ==========================================
+  // HELP, SUPPORT & STORIES
+  // ==========================================
+
+  /// Get Help Center FAQs and contact information
+  Future<Map<String, dynamic>> getHelpCenter() async {
+    final uri = Uri.parse('$baseUrl/help-center');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Submit Public Contact / Help Query
+  Future<Map<String, dynamic>> submitHelpQuery(Map<String, dynamic> data) async {
+    final uri = Uri.parse('$baseUrl/help-center/submit');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+    return _processResponse(response);
+  }
+
+  /// Get Candidate Support Tickets
+  Future<Map<String, dynamic>> getSupportTickets({int page = 1}) async {
+    final uri = Uri.parse('$baseUrl/support/tickets?page=$page');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Raise a new Support Ticket
+  Future<Map<String, dynamic>> createSupportTicket({
+    required String priority,
+    required String subject,
+    required String message,
+    List<File>? screenshots,
+  }) async {
+    final uri = Uri.parse('$baseUrl/support/tickets/create');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers.addAll({
+      'Accept': 'application/json',
+      if (isAuthenticated) 'Authorization': 'Bearer $_token',
+    });
+
+    request.fields['priority'] = priority;
+    request.fields['subject'] = subject;
+    request.fields['message'] = message;
+
+    if (screenshots != null && screenshots.isNotEmpty) {
+      for (final file in screenshots) {
+        request.files.add(await http.MultipartFile.fromPath('screenshots[]', file.path));
+      }
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    return _processResponse(response);
+  }
+
+  /// Get Success Stories
+  Future<Map<String, dynamic>> getSuccessStories({int page = 1}) async {
+    final uri = Uri.parse('$baseUrl/success-stories?page=$page');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  // ==========================================
   // HELPER: PROCESS HTTP RESPONSE
   // ==========================================
 

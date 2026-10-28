@@ -23,6 +23,12 @@
 	</dict>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Rani Matrimonial requires camera access for taking profile pictures and live selfie verification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Rani Matrimonial requires photo library access to upload your profile pictures and biodata photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rani Matrimonial requires microphone access if recording video media.</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>

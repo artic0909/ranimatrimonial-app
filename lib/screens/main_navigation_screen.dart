@@ -1,12 +1,19 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../theme/rani_colors.dart';
-import '../theme/rani_spacing.dart';
-import '../theme/rani_typography.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'home_screen.dart';
+import 'matches_screen.dart';
 import 'search_screen.dart';
+import 'inbox_screen.dart';
+import 'profile_screen.dart';
 
 /// Main Application Navigation Shell
-/// Features the signature #1A0000 Bottom Navigation Bar with gold active icons
+/// Features the 5 requested tabs with modern Cupertino icons:
+/// 1. Home
+/// 2. Feed
+/// 3. Search
+/// 4. Interests
+/// 5. Profile
 class RaniMainNavigationScreen extends StatefulWidget {
   final int initialIndex;
 
@@ -28,120 +35,89 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     _currentIndex = widget.initialIndex;
   }
 
+  void _navigateToTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          const RaniHomeScreen(),
+          RaniHomeScreen(
+            onOpenSearch: () => _navigateToTab(2),
+            onOpenFilter: () => _navigateToTab(2),
+            onOpenProfile: () => _navigateToTab(4),
+          ),
+          const RaniMatchesScreen(),
           const RaniSearchScreen(),
-          _buildPlaceholderTab(
-            title: 'Your Matches',
-            subtitle: 'AI-curated recommendations based on your preferences',
-            icon: Icons.favorite,
-          ),
-          _buildPlaceholderTab(
-            title: 'Messages',
-            subtitle: 'Chat and communicate with interested matches',
-            icon: Icons.chat_bubble_outline,
-          ),
-          _buildPlaceholderTab(
-            title: 'My Profile',
-            subtitle: 'Manage your photos, horoscope, and partner preferences',
-            icon: Icons.person_outline,
-          ),
+          const RaniInboxScreen(),
+          const RaniProfileScreen(),
         ],
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          color: RaniColors.surfaceAlt,
+          color: Colors.white,
           border: Border(
             top: BorderSide(
-              color: RaniColors.gold,
-              width: 0.8,
+              color: Color(0xFFEFE8DE),
+              width: 1.0,
             ),
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.search),
-              activeIcon: Icon(Icons.search),
-              label: 'Search',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_outline),
-              activeIcon: Icon(Icons.favorite),
-              label: 'Matches',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline),
-              activeIcon: Icon(Icons.chat_bubble),
-              label: 'Messages',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 10,
+              offset: Offset(0, -3),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderTab({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    return Scaffold(
-      backgroundColor: RaniColors.canvas,
-      appBar: AppBar(
-        title: Text(title, style: RaniTypography.headingSm(color: Colors.white)),
-        backgroundColor: RaniColors.surfaceAlt,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(RaniSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: RaniColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: RaniColors.gold, width: 1.0),
-                ),
-                child: Icon(icon, color: RaniColors.primary, size: 40),
-              ),
-              const SizedBox(height: RaniSpacing.md),
-              Text(
-                title,
-                style: RaniTypography.headingMd(color: RaniColors.ink),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: RaniSpacing.xs),
-              Text(
-                subtitle,
-                style: RaniTypography.bodySm(color: RaniColors.textMuted),
-                textAlign: TextAlign.center,
-              ),
-            ],
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color(0xFF750000), // Theme Burgundy
+          unselectedItemColor: const Color(0xFF7A7A7A),
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          selectedLabelStyle: GoogleFonts.outfit(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
           ),
+          unselectedLabelStyle: GoogleFonts.outfit(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+          onTap: _navigateToTab,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.house, size: 22),
+              activeIcon: Icon(CupertinoIcons.house_fill, size: 22),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.compass, size: 22),
+              activeIcon: Icon(CupertinoIcons.compass_fill, size: 22),
+              label: 'Feed',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.search, size: 22),
+              activeIcon: Icon(CupertinoIcons.search, size: 22),
+              label: 'Search',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.heart, size: 22),
+              activeIcon: Icon(CupertinoIcons.heart_fill, size: 22),
+              label: 'Interests',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.person, size: 22),
+              activeIcon: Icon(CupertinoIcons.person_fill, size: 22),
+              label: 'Profile',
+            ),
+          ],
         ),
       ),
     );

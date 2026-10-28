@@ -966,6 +966,7 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
                   child: Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
                           Icons.person_add_alt_1_outlined,
@@ -973,13 +974,17 @@ class _RaniLoginScreenState extends State<RaniLoginScreen> {
                           size: 18,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Create Profile — Free Registration',
-                          style: GoogleFonts.outfit(
-                            color: const Color(0xFF3B0000),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
+                        Flexible(
+                          child: Text(
+                            'Create Profile — Free Registration',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              color: const Color(0xFF3B0000),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
                       ],

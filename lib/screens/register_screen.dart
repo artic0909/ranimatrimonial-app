@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'main_navigation_screen.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';
@@ -3187,9 +3188,39 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     }
   }
 
-  /// Take live selfie with front camera
+  /// Take live selfie with front camera with explicit permission handling
   Future<void> _takeLiveSelfie() async {
     try {
+      // 1. Request camera permission
+      var status = await Permission.camera.status;
+      if (!status.isGranted) {
+        status = await Permission.camera.request();
+      }
+
+      if (status.isPermanentlyDenied) {
+        if (mounted) {
+          RaniAlert.error(
+            context,
+            'Camera permission is disabled. Please tap here or go to App Settings to allow camera access.',
+            title: 'Camera Permission Required',
+          );
+          await openAppSettings();
+        }
+        return;
+      }
+
+      if (!status.isGranted && !status.isLimited) {
+        if (mounted) {
+          RaniAlert.error(
+            context,
+            'Camera permission is required to capture your live verification selfie.',
+            title: 'Permission Denied',
+          );
+        }
+        return;
+      }
+
+      // 2. Open camera with front device preferred
       final picker = ImagePicker();
       final picked = await picker.pickImage(
         source: ImageSource.camera,
@@ -3198,6 +3229,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         maxHeight: 1600,
         imageQuality: 85,
       );
+
       if (picked != null) {
         setState(() {
           _selfieFile = File(picked.path);
@@ -3213,10 +3245,61 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     } catch (e) {
       debugPrint('Error taking live selfie: $e');
       if (mounted) {
-        RaniAlert.error(
-          context,
-          'Unable to open camera. Please check camera permissions.',
-          title: 'Camera Error',
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text('Camera Access', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: const Color(0xFF750000))),
+            content: Text(
+              'Camera could not be opened ($e).\n\nWould you like to select a selfie from your photo library or check permissions?',
+              style: GoogleFonts.outfit(fontSize: 13, color: Colors.black87),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await openAppSettings();
+                },
+                child: Text('Settings', style: GoogleFonts.outfit(color: const Color(0xFF750000), fontWeight: FontWeight.w600)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF750000),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    final picker = ImagePicker();
+                    final picked = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: 1600,
+                      maxHeight: 1600,
+                      imageQuality: 85,
+                    );
+                    if (picked != null && mounted) {
+                      setState(() {
+                        _selfieFile = File(picked.path);
+                      });
+                      RaniAlert.success(
+                        context,
+                        'Selfie selected and verified!',
+                        title: 'Selfie Verified',
+                      );
+                    }
+                  } catch (err) {
+                    if (mounted) RaniAlert.error(context, 'Unable to pick photo: $err');
+                  }
+                },
+                child: const Text('Pick from Gallery'),
+              ),
+            ],
+          ),
         );
       }
     }
