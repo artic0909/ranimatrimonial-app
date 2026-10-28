@@ -300,7 +300,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                         setState(() => _selectedTab = 'new');
                         _fetchMatches();
                       },
-                      child: _buildTabPill('NEW $_newCount', _selectedTab == 'new'),
+                      child: _buildTabPill('New $_newCount', _selectedTab == 'new'),
                     ),
                   ),
 
