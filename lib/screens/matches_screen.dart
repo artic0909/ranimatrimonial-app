@@ -370,10 +370,13 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16),
-        child: RaniSkeletonGrid(itemCount: 2),
-      );
+      if (_selectedTab == 'new') {
+        return const RaniSkeletonMatchScreen();
+      } else if (_selectedTab == 'accepted') {
+        return const RaniSkeletonCandidateList(isAcceptedTab: true);
+      } else {
+        return const RaniSkeletonCandidateList(isAcceptedTab: false);
+      }
     }
 
     if (_errorMessage != null) {

@@ -11,6 +11,7 @@ import 'package:ranimatrimonial_app/screens/profile_completion_screen.dart';
 import 'package:ranimatrimonial_app/screens/aadhaar_verification_screen.dart';
 import 'package:ranimatrimonial_app/screens/matches_screen.dart';
 import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
+import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
 
 void main() {
@@ -187,6 +188,28 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+      }
+    });
+
+    testWidgets('Match, Accepted, and Shortlisted content-wise skeletons fit all screen sizes', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        // 1. Match Screen (NEW tab) Skeleton
+        await tester.pumpWidget(wrapScreen(const Scaffold(body: RaniSkeletonMatchScreen())));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(tester.takeException(), isNull, reason: 'Match skeleton overflow on $size');
+
+        // 2. Accepted Tab Skeleton
+        await tester.pumpWidget(wrapScreen(const Scaffold(body: RaniSkeletonCandidateList(isAcceptedTab: true))));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(tester.takeException(), isNull, reason: 'Accepted skeleton overflow on $size');
+
+        // 3. Shortlisted Tab Skeleton
+        await tester.pumpWidget(wrapScreen(const Scaffold(body: RaniSkeletonCandidateList(isAcceptedTab: false))));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(tester.takeException(), isNull, reason: 'Shortlisted skeleton overflow on $size');
       }
     });
   });

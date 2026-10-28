@@ -460,3 +460,360 @@ class RaniSkeletonWallet extends StatelessWidget {
     );
   }
 }
+
+/// Dedicated Content-Wise Skeleton for the Full-Image NEW Match Card
+class RaniSkeletonMatchScreen extends StatelessWidget {
+  const RaniSkeletonMatchScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return RaniSkeletonShimmer(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: const Color(0xFFE4DDD2),
+            border: Border.all(
+              color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
+              width: 1.2,
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Top-left match score badge placeholder
+              Positioned(
+                top: 14,
+                left: 14,
+                child: Container(
+                  width: 100,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+
+              // Top-right heart circle button placeholder
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+
+              // Bottom Gradient Overlay & details
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        const Color(0xFF260003).withValues(alpha: 0.45),
+                        const Color(0xFF150002).withValues(alpha: 0.90),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Name + Verified seal & Photo count row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Container(
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.85),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.85),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  width: 85,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Photo count capsule badge placeholder
+                          Container(
+                            width: 76,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Age • Religion • Profession placeholder bar
+                      Container(
+                        width: 170,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Location placeholder bar
+                      Container(
+                        width: 140,
+                        height: 13,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Full width Connect Button placeholder
+                      Container(
+                        width: double.infinity,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF750000).withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dedicated Content-Wise Skeleton for Accepted & Shortlisted Candidate Lists
+class RaniSkeletonCandidateList extends StatelessWidget {
+  final bool isAcceptedTab;
+  final int itemCount;
+
+  const RaniSkeletonCandidateList({
+    super.key,
+    required this.isAcceptedTab,
+    this.itemCount = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RaniSkeletonShimmer(
+      child: ListView.builder(
+        padding: const EdgeInsets.only(top: 4, bottom: 24),
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE8DFD5)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Candidate Thumbnail with photo count pill
+                Stack(
+                  children: [
+                    Container(
+                      width: 96,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE4DDD2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    // Photo count pill at bottom-right
+                    Positioned(
+                      bottom: 5,
+                      right: 5,
+                      child: Container(
+                        width: 28,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(width: 12),
+
+                // Candidate Details & Actions Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top row: Match Score pill + Verified checkmark placeholder
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE5B842).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE4DDD2),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // Name & Age placeholder
+                      Row(
+                        children: const [
+                          Flexible(child: RaniSkeletonBox(height: 16, borderRadius: 4)),
+                          SizedBox(width: 6),
+                          RaniSkeletonBox(width: 32, height: 13, borderRadius: 4),
+                        ],
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      // Profession & Income placeholder
+                      const RaniSkeletonBox(width: 120, height: 12, borderRadius: 4),
+
+                      const SizedBox(height: 5),
+
+                      // Location placeholder
+                      const RaniSkeletonBox(width: 90, height: 11, borderRadius: 4),
+
+                      const SizedBox(height: 10),
+
+                      // Actions Row: Specific to Accepted vs Shortlisted
+                      if (isAcceptedTab) ...[
+                        // Accepted Tab Actions: Connected status pill + "View Contact" button
+                        Row(
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF750000).withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        // Shortlisted Tab Actions: Heart toggle button + "Connect Now" CTA button
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF0F2),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFFFCDD2)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF750000).withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
