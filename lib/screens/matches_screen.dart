@@ -514,6 +514,9 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     final photo = c['photo'] ?? c['profile_picture'] ?? '';
     final isVerified = c['verified'] == true || c['is_verified'] == 1 || (c['bluetick'] != null && c['bluetick']['is_accept'] == 1);
     final matchScore = c['match_score']?.toString() ?? c['match_percentage']?.toString() ?? '95';
+    final photoCount = (c['photos'] is List && (c['photos'] as List).isNotEmpty)
+        ? (c['photos'] as List).length
+        : (photo.toString().isNotEmpty ? 1 : 1);
     final isInterestSent = c['request_type'] == 'sent' || c['is_connected'] == true || isAcceptedTab;
 
     return Container(
@@ -596,6 +599,38 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
                                     color: const Color(0xFF4A0000),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Photo count badge at bottom-right of thumbnail
+                        Positioned(
+                          bottom: 5,
+                          right: 5,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  CupertinoIcons.photo_on_rectangle,
+                                  color: Color(0xFFE5B842),
+                                  size: 9.5,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '$photoCount',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ],
@@ -825,6 +860,9 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     final isVerified = c['verified'] == true || c['is_verified'] == 1 || (c['bluetick'] != null && c['bluetick']['is_accept'] == 1);
     final isShortlisted = c['is_shortlisted'] == true;
     final matchScore = c['match_score']?.toString() ?? c['match_percentage']?.toString() ?? '99';
+    final photoCount = (c['photos'] is List && (c['photos'] as List).isNotEmpty)
+        ? (c['photos'] as List).length
+        : (photo.toString().isNotEmpty ? 1 : 1);
     final isInterestSent = c['request_type'] == 'sent' || c['is_connected'] == true;
 
     return GestureDetector(
@@ -962,50 +1000,90 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Candidate Name & Blue Tick
+                    // Candidate Name, Blue Tick, ID & Photo Count Badge
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Flexible(
-                          child: Text(
-                            fullName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 0.2,
-                              shadows: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.6),
-                                  blurRadius: 4,
+                        // Left: Candidate Name & ID
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      fullName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: 0.2,
+                                        shadows: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.6),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (isVerified) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      CupertinoIcons.checkmark_seal_fill,
+                                      size: 20,
+                                      color: Color(0xFF2196F3), // Verified Blue Tick
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'ID: $profileId',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  letterSpacing: 0.3,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                        if (isVerified) ...[
-                          const SizedBox(width: 6),
-                          const Icon(
-                            CupertinoIcons.checkmark_seal_fill,
-                            size: 20,
-                            color: Color(0xFF2196F3), // Verified Blue Tick
+
+                        // Right: Photo Count Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.60),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                CupertinoIcons.photo_on_rectangle,
+                                color: Color(0xFFE5B842),
+                                size: 12.5,
+                              ),
+                              const SizedBox(width: 4.5),
+                              Text(
+                                '$photoCount Photos',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
-
-                    const SizedBox(height: 2),
-
-                    // Candidate ID
-                    Text(
-                      'ID: $profileId',
-                      style: GoogleFonts.outfit(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        letterSpacing: 0.3,
-                      ),
                     ),
 
                     const SizedBox(height: 4),

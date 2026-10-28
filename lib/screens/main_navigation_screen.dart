@@ -62,7 +62,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           color: Colors.white,
         ),
       ),
-      backgroundColor: const Color(0xFFE53935),
+      backgroundColor: const Color(0xFF750000), // Theme Burgundy
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
       child: iconWidget,
     );
@@ -132,13 +132,14 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFFE53935), // Vibrant red/coral as shown in user photo
+          selectedItemColor: const Color(0xFF750000), // Royal Burgundy Brand Theme
           unselectedItemColor: const Color(0xFF8E8E93),
           type: BottomNavigationBarType.fixed,
           elevation: 0,
           selectedLabelStyle: GoogleFonts.outfit(
             fontSize: 11,
             fontWeight: FontWeight.w700,
+            color: const Color(0xFF750000),
           ),
           unselectedLabelStyle: GoogleFonts.outfit(
             fontSize: 11,
