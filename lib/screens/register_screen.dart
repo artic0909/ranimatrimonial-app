@@ -270,7 +270,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     return _countryStateToCities[_selectedCountry]?[_selectedState] ?? const [];
   }
 
-  final List<String> _maritalStatusOptions = const [
+  List<String> _maritalStatusOptions = const [
     'Never Married',
     'Divorced',
     'Widowed',
@@ -278,34 +278,47 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     'Annulled',
   ];
 
-  final List<String> _heightOptions = const [
-    '4\' 5" (135 cm)',
-    '4\' 6" (137 cm)',
-    '4\' 7" (140 cm)',
-    '4\' 8" (142 cm)',
-    '4\' 9" (145 cm)',
-    '4\' 10" (147 cm)',
-    '4\' 11" (150 cm)',
-    '5\' 0" (152 cm)',
-    '5\' 1" (155 cm)',
-    '5\' 2" (157 cm)',
-    '5\' 3" (160 cm)',
-    '5\' 4" (163 cm)',
-    '5\' 5" (165 cm)',
-    '5\' 6" (168 cm)',
-    '5\' 7" (170 cm)',
-    '5\' 8" (173 cm)',
-    '5\' 9" (175 cm)',
-    '5\' 10" (178 cm)',
-    '5\' 11" (180 cm)',
-    '6\' 0" (183 cm)',
-    '6\' 1" (185 cm)',
-    '6\' 2" (188 cm)',
-    '6\' 3" (191 cm)',
-    '6\' 4" (193 cm)',
+  List<String> _heightOptions = const [
+    r"""4' 0" (121 cm)""", 
+    r"""4' 1" (124 cm)""", 
+    r"""4' 2" (127 cm)""", 
+    r"""4' 3" (129 cm)""", 
+    r"""4' 4" (132 cm)""", 
+    r"""4' 5" (134 cm)""", 
+    r"""4' 6" (137 cm)""", 
+    r"""4' 7" (139 cm)""", 
+    r"""4' 8" (142 cm)""", 
+    r"""4' 9" (144 cm)""", 
+    r"""4' 10" (147 cm)""", 
+    r"""4' 11" (149 cm)""", 
+    r"""5' 0" (152 cm)""", 
+    r"""5' 1" (154 cm)""", 
+    r"""5' 2" (157 cm)""", 
+    r"""5' 3" (160 cm)""", 
+    r"""5' 4" (162 cm)""", 
+    r"""5' 5" (165 cm)""", 
+    r"""5' 6" (167 cm)""", 
+    r"""5' 7" (170 cm)""", 
+    r"""5' 8" (172 cm)""", 
+    r"""5' 9" (175 cm)""", 
+    r"""5' 10" (177 cm)""", 
+    r"""5' 11" (180 cm)""", 
+    r"""6' 0" (182 cm)""", 
+    r"""6' 1" (185 cm)""", 
+    r"""6' 2" (187 cm)""", 
+    r"""6' 3" (190 cm)""", 
+    r"""6' 4" (193 cm)""", 
+    r"""6' 5" (195 cm)""", 
+    r"""6' 6" (198 cm)""", 
+    r"""6' 7" (200 cm)""", 
+    r"""6' 8" (203 cm)""", 
+    r"""6' 9" (205 cm)""", 
+    r"""6' 10" (208 cm)""", 
+    r"""6' 11" (210 cm)""", 
+    r"""7' 0" (213 cm)""", 
   ];
 
-  final List<String> _dietOptions = const [
+  List<String> _dietOptions = const [
     'Vegetarian',
     'Non-Vegetarian',
     'Eggetarian',
@@ -313,50 +326,57 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     'Jain',
   ];
 
-  final List<String> _qualificationOptions = const [
-    'MBA',
-    'B.Tech / B.E.',
-    'M.Tech / M.E.',
-    'MBBS / MD',
-    'BCA / MCA',
-    'B.Sc / M.Sc',
-    'B.Com / M.Com',
-    'B.A / M.A',
-    'BBA',
-    'CA / CS',
-    'LLB / LLM',
-    'Ph.D / Doctorate',
-    'Diploma',
-    'Higher Secondary (12th)',
-    'Other',
+  List<String> _qualificationOptions = const [
+    'B.A. (Bachelor of Arts)',
+    'B.Com. (Bachelor of Commerce)',
+    'B.Pharm / M.Pharm',
+    'B.Sc. (Bachelor of Science)',
+    'B.Tech / B.E. (Engineering)',
+    'BBA / BMS (Management)',
+    'BCA / B.Sc. IT',
+    'CA / CS / ICWA',
+    'Diploma / Polytechnic',
+    'High School (10th / 12th)',
+    'LLB / LLM (Law)',
+    'M.A. (Master of Arts)',
+    'M.Com. (Master of Commerce)',
+    'M.Sc. (Master of Science)',
+    'M.Tech / M.E. (Engineering)',
+    'MBA / PGDM (Management)',
+    'MBBS / BDS (Medical)',
+    'MCA / M.Sc. IT',
+    'MD / MS (Medical)',
+    'Other Professional Degree',
+    'Ph.D. / Doctorate',
   ];
 
-  final List<String> _incomeOptions = const [
+  List<String> _incomeOptions = const [
     'No Income',
-    'Below 2 Lakhs',
+    'Under 1 Lakh',
+    '1 - 2 Lakhs',
     '2 - 3 Lakhs',
     '3 - 4 Lakhs',
-    '4 - 6 Lakhs',
-    '6 - 10 Lakhs',
+    '4 - 5 Lakhs',
+    '5 - 7.5 Lakhs',
+    '7.5 - 10 Lakhs',
     '10 - 15 Lakhs',
-    '15 - 25 Lakhs',
-    '25 - 50 Lakhs',
-    '50 Lakhs - 1 Crore',
-    'Above 1 Crore',
+    '15 - 20 Lakhs',
+    '20 - 30 Lakhs',
+    '30 - 50 Lakhs',
+    '50 - 75 Lakhs',
+    '75 Lakhs - 1 Crore',
+    '1 Crore & Above',
   ];
 
-  final List<String> _workingSectorOptions = const [
-    'Private Sector',
+  List<String> _workingSectorOptions = const [
+    'Private Company',
     'Government / Public Sector',
-    'Civil Services',
+    'Defense / Civil Services',
     'Business / Self Employed',
-    'Defence',
-    'Non-Profit / NGO',
-    'Not Working',
-    'Other',
+    'Non Working',
   ];
 
-  final List<String> _allHobbies = const [
+  List<String> _allHobbies = const [
     'Reading Books',
     'Traveling & Exploring',
     'Cooking & Culinary Arts',
@@ -371,6 +391,14 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     'Movies & OTT Series',
     'Writing & Blogging',
     'Playing Sports (Cricket, Football, Badminton)',
+    'Trekking & Outdoor Adventures',
+    'Video Gaming & Esports',
+    'Volunteering & Social Service',
+    'Pet Care & Animals',
+    'Theater & Performing Arts',
+    'Cycling & Running',
+    'Board Games & Puzzles',
+    'DIY & Crafting',
   ];
 
   @override
@@ -531,6 +559,90 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                     : (availableCities.isNotEmpty ? availableCities.first : null);
               }
             });
+          }
+        }
+
+        // Marital Statuses from DB
+        if (data['marital_statuses'] != null && data['marital_statuses'] is List) {
+          final List<String> loaded = [];
+          for (var item in data['marital_statuses']) {
+            final name = item['name']?.toString().trim() ?? '';
+            if (name.isNotEmpty) loaded.add(name);
+          }
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _maritalStatusOptions = loaded);
+          }
+        }
+
+        // Heights from DB
+        if (data['heights'] != null && data['heights'] is List) {
+          final List<String> loaded = [];
+          for (var item in data['heights']) {
+            final name = item['name']?.toString().trim() ?? '';
+            if (name.isNotEmpty) loaded.add(name);
+          }
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _heightOptions = loaded);
+          }
+        }
+
+        // Diets from DB
+        if (data['diets'] != null && data['diets'] is List) {
+          final List<String> loaded = [];
+          for (var item in data['diets']) {
+            final name = item['name']?.toString().trim() ?? '';
+            if (name.isNotEmpty) loaded.add(name);
+          }
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _dietOptions = loaded);
+          }
+        }
+
+        // Qualifications from DB
+        if (data['qualifications'] != null && data['qualifications'] is List) {
+          final List<String> loaded = [];
+          for (var item in data['qualifications']) {
+            final name = item['name']?.toString().trim() ?? '';
+            if (name.isNotEmpty) loaded.add(name);
+          }
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _qualificationOptions = loaded);
+          }
+        }
+
+        // Incomes from DB
+        if (data['incomes'] != null && data['incomes'] is List) {
+          final List<String> loaded = [];
+          for (var item in data['incomes']) {
+            final name = item['name']?.toString().trim() ?? '';
+            if (name.isNotEmpty) loaded.add(name);
+          }
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _incomeOptions = loaded);
+          }
+        }
+
+        // Working With / Working Sector from DB
+        if (data['working_withs'] != null && data['working_withs'] is List) {
+          final List<String> loaded = [];
+          for (var item in data['working_withs']) {
+            final name = item['name']?.toString().trim() ?? '';
+            if (name.isNotEmpty) loaded.add(name);
+          }
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _workingSectorOptions = loaded);
+          }
+        }
+
+        // Hobbies from DB
+        if (data['hobbies'] != null && data['hobbies'] is List) {
+          final List<String> loaded = [];
+          for (var item in data['hobbies']) {
+            final name = item['name']?.toString().trim() ?? '';
+            if (name.isNotEmpty) loaded.add(name);
+          }
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _allHobbies = loaded);
           }
         }
       }
