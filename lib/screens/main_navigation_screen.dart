@@ -26,7 +26,7 @@ class RaniMainNavigationScreen extends StatefulWidget {
 
   const RaniMainNavigationScreen({
     super.key,
-    this.initialIndex = 0,
+    this.initialIndex = 1, // Default directly to Matches screen ('new' tab) per user specification
   });
 
   @override
