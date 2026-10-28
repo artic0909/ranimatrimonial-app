@@ -13,7 +13,12 @@ import '../components/rani_skeleton_loader.dart';
 /// - Custom Recharge Input with live Razorpay payment gateway
 /// - Filterable Transaction Statement (All / Credits / Debits) with search
 class RaniWalletScreen extends StatefulWidget {
-  const RaniWalletScreen({super.key});
+  final bool showAppBar;
+
+  const RaniWalletScreen({
+    super.key,
+    this.showAppBar = true,
+  });
 
   @override
   State<RaniWalletScreen> createState() => _RaniWalletScreenState();
@@ -318,19 +323,21 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF140505),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF200707),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Royal Wallet',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFFF3E5AB),
-          ),
-        ),
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              backgroundColor: const Color(0xFF200707),
+              elevation: 0,
+              centerTitle: true,
+              title: Text(
+                'Royal Wallet',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFF3E5AB),
+                ),
+              ),
+            )
+          : null,
       body: RefreshIndicator(
         color: const Color(0xFFD4A034),
         backgroundColor: const Color(0xFF200707),

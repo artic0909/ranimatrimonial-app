@@ -6,21 +6,21 @@ import '../services/api_service.dart';
 import 'home_screen.dart';
 import 'matches_screen.dart';
 import 'inbox_screen.dart';
+import 'wallet_screen.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
+import 'aadhaar_verification_screen.dart';
 import 'splash_screen.dart';
 
 /// Main Application Navigation Shell
 /// Features:
-/// - Reusable TopBar (RaniTopBar) dynamically changing according to the active screen
-/// - Notification bell with live counting badge
-/// - Bottom navigation bar with related icons and titles:
-///   1. Home: Rani Matrimonial Logo icon with "Home" title
-///   2. Matches: Two people icon with "Matches" title & badge count
-///   3. Inbox: Mail icon with "Inbox" title & badge count
-///   4. Chat: Message bubble icon with "Chat" title & badge count
-///   5. Profile: User profile icon with "Profile" title
-/// - Brand Royal Burgundy active color (#750000) and Ivory (#FAF7F2) theme
+/// 1. Automatic screen refresh on bottom nav tab switch
+/// 2. Crisp, normal Home brand logo icon (not disabled/washed-out)
+/// 3. Bottom nav updated: Home, Matches, Interests (replaces Inbox), Wallet (replaces Chat), Profile
+/// 4. Full-screen sliding sidebar widget from topbar burger menu:
+///    - Fixed top header: profile image, fixed ID, candidate name & cross (X) close button
+///    - Middle scrollable navigation items
+///    - Fixed bottom area: Available Wallet Balance & "Recharge Wallet" CTA button
 class RaniMainNavigationScreen extends StatefulWidget {
   final int initialIndex;
 
@@ -38,18 +38,46 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   late int _currentIndex;
   final int _notificationCount = 3;
   final int _matchesCount = 18;
-  final int _inboxCount = 5;
-  final int _chatCount = 2;
+  final int _interestsCount = 5;
+  double _walletBalance = 1250.00;
+
+  // Refresh counters: incrementing forces full refresh & skeleton shimmer when switching tabs
+  int _homeRefreshKey = 0;
+  int _matchesRefreshKey = 0;
+  int _interestsRefreshKey = 0;
+  int _walletRefreshKey = 0;
+  int _profileRefreshKey = 0;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _fetchLiveWalletBalance();
   }
 
+  Future<void> _fetchLiveWalletBalance() async {
+    try {
+      final res = await ApiService.instance.getWallet();
+      if (mounted && res['success'] == true && res['wallet'] != null) {
+        setState(() {
+          _walletBalance = (res['wallet']['avl_balance'] as num?)?.toDouble() ?? _walletBalance;
+        });
+      }
+    } catch (_) {}
+  }
+
+  /// Switch tab and trigger a clean refresh of the target screen
   void _navigateToTab(int index) {
     setState(() {
       _currentIndex = index;
+      if (index == 0) _homeRefreshKey++;
+      if (index == 1) _matchesRefreshKey++;
+      if (index == 2) _interestsRefreshKey++;
+      if (index == 3) {
+        _walletRefreshKey++;
+        _fetchLiveWalletBalance();
+      }
+      if (index == 4) _profileRefreshKey++;
     });
   }
 
@@ -61,7 +89,10 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         return RaniTopBar(
           title: 'Home',
           notificationCount: _notificationCount,
-          onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          onMenuPressed: () {
+            _fetchLiveWalletBalance();
+            _scaffoldKey.currentState?.openDrawer();
+          },
           onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
           actions: [
             IconButton(
@@ -78,29 +109,38 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         );
 
       case 1:
-        // Matches Screen TopBar (Matches user screenshot)
+        // Matches Screen TopBar
         return RaniTopBar(
           title: 'Matches',
           notificationCount: _notificationCount,
-          onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          onMenuPressed: () {
+            _fetchLiveWalletBalance();
+            _scaffoldKey.currentState?.openDrawer();
+          },
           onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
         );
 
       case 2:
-        // Inbox Screen TopBar
+        // Interests Screen TopBar
         return RaniTopBar(
-          title: 'Inbox',
+          title: 'Interests',
           notificationCount: _notificationCount,
-          onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          onMenuPressed: () {
+            _fetchLiveWalletBalance();
+            _scaffoldKey.currentState?.openDrawer();
+          },
           onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
         );
 
       case 3:
-        // Chat Screen TopBar
+        // Wallet Screen TopBar
         return RaniTopBar(
-          title: 'Chat',
+          title: 'Royal Wallet',
           notificationCount: _notificationCount,
-          onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          onMenuPressed: () {
+            _fetchLiveWalletBalance();
+            _scaffoldKey.currentState?.openDrawer();
+          },
           onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
         );
 
@@ -109,7 +149,10 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         return RaniTopBar(
           title: 'Profile',
           notificationCount: _notificationCount,
-          onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          onMenuPressed: () {
+            _fetchLiveWalletBalance();
+            _scaffoldKey.currentState?.openDrawer();
+          },
           onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
           actions: [
             IconButton(
@@ -129,24 +172,21 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     }
   }
 
-  /// Home Brand Logo Icon for Bottom Navigation Bar
+  /// Normal Home Brand Logo Icon (never disabled / washed out)
   Widget _buildHomeLogoNavIcon({required bool isActive}) {
     return Container(
-      width: 25,
-      height: 25,
+      width: 28,
+      height: 28,
       alignment: Alignment.center,
-      child: Opacity(
-        opacity: isActive ? 1.0 : 0.55,
-        child: Image.asset(
-          'assets/logo.png',
-          width: 23,
-          height: 23,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => Icon(
-            CupertinoIcons.circle_grid_hex_fill,
-            size: 22,
-            color: isActive ? const Color(0xFF750000) : const Color(0xFF8E8E93),
-          ),
+      child: Image.asset(
+        'assets/logo.png',
+        width: 25,
+        height: 25,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => const Icon(
+          CupertinoIcons.circle_grid_hex_fill,
+          size: 24,
+          color: Color(0xFF750000),
         ),
       ),
     );
@@ -217,151 +257,306 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     );
   }
 
-  /// Navigation Drawer opened by the topbar hamburger menu
-  Widget _buildDrawer() {
+  /// Full-Screen Sidebar Drawer:
+  /// - Top: Profile image, Candidate ID (fixed), Candidate Name & Close (X) button
+  /// - Middle: Scrollable multiple nav items
+  /// - Bottom Fixed: Available Wallet Balance & "Recharge Wallet" CTA button
+  Widget _buildFullScreenSidebar() {
     final candidate = ApiService.instance.candidate;
     final firstName = candidate?['first_name'] ?? 'Candidate';
     final lastName = candidate?['last_name'] ?? '';
     final fullName = '$firstName $lastName'.trim();
     final candidateCode = candidate?['candidate_code'] ?? candidate?['profile_id'] ?? 'RM00024';
     final photo = candidate?['profile_picture'] ?? '';
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Drawer(
+      width: screenWidth, // Grabs the whole screen
       backgroundColor: const Color(0xFFFAF7F2),
       child: SafeArea(
         child: Column(
           children: [
-            // Header
+            // 1. Fixed Top Header
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: const BoxDecoration(
-                color: Color(0xFF750000),
-                borderRadius: BorderRadius.only(bottomRight: Radius.circular(24)),
+                color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFEFE8DE), width: 1.0),
+                ),
               ),
               child: Row(
                 children: [
+                  // Profile Image
                   CircleAvatar(
-                    radius: 26,
-                    backgroundColor: const Color(0xFFE5B842),
+                    radius: 24,
+                    backgroundColor: const Color(0xFF750000),
                     backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
                     child: photo.isEmpty
                         ? Text(
                             fullName.isNotEmpty ? fullName[0].toUpperCase() : 'R',
-                            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF750000)),
+                            style: GoogleFonts.outfit(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           )
                         : null,
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
+
+                  // Candidate Name and Fixed ID
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           fullName.isNotEmpty ? fullName : 'Rani Member',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
+                          style: GoogleFonts.outfit(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E1E1E),
+                          ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          'ID: $candidateCode',
-                          style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFFE5B842), fontWeight: FontWeight.w600),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF750000).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'ID: $candidateCode',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF750000),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
                         ),
                       ],
                     ),
+                  ),
+
+                  // Cross Button to Close Sidebar
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.xmark, size: 22, color: Color(0xFF1E1E1E)),
+                    tooltip: 'Close Sidebar',
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // Navigation Links
-            _buildDrawerTile(
-              icon: CupertinoIcons.sparkles,
-              title: 'Discover Matches',
-              isSelected: _currentIndex == 1,
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToTab(1);
-              },
-            ),
-            _buildDrawerTile(
-              icon: CupertinoIcons.mail,
-              title: 'Inbox & Requests',
-              count: _inboxCount,
-              isSelected: _currentIndex == 2,
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToTab(2);
-              },
-            ),
-            _buildDrawerTile(
-              icon: CupertinoIcons.chat_bubble_2,
-              title: 'Chats',
-              count: _chatCount,
-              isSelected: _currentIndex == 3,
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToTab(3);
-              },
-            ),
-            _buildDrawerTile(
-              icon: CupertinoIcons.person,
-              title: 'My Profile',
-              isSelected: _currentIndex == 4,
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToTab(4);
-              },
-            ),
-            _buildDrawerTile(
-              icon: CupertinoIcons.search,
-              title: 'Advanced Search',
-              isSelected: false,
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const RaniSearchScreen()));
-              },
-            ),
-
-            const Spacer(),
-            const Divider(color: Color(0xFFE8DFD5)),
-
-            // Log Out
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Color(0xFF750000)),
-              title: Text(
-                'Log Out',
-                style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF750000)),
+            // 2. Middle Scrollable Nav Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.sparkles,
+                    title: 'Discover Matches',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToTab(1);
+                    },
+                  ),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.heart,
+                    title: 'Interests & Requests',
+                    count: _interestsCount,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToTab(2);
+                    },
+                  ),
+                  _buildSidebarItem(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Royal Wallet',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToTab(3);
+                    },
+                  ),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.person,
+                    title: 'My Profile',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToTab(4);
+                    },
+                  ),
+                  const Divider(color: Color(0xFFEFE8DE), indent: 16, endIndent: 16),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.search,
+                    title: 'Advanced Search',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RaniSearchScreen()),
+                      );
+                    },
+                  ),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.bookmark,
+                    title: 'Shortlisted Profiles',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToTab(1);
+                    },
+                  ),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.slider_horizontal_3,
+                    title: 'Partner Preferences',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RaniSearchScreen()),
+                      );
+                    },
+                  ),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.checkmark_seal_fill,
+                    title: 'Aadhaar & Verification',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RaniAadhaarVerificationScreen()),
+                      );
+                    },
+                  ),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.question_circle,
+                    title: 'Help & Support',
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  _buildSidebarItem(
+                    icon: CupertinoIcons.gear_alt,
+                    title: 'Account Settings',
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  const Divider(color: Color(0xFFEFE8DE), indent: 16, endIndent: 16),
+                  _buildSidebarItem(
+                    icon: Icons.logout_rounded,
+                    title: 'Log Out',
+                    isDestructive: true,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showLogoutConfirmDialog();
+                    },
+                  ),
+                ],
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _showLogoutConfirmDialog();
-              },
             ),
-            const SizedBox(height: 12),
+
+            // 3. Fixed Bottom Area: Available Wallet Balance & Recharge CTA Button
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            size: 18,
+                            color: Color(0xFF750000),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Available Balance',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF6B6B6B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '₹${_walletBalance.toStringAsFixed(2)}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF750000),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF750000),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _navigateToTab(3); // Switch to Wallet tab
+                      },
+                      icon: const Icon(Icons.add_card_rounded, size: 18, color: Color(0xFFE5B842)),
+                      label: Text(
+                        'Recharge Wallet',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDrawerTile({
+  Widget _buildSidebarItem({
     required IconData icon,
     required String title,
     int? count,
-    required bool isSelected,
+    bool isDestructive = false,
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: isSelected ? const Color(0xFF750000) : const Color(0xFF5A5A5A)),
+      leading: Icon(
+        icon,
+        color: isDestructive ? const Color(0xFFD32F2F) : const Color(0xFF4A4A4A),
+        size: 21,
+      ),
       title: Text(
         title,
         style: GoogleFonts.outfit(
           fontSize: 14.5,
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          color: isSelected ? const Color(0xFF750000) : const Color(0xFF2E2E2E),
+          fontWeight: FontWeight.w600,
+          color: isDestructive ? const Color(0xFFD32F2F) : const Color(0xFF222222),
         ),
       ),
       trailing: (count != null && count > 0)
@@ -373,10 +568,14 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
               ),
               child: Text(
                 '$count',
-                style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             )
-          : null,
+          : const Icon(CupertinoIcons.chevron_forward, size: 14, color: Color(0xFFB0B0B0)),
       onTap: onTap,
     );
   }
@@ -387,12 +586,13 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: _buildTopBarForCurrentScreen(),
-      drawer: _buildDrawer(),
+      drawer: _buildFullScreenSidebar(),
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          // 0. Home
+          // 0. Home Screen
           RaniHomeScreen(
+            key: ValueKey('home_$_homeRefreshKey'),
             showCandidateHeader: false,
             onOpenSearch: () {
               Navigator.push(
@@ -409,8 +609,9 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             onOpenProfile: () => _navigateToTab(4),
           ),
 
-          // 1. Matches (Full single-card swipe + tabs)
+          // 1. Matches Screen
           RaniMatchesScreen(
+            key: ValueKey('matches_$_matchesRefreshKey'),
             showAppBar: false,
             onOpenSearch: () {
               Navigator.push(
@@ -421,14 +622,24 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             onOpenNotifications: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
           ),
 
-          // 2. Inbox (Inquiries & Requests)
-          const RaniInboxScreen(showAppBar: false),
+          // 2. Interests Screen (Replaces Inbox per user request)
+          RaniInboxScreen(
+            key: ValueKey('interests_$_interestsRefreshKey'),
+            initialTab: 'received',
+            showAppBar: false,
+          ),
 
-          // 3. Chat (Conversations / Connected Matrimonial Chats)
-          const RaniInboxScreen(initialTab: 'chats', showAppBar: false),
+          // 3. Wallet Screen (Replaces Chat per user request)
+          RaniWalletScreen(
+            key: ValueKey('wallet_$_walletRefreshKey'),
+            showAppBar: false,
+          ),
 
-          // 4. Profile & Account
-          const RaniProfileScreen(showAppBar: false),
+          // 4. Profile Screen
+          RaniProfileScreen(
+            key: ValueKey('profile_$_profileRefreshKey'),
+            showAppBar: false,
+          ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -466,7 +677,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           ),
           onTap: _navigateToTab,
           items: [
-            // Tab 0: Home with Brand Logo Icon
+            // Tab 0: Home with Normal Brand Logo Icon (Not disabled)
             BottomNavigationBarItem(
               icon: _buildHomeLogoNavIcon(isActive: false),
               activeIcon: _buildHomeLogoNavIcon(isActive: true),
@@ -478,17 +689,17 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
               activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.person_2_fill, count: _matchesCount, size: 24),
               label: 'Matches',
             ),
-            // Tab 2: Inbox with dynamic count badge
+            // Tab 2: Interests (Replaced Inbox)
             BottomNavigationBarItem(
-              icon: _buildNavBadgeIcon(icon: CupertinoIcons.mail, count: _inboxCount, size: 22),
-              activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.mail_solid, count: _inboxCount, size: 22),
-              label: 'Inbox',
+              icon: _buildNavBadgeIcon(icon: CupertinoIcons.heart, count: _interestsCount, size: 23),
+              activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.heart_fill, count: _interestsCount, size: 23),
+              label: 'Interests',
             ),
-            // Tab 3: Chat with dynamic count badge
-            BottomNavigationBarItem(
-              icon: _buildNavBadgeIcon(icon: CupertinoIcons.chat_bubble_2, count: _chatCount, size: 23),
-              activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.chat_bubble_2_fill, count: _chatCount, size: 23),
-              label: 'Chat',
+            // Tab 3: Wallet (Replaced Chat)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_wallet_outlined, size: 23),
+              activeIcon: Icon(Icons.account_balance_wallet, size: 23),
+              label: 'Wallet',
             ),
             // Tab 4: Profile
             const BottomNavigationBarItem(

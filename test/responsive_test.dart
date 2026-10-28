@@ -212,5 +212,32 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'Shortlisted skeleton overflow on $size');
       }
     });
+
+    testWidgets('Full-screen sidebar drawer opens without overflow on all sizes', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen()));
+        await tester.pumpAndSettle();
+
+        // Tap hamburger menu in topbar
+        final menuFinder = find.byTooltip('Menu');
+        if (menuFinder.evaluate().isNotEmpty) {
+          await tester.tap(menuFinder);
+          await tester.pumpAndSettle();
+
+          expect(find.byType(Drawer), findsOneWidget);
+          expect(tester.takeException(), isNull, reason: 'Sidebar overflow on $size');
+
+          // Tap close button
+          final closeFinder = find.byTooltip('Close Sidebar');
+          if (closeFinder.evaluate().isNotEmpty) {
+            await tester.tap(closeFinder, warnIfMissed: false);
+            await tester.pumpAndSettle();
+          }
+        }
+      }
+    });
   });
 }
