@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
+import '../wallet/wallet_screen.dart';
 
 /// Screen: Candidate Details Screen (Matches Theme)
 /// Features:
@@ -117,11 +118,12 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
   Future<void> _sendRoyalInterest() async {
     if (_data == null) return;
     final name = _data!['first_name'] ?? 'Candidate';
+    final candidateId = (_data!['candidate_code'] ?? _data!['profile_id'] ?? _data!['id']?.toString() ?? widget.profileId).toString();
 
     RaniMatrimonialLoader.show(context, message: 'Sending connection request to $name...');
 
     try {
-      final res = await ApiService.instance.sendInterest(widget.profileId);
+      final res = await ApiService.instance.sendInterest(candidateId);
       if (!mounted) return;
       RaniMatrimonialLoader.hide(context);
 
@@ -136,7 +138,11 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
           title: 'Connected',
         );
       } else {
-        RaniAlert.error(context, res['message'] ?? 'Unable to send connection request.');
+        if (res['insufficient_balance'] == true) {
+          _showInsufficientBalanceDialog(res['message'] ?? 'Please recharge your wallet.');
+        } else {
+          RaniAlert.error(context, res['message'] ?? 'Unable to send connection request.');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -144,6 +150,51 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
         RaniAlert.error(context, 'Error: $e');
       }
     }
+  }
+
+  void _showInsufficientBalanceDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFFFAF7F2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(CupertinoIcons.creditcard, color: Color(0xFF750000), size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Insufficient Balance',
+              style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF2B0A0D)),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF555555), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF8E8E93), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF750000),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RaniWalletScreen()),
+              );
+            },
+            child: Text('Recharge Wallet', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   List<String> _extractPhotos() {

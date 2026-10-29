@@ -11,6 +11,10 @@ import 'package:ranimatrimonial_app/screens/auth/profile_completion_screen.dart'
 import 'package:ranimatrimonial_app/screens/auth/aadhaar_verification_screen.dart';
 import 'package:ranimatrimonial_app/screens/matches/matches_screen.dart';
 import 'package:ranimatrimonial_app/screens/matches/details_screen.dart';
+import 'package:ranimatrimonial_app/screens/connections/connection_request.dart';
+import 'package:ranimatrimonial_app/screens/connections/accepted_screen.dart';
+import 'package:ranimatrimonial_app/screens/connections/declined_screen.dart';
+import 'package:ranimatrimonial_app/screens/connections/rejected_screen.dart';
 import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
 import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
@@ -379,6 +383,60 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull, reason: 'Match details overflow on size $size');
+      }
+    });
+
+    testWidgets('Connections screen with 4 tabs fits all phone sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          const RaniConnectionsScreen(showAppBar: true),
+          size: size,
+        ));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull, reason: 'Connections screen overflow on size $size');
+
+        // Verify initial tabs exist
+        expect(find.textContaining('Received'), findsOneWidget);
+        expect(find.textContaining('Send'), findsOneWidget);
+
+        // Switch to Send
+        await tester.tap(find.textContaining('Send'));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets('Accepted connections screen fits all phone sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          const RaniAcceptedConnectionsScreen(showAppBar: true),
+          size: size,
+        ));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull, reason: 'Accepted screen overflow on size $size');
+      }
+    });
+
+    testWidgets('Declined connections screen fits all phone sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          const RaniDeclinedConnectionsScreen(showAppBar: true),
+          size: size,
+        ));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull, reason: 'Declined screen overflow on size $size');
       }
     });
   });

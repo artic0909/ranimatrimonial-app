@@ -5,7 +5,7 @@ import '../components/rani_top_bar.dart';
 import '../services/api_service.dart';
 import 'home/home_screen.dart';
 import 'matches/matches_screen.dart';
-import 'inbox/inbox_screen.dart';
+import 'connections/connection_request.dart';
 import 'wallet/wallet_screen.dart';
 import 'profile/profile_screen.dart';
 import 'search/search_screen.dart';
@@ -150,7 +150,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       case 2:
         // Interests Screen TopBar
         return RaniTopBar(
-          title: 'Interests',
+          title: 'Connections',
           notificationCount: _notificationCount,
           onMenuPressed: () {
             _fetchLiveWalletBalance();
@@ -658,10 +658,9 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             onOpenNotifications: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
           ),
 
-          // 2. Interests Screen (Replaces Inbox per user request)
-          RaniInboxScreen(
+          // 2. Interests / Connections Screen (Top 4 tabs: Received, Send, Accepted, Declined)
+          RaniConnectionsScreen(
             key: ValueKey('interests_$_interestsRefreshKey'),
-            initialTab: 'received',
             showAppBar: false,
           ),
 

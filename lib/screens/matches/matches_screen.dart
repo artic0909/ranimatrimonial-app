@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
+import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
 import 'details_screen.dart';
 import '../search/search_screen.dart';
+import '../wallet/wallet_screen.dart';
 
 /// Screen: Matches Screen (Matches the exact UI of user's phone screenshot)
 /// Features:
@@ -348,12 +350,15 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   }
 
   Future<void> _sendRoyalInterest(dynamic candidate) async {
-    final candidateId = candidate['id']?.toString() ?? candidate['candidate_code'] ?? candidate['profile_id'] ?? '';
+    final candidateId = (candidate['candidate_code'] ?? candidate['profile_id'] ?? candidate['id']?.toString() ?? '').toString();
     final name = '${candidate['first_name'] ?? 'Candidate'}'.trim();
+
+    RaniMatrimonialLoader.show(context, message: 'Sending connection request to $name...');
 
     try {
       final res = await ApiService.instance.sendInterest(candidateId);
       if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
 
       if (res['success'] == true) {
         setState(() {
@@ -362,15 +367,67 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         });
         RaniAlert.success(
           context,
-          'Interest sent to $name! You will be notified when accepted.',
-          title: 'Connected!',
+          res['message'] ?? 'Connection request sent to $name! You will be notified when accepted.',
+          title: 'Connected! 🎉',
         );
       } else {
-        RaniAlert.error(context, res['message'] ?? 'Could not send interest.');
+        if (res['insufficient_balance'] == true) {
+          _showInsufficientBalanceDialog(res['message'] ?? 'Please recharge your wallet.');
+        } else {
+          RaniAlert.error(context, res['message'] ?? 'Could not send interest.');
+        }
       }
     } catch (e) {
-      if (mounted) RaniAlert.error(context, 'Error: $e');
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        RaniAlert.error(context, 'Error: $e');
+      }
     }
+  }
+
+  void _showInsufficientBalanceDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFFFAF7F2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(CupertinoIcons.creditcard, color: Color(0xFF750000), size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Insufficient Balance',
+              style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF2B0A0D)),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF555555), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF8E8E93), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF750000),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RaniWalletScreen()),
+              );
+            },
+            child: Text('Recharge Wallet', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _toggleShortlist(dynamic candidate) async {
