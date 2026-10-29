@@ -2,10 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
+import '../../services/razorpay_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
-import '../wallet/wallet_screen.dart';
 
 /// Screen: Candidate Details Screen (Matches Theme)
 /// Features:
@@ -135,10 +135,10 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
         RaniAlert.success(
           context,
           res['message'] ?? 'Connection request sent to $name!',
-          title: 'Connected',
+          title: 'Connected! 🎉',
         );
       } else {
-        if (res['insufficient_balance'] == true) {
+        if (res['insufficient_balance'] == true || (res['message'] != null && res['message'].toString().toLowerCase().contains('balance'))) {
           _showInsufficientBalanceDialog(res['message'] ?? 'Please recharge your wallet.');
         } else {
           RaniAlert.error(context, res['message'] ?? 'Unable to send connection request.');
@@ -153,47 +153,13 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
   }
 
   void _showInsufficientBalanceDialog(String message) {
-    showDialog(
+    RaniRazorpayService.showRechargeModal(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFFFAF7F2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(CupertinoIcons.creditcard, color: Color(0xFF750000), size: 22),
-            const SizedBox(width: 8),
-            Text(
-              'Insufficient Balance',
-              style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF2B0A0D)),
-            ),
-          ],
-        ),
-        content: Text(
-          message,
-          style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF555555), height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.outfit(color: const Color(0xFF8E8E93), fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF750000),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RaniWalletScreen()),
-              );
-            },
-            child: Text('Recharge Wallet', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
+      defaultAmount: 100,
+      subtitle: message,
+      onPaymentSuccess: (amount) {
+        _sendRoyalInterest();
+      },
     );
   }
 

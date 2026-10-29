@@ -786,12 +786,11 @@ class ApiService {
           }
           return decoded;
         } else {
-          return {
-            'success': false,
-            'status_code': response.statusCode,
-            'message': decoded['message'] ?? 'An error occurred (${response.statusCode})',
-            'errors': decoded['errors'],
-          };
+          final result = Map<String, dynamic>.from(decoded);
+          result['success'] = false;
+          result['status_code'] = response.statusCode;
+          result['message'] = decoded['message'] ?? 'An error occurred (${response.statusCode})';
+          return result;
         }
       }
       return {
