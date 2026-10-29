@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -34,50 +35,69 @@ class RaniMatrimonialLoader extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: barrierDismissible,
-      barrierColor: Colors.black.withValues(alpha: 0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
       builder: (ctx) => PopScope(
         canPop: barrierDismissible,
         child: Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
           child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 38,
-                    height: 38,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3.2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF750000)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF2A0808).withValues(alpha: 0.92),
+                        const Color(0xFF140202).withValues(alpha: 0.95),
+                      ],
                     ),
-                  ),
-                  if (message.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    Text(
-                      message,
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF26121B),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: const Color(0xFFE5B842).withValues(alpha: 0.35),
+                      width: 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ],
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3.0,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE5B842)), // Royal Gold
+                        ),
+                      ),
+                      if (message.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          message,
+                          style: GoogleFonts.outfit(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.95),
+                            letterSpacing: 0.3,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

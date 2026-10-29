@@ -11,6 +11,7 @@ import 'profile/profile_screen.dart';
 import 'search/search_screen.dart';
 import 'auth/aadhaar_verification_screen.dart';
 import 'splash_screen.dart';
+import '../services/razorpay_service.dart';
 
 /// Main Application Navigation Shell
 /// Features:
@@ -36,10 +37,11 @@ class RaniMainNavigationScreen extends StatefulWidget {
 class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _currentIndex;
-  final int _notificationCount = 3;
-  final int _matchesCount = 18;
-  final int _interestsCount = 5;
-  double _walletBalance = 1250.00;
+  int _notificationCount = 3;
+  int _matchesCount = 16;
+  int _interestsCount = 5;
+  double _walletBalance = 0.00;
+  List<dynamic> _dynamicNotifications = [];
 
   // Refresh counters: incrementing forces full refresh & skeleton shimmer when switching tabs
   int _homeRefreshKey = 0;
@@ -52,7 +54,12 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _fetchLiveMetrics();
+  }
+
+  Future<void> _fetchLiveMetrics() async {
     _fetchLiveWalletBalance();
+    _fetchLiveDashboardAndNotifications();
   }
 
   Future<void> _fetchLiveWalletBalance() async {
@@ -64,6 +71,86 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _fetchLiveDashboardAndNotifications() async {
+    try {
+      // 1. Fetch live dashboard metrics and notifications
+      final dashRes = await ApiService.instance.getDashboard();
+      if (mounted && dashRes['success'] == true && dashRes['data'] != null) {
+        final data = dashRes['data'] as Map<String, dynamic>;
+        final metrics = (data['metrics'] is Map) ? data['metrics'] as Map : null;
+        final notifList = (data['notifications'] as List?) ?? [];
+
+        final unreadNotif = (metrics?['unread_notifications_count'] ??
+                metrics?['unreadNotificationsCount'] ??
+                data['unreadNotificationsCount'] ??
+                notifList.length) as num?;
+
+        final matchesLen = (data['matches'] as List?)?.length ??
+            (data['newMatchesCount'] ?? data['totalMatchesCount'] as num?)?.toInt();
+
+        final pendingInvitations = (metrics?['pending_invitations_count'] ??
+                data['pendingInvitationsCount'] as num?)?.toInt();
+
+        setState(() {
+          if (unreadNotif != null && unreadNotif > 0) {
+            _notificationCount = unreadNotif.toInt();
+          } else if (notifList.isNotEmpty) {
+            _notificationCount = notifList.length;
+          }
+
+          _dynamicNotifications = notifList;
+
+          if (matchesLen != null && matchesLen > 0) {
+            _matchesCount = matchesLen;
+          }
+
+          if (pendingInvitations != null && pendingInvitations > 0) {
+            _interestsCount = pendingInvitations;
+          }
+        });
+      }
+
+      // 2. Fetch live inbox tab counts
+      final inboxRes = await ApiService.instance.getInbox(tab: 'received');
+      if (mounted && inboxRes['success'] == true && inboxRes['counts'] is Map) {
+        final counts = inboxRes['counts'] as Map;
+        final rec = (counts['received'] ?? counts['pending'] as num?)?.toInt();
+        final sent = (counts['sent'] as num?)?.toInt();
+        final total = (counts['total'] as num?)?.toInt();
+
+        setState(() {
+          if (rec != null && rec > 0) {
+            _interestsCount = rec;
+          } else if (total != null && total > 0) {
+            _interestsCount = total;
+          } else if (sent != null && sent > 0) {
+            _interestsCount = sent;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _openNotificationsSheet() {
+    RaniTopBar.showNotificationsSheet(
+      context,
+      _notificationCount,
+      notifications: _dynamicNotifications,
+      onNotificationTap: (notif) {
+        final link = notif['link']?.toString() ?? '';
+        if (link.contains('inbox') || link.contains('connection')) {
+          _navigateToTab(2); // Interests/Connections
+        } else if (link.contains('profile')) {
+          _navigateToTab(4); // Profile
+        } else if (link.contains('wallet')) {
+          _navigateToTab(3); // Wallet
+        } else {
+          _navigateToTab(1); // Matches
+        }
+      },
+    );
   }
 
   /// Switch tab and trigger a clean refresh of the target screen
@@ -79,6 +166,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       }
       if (index == 4) _profileRefreshKey++;
     });
+    _fetchLiveMetrics();
   }
 
   /// Reusable TopBar changeable by active screen
@@ -100,7 +188,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _fetchLiveWalletBalance();
             _scaffoldKey.currentState?.openDrawer();
           },
-          onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
+          onNotificationPressed: _openNotificationsSheet,
           actions: [
             GestureDetector(
               onTap: () {
@@ -144,7 +232,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _fetchLiveWalletBalance();
             _scaffoldKey.currentState?.openDrawer();
           },
-          onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
+          onNotificationPressed: _openNotificationsSheet,
         );
 
       case 2:
@@ -156,7 +244,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _fetchLiveWalletBalance();
             _scaffoldKey.currentState?.openDrawer();
           },
-          onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
+          onNotificationPressed: _openNotificationsSheet,
         );
 
       case 3:
@@ -168,7 +256,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _fetchLiveWalletBalance();
             _scaffoldKey.currentState?.openDrawer();
           },
-          onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
+          onNotificationPressed: _openNotificationsSheet,
         );
 
       case 4:
@@ -180,7 +268,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _fetchLiveWalletBalance();
             _scaffoldKey.currentState?.openDrawer();
           },
-          onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
+          onNotificationPressed: _openNotificationsSheet,
           actions: [
             IconButton(
               icon: const Icon(Icons.logout_rounded, color: Color(0xFF750000), size: 22),
@@ -551,7 +639,12 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                       ),
                       onPressed: () {
                         Navigator.pop(context);
-                        _navigateToTab(3); // Switch to Wallet tab
+                        RaniRazorpayService.showRechargeModal(
+                          context: context,
+                          onPaymentSuccess: (amt) {
+                            _fetchLiveWalletBalance();
+                          },
+                        );
                       },
                       icon: const Icon(Icons.add_card_rounded, size: 18, color: Color(0xFFE5B842)),
                       label: Text(
@@ -655,7 +748,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                 MaterialPageRoute(builder: (_) => const RaniSearchScreen()),
               );
             },
-            onOpenNotifications: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
+            onOpenNotifications: _openNotificationsSheet,
           ),
 
           // 2. Interests / Connections Screen (Top 4 tabs: Received, Send, Accepted, Declined)

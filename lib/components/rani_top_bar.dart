@@ -104,8 +104,13 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  /// Displays the interactive notifications bottom sheet
-  static void showNotificationsSheet(BuildContext context, int count) {
+  /// Displays the interactive notifications bottom sheet with real live data
+  static void showNotificationsSheet(
+    BuildContext context,
+    int count, {
+    List<dynamic>? notifications,
+    Function(dynamic notif)? onNotificationTap,
+  }) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -143,44 +148,122 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF750000).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+              if (notifications != null && notifications.isNotEmpty)
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: notifications.length,
+                    separatorBuilder: (_, _) => const Divider(color: Color(0xFFF0EBE4), height: 1),
+                    itemBuilder: (context, index) {
+                      final notif = notifications[index];
+                      final title = notif['name'] ?? notif['title'] ?? 'Notification';
+                      final text = notif['text'] ?? notif['message'] ?? '';
+                      final time = notif['time_ago'] ?? notif['time'] ?? 'Recently';
+                      final isNew = notif['is_new'] == true;
+
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          onNotificationTap?.call(notif);
+                        },
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isNew
+                                ? const Color(0xFF750000).withValues(alpha: 0.12)
+                                : Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            CupertinoIcons.sparkles,
+                            color: isNew ? const Color(0xFF750000) : Colors.grey.shade600,
+                            size: 20,
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: isNew ? FontWeight.w700 : FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (isNew)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF750000),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text(
+                              text,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              time,
+                              style: GoogleFonts.outfit(fontSize: 10.5, color: const Color(0xFF750000), fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                  child: const Icon(CupertinoIcons.sparkles, color: Color(0xFF750000), size: 20),
-                ),
-                title: Text(
-                  'New Daily Match Recommendations',
-                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  'We curated compatible matrimonial matches matching your preferences.',
-                  style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+                )
+              else ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF750000).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(CupertinoIcons.sparkles, color: Color(0xFF750000), size: 20),
                   ),
-                  child: const Icon(CupertinoIcons.checkmark_seal_fill, color: Colors.green, size: 20),
+                  title: Text(
+                    'New Daily Match Recommendations',
+                    style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'We curated compatible matrimonial matches matching your preferences.',
+                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 ),
-                title: Text(
-                  'Profile Status Verified',
-                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(CupertinoIcons.checkmark_seal_fill, color: Colors.green, size: 20),
+                  ),
+                  title: Text(
+                    'Profile Status Verified',
+                    style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Your profile details and Aadhaar status have been verified successfully.',
+                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 ),
-                subtitle: Text(
-                  'Your profile details and Aadhaar status have been verified successfully.',
-                  style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ),
+              ],
             ],
           ),
         ),

@@ -328,13 +328,18 @@ class ApiService {
 
   /// Fetch candidate dashboard metrics, matches, notifications
   Future<Map<String, dynamic>> getDashboard() async {
-    final uri = Uri.parse('$baseUrl/dashboard');
-    final response = await http.get(uri, headers: _headers);
-    final data = _processResponse(response);
-    if (data['success'] == true && data['data'] != null && data['data']['candidate'] != null) {
-      await updateCachedCandidate(data['data']['candidate'] as Map<String, dynamic>);
+    try {
+      final uri = Uri.parse('$baseUrl/dashboard');
+      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+      final data = _processResponse(response);
+      if (data['success'] == true && data['data'] != null && data['data']['candidate'] != null) {
+        await updateCachedCandidate(data['data']['candidate'] as Map<String, dynamic>);
+      }
+      return data;
+    } catch (e) {
+      debugPrint('[ApiService] getDashboard error: $e');
+      return {'success': false, 'message': 'Connection error: $e'};
     }
-    return data;
   }
 
   /// Fetch full candidate profile
@@ -593,11 +598,16 @@ class ApiService {
   // INBOX
   // ==========================================
 
-  /// Fetch Inbox connection requests ('received', 'accepted', 'declined')
+  /// Fetch Inbox connection requests ('received', 'accepted', 'declined', 'sent')
   Future<Map<String, dynamic>> getInbox({String tab = 'received'}) async {
-    final uri = Uri.parse('$baseUrl/inbox?tab=$tab');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    try {
+      final uri = Uri.parse('$baseUrl/inbox?tab=$tab');
+      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] getInbox error: $e');
+      return {'success': false, 'message': 'Connection error: $e', 'requests': [], 'counts': {}};
+    }
   }
 
   // ==========================================
@@ -628,23 +638,37 @@ class ApiService {
 
   /// Fetch wallet balance, summary and recharge plans
   Future<Map<String, dynamic>> getWallet() async {
-    final uri = Uri.parse('$baseUrl/wallet');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    try {
+      final uri = Uri.parse('$baseUrl/wallet');
+      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] getWallet error: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'wallet': {'avl_balance': 0.0, 'total_credit': 0.0, 'total_debit': 0.0}
+      };
+    }
   }
 
   /// Fetch wallet transactions
   Future<Map<String, dynamic>> getWalletTransactions({String? type, String? search, int page = 1}) async {
-    final params = <String, String>{'page': page.toString()};
-    if (type != null && type.isNotEmpty && type != 'all') {
-      params['type'] = type;
+    try {
+      final params = <String, String>{'page': page.toString()};
+      if (type != null && type.isNotEmpty && type != 'all') {
+        params['type'] = type;
+      }
+      if (search != null && search.isNotEmpty) {
+        params['search'] = search;
+      }
+      final uri = Uri.parse('$baseUrl/wallet/transactions').replace(queryParameters: params);
+      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] getWalletTransactions error: $e');
+      return {'success': false, 'message': 'Connection error: $e', 'transactions': {'data': []}};
     }
-    if (search != null && search.isNotEmpty) {
-      params['search'] = search;
-    }
-    final uri = Uri.parse('$baseUrl/wallet/transactions').replace(queryParameters: params);
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
   }
 
   /// Add Money / Direct credit recharge

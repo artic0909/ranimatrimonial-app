@@ -373,20 +373,19 @@ class RaniSkeletonWallet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RaniSkeletonShimmer(
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Balance card placeholder
-            Container(
-              width: double.infinity,
-              height: 160,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE4DDD2),
-                borderRadius: BorderRadius.circular(20),
-              ),
+        children: [
+          // Balance card placeholder
+          Container(
+            width: double.infinity,
+            height: 215,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE4DDD2),
+              borderRadius: BorderRadius.circular(20),
             ),
+          ),
             const SizedBox(height: 16),
             // Action buttons row placeholder
             Row(
@@ -456,10 +455,9 @@ class RaniSkeletonWallet extends StatelessWidget {
             )),
           ],
         ),
-      ),
-    );
+      );
+    }
   }
-}
 
 /// Dedicated Content-Wise Skeleton for the Full-Image NEW Match Card
 class RaniSkeletonMatchScreen extends StatelessWidget {
@@ -652,7 +650,7 @@ class RaniSkeletonCandidateList extends StatelessWidget {
     return RaniSkeletonShimmer(
       child: ListView.builder(
         padding: const EdgeInsets.only(top: 4, bottom: 24),
-        physics: const NeverScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         itemCount: itemCount,
         itemBuilder: (context, index) {
           return Container(

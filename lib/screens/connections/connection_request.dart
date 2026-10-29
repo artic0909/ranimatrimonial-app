@@ -8,20 +8,20 @@ import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
 import '../matches/details_screen.dart';
 import '../search/search_screen.dart';
-import 'accepted_screen.dart';
-import 'declined_screen.dart';
 
 /// Screen: Main Connections / Interests Hub
-/// Features 4 Top Tabs Styled with Matches Theme:
+/// Features 4 Top Tabs Styled with Matches / Website Theme:
 /// 1. Received (keu amai pathale)
 /// 2. Send (kauke ami pathale)
 /// 3. Accepted (ami karor accept korle, ba keu amar accept korle)
 /// 4. Declined (ami kauke decline korle, as website)
+/// Card Design: 100% matched to website Inbox & Requests view
 class RaniConnectionsScreen extends StatefulWidget {
   final int initialTabIndex;
   final bool showAppBar;
   final VoidCallback? onOpenMenu;
   final VoidCallback? onOpenNotifications;
+  final List<dynamic>? initialRequests;
 
   const RaniConnectionsScreen({
     super.key,
@@ -29,6 +29,7 @@ class RaniConnectionsScreen extends StatefulWidget {
     this.showAppBar = false,
     this.onOpenMenu,
     this.onOpenNotifications,
+    this.initialRequests,
   });
 
   @override
@@ -36,63 +37,145 @@ class RaniConnectionsScreen extends StatefulWidget {
 }
 
 class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
-  late int _selectedTabIndex;
+  late int _selectedTabIndex; // 0: received, 1: sent, 2: accepted, 3: declined
+  bool _isLoading = true;
+  List<dynamic> _requests = [];
+  String? _errorMessage;
+
   int _receivedCount = 0;
   int _sentCount = 0;
   int _acceptedCount = 0;
   int _declinedCount = 0;
 
-  final GlobalKey<RaniConnectionRequestListState> _receivedListKey = GlobalKey<RaniConnectionRequestListState>();
-  final GlobalKey<RaniConnectionRequestListState> _sentListKey = GlobalKey<RaniConnectionRequestListState>();
-  final GlobalKey<_AcceptedConnectionsWrapperState> _acceptedListKey = GlobalKey<_AcceptedConnectionsWrapperState>();
-  final GlobalKey<_DeclinedConnectionsWrapperState> _declinedListKey = GlobalKey<_DeclinedConnectionsWrapperState>();
-
   @override
   void initState() {
     super.initState();
     _selectedTabIndex = widget.initialTabIndex;
-    _fetchLiveTabCounts();
+    if (widget.initialRequests != null) {
+      _requests = List<dynamic>.from(widget.initialRequests!);
+      _isLoading = false;
+      if (_selectedTabIndex == 1) _sentCount = _requests.length;
+    } else {
+      _fetchRequestsForCurrentTab();
+    }
   }
 
-  Future<void> _fetchLiveTabCounts() async {
+  void _onTabChanged(int index) {
+    if (_selectedTabIndex != index) {
+      setState(() {
+        _selectedTabIndex = index;
+      });
+      _fetchRequestsForCurrentTab();
+    }
+  }
+
+  Future<void> _fetchRequestsForCurrentTab() async {
+    final tabs = ['received', 'sent', 'accepted', 'declined'];
+    final currentTab = tabs[_selectedTabIndex];
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
-      final res = await ApiService.instance.getInbox(tab: 'received');
-      if (mounted && res['success'] == true && res['counts'] is Map) {
+      final res = await ApiService.instance.getInbox(tab: currentTab);
+      if (!mounted) return;
+
+      if (res['counts'] is Map) {
         final c = res['counts'] as Map;
         setState(() {
-          _receivedCount = (c['received'] ?? c['pending'] ?? _receivedCount) as int;
-          _sentCount = (c['sent'] ?? _sentCount) as int;
-          _acceptedCount = (c['accepted'] ?? _acceptedCount) as int;
-          _declinedCount = (c['declined'] ?? c['rejected'] ?? _declinedCount) as int;
+          _receivedCount = (c['received'] ?? c['pending'] as num?)?.toInt() ?? _receivedCount;
+          _sentCount = (c['sent'] as num?)?.toInt() ?? _sentCount;
+          _acceptedCount = (c['accepted'] as num?)?.toInt() ?? _acceptedCount;
+          _declinedCount = (c['declined'] ?? c['rejected'] as num?)?.toInt() ?? _declinedCount;
         });
       }
-    } catch (_) {}
+
+      if (res['success'] == true) {
+        final rawRequests = res['requests'];
+        final List<dynamic> list = (rawRequests is List) ? List<dynamic>.from(rawRequests) : [];
+        setState(() {
+          _requests = list;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = res['message'] ?? 'Unable to load connection requests.';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Network error: $e';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
-  void _onAcceptSuccess() {
-    setState(() {
-      if (_receivedCount > 0) _receivedCount--;
-      _acceptedCount++;
-    });
-    _fetchLiveTabCounts();
-  }
+  Future<void> _respondInterest(dynamic c, String action) async {
+    final profileId = (c['candidate_code'] ?? c['id']?.toString() ?? c['profile_id'] ?? '').toString();
+    final name = '${c['first_name'] ?? 'Candidate'}'.trim();
 
-  void _onDeclineSuccess() {
-    setState(() {
-      if (_receivedCount > 0) _receivedCount--;
-      _declinedCount++;
-    });
-    _fetchLiveTabCounts();
+    RaniMatrimonialLoader.show(
+      context,
+      message: action == 'accept' ? 'Accepting connection request...' : 'Declining request...',
+    );
+
+    try {
+      final res = await ApiService.instance.respondInterest(profileId, action);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (res['success'] == true) {
+        setState(() {
+          _requests.removeWhere((item) {
+            final itemId = (item['candidate_code'] ?? item['id']?.toString() ?? item['profile_id'] ?? '').toString();
+            return itemId == profileId || item == c;
+          });
+          if (action == 'accept') {
+            if (_receivedCount > 0) _receivedCount--;
+            _acceptedCount++;
+          } else {
+            if (_receivedCount > 0) _receivedCount--;
+            _declinedCount++;
+          }
+        });
+
+        if (action == 'accept') {
+          RaniAlert.success(
+            context,
+            'You accepted the connection request with $name! Full profile unlocked.',
+            title: 'Connection Accepted! 🎉',
+          );
+        } else {
+          RaniAlert.info(
+            context,
+            'Connection request with $name declined.',
+            title: 'Request Declined',
+          );
+        }
+      } else {
+        RaniAlert.error(context, res['message'] ?? 'Unable to process connection response.');
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        RaniAlert.error(context, 'Error: $e');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F2),
+      backgroundColor: const Color(0xFFFAF7F2), // Matches theme ivory canvas
       appBar: widget.showAppBar
           ? RaniTopBar(
               title: 'Connections',
-              notificationCount: 3,
+              notificationCount: _receivedCount,
               onMenuPressed: widget.onOpenMenu,
               onNotificationPressed: widget.onOpenNotifications,
             )
@@ -100,7 +183,53 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top 4 Tabs Row (Matches Theme: Filter/Search icon | Received | Send | Accepted | Rejected)
+            const SizedBox(height: 8),
+
+            // Top Header Banner (Matches website: "Inbox & Requests")
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF750000).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(CupertinoIcons.mail_solid, color: Color(0xFF750000), size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Inbox & Requests',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E0A0A),
+                          ),
+                        ),
+                        Text(
+                          'Candidates who have expressed interest in connecting',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11.5,
+                            color: const Color(0xFF7A7067),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // Top 4 Filter Tabs (Search icon | Received | Send | Accepted | Declined)
             SizedBox(
               height: 42,
               child: ListView(
@@ -140,7 +269,7 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
 
                   const SizedBox(width: 10),
 
-                  // Vertical divider |
+                  // Divider |
                   Center(
                     child: Container(
                       width: 1.5,
@@ -154,13 +283,7 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
                   // 1. Received Tab
                   Center(
                     child: GestureDetector(
-                      onTap: () {
-                        if (_selectedTabIndex != 0) {
-                          setState(() => _selectedTabIndex = 0);
-                          _receivedListKey.currentState?.refreshList();
-                          _fetchLiveTabCounts();
-                        }
-                      },
+                      onTap: () => _onTabChanged(0),
                       child: _buildTabPill('Received $_receivedCount', _selectedTabIndex == 0),
                     ),
                   ),
@@ -170,13 +293,7 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
                   // 2. Send Tab
                   Center(
                     child: GestureDetector(
-                      onTap: () {
-                        if (_selectedTabIndex != 1) {
-                          setState(() => _selectedTabIndex = 1);
-                          _sentListKey.currentState?.refreshList();
-                          _fetchLiveTabCounts();
-                        }
-                      },
+                      onTap: () => _onTabChanged(1),
                       child: _buildTabPill('Send $_sentCount', _selectedTabIndex == 1),
                     ),
                   ),
@@ -186,13 +303,7 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
                   // 3. Accepted Tab
                   Center(
                     child: GestureDetector(
-                      onTap: () {
-                        if (_selectedTabIndex != 2) {
-                          setState(() => _selectedTabIndex = 2);
-                          _acceptedListKey.currentState?.refreshList();
-                          _fetchLiveTabCounts();
-                        }
-                      },
+                      onTap: () => _onTabChanged(2),
                       child: _buildTabPill('Accepted $_acceptedCount', _selectedTabIndex == 2),
                     ),
                   ),
@@ -202,13 +313,7 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
                   // 4. Declined Tab
                   Center(
                     child: GestureDetector(
-                      onTap: () {
-                        if (_selectedTabIndex != 3) {
-                          setState(() => _selectedTabIndex = 3);
-                          _declinedListKey.currentState?.refreshList();
-                          _fetchLiveTabCounts();
-                        }
-                      },
+                      onTap: () => _onTabChanged(3),
                       child: _buildTabPill('Declined $_declinedCount', _selectedTabIndex == 3),
                     ),
                   ),
@@ -216,40 +321,11 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
               ),
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
-            // Tab View Body
+            // Tab View Body Content
             Expanded(
-              child: IndexedStack(
-                index: _selectedTabIndex,
-                children: [
-                  // 0. Received
-                  RaniConnectionRequestList(
-                    key: _receivedListKey,
-                    type: 'received',
-                    onAcceptSuccess: _onAcceptSuccess,
-                    onDeclineSuccess: _onDeclineSuccess,
-                  ),
-
-                  // 1. Sent
-                  RaniConnectionRequestList(
-                    key: _sentListKey,
-                    type: 'sent',
-                  ),
-
-                  // 2. Accepted
-                  _AcceptedConnectionsWrapper(
-                    key: _acceptedListKey,
-                    onCountChanged: _fetchLiveTabCounts,
-                  ),
-
-                  // 3. Declined
-                  _DeclinedConnectionsWrapper(
-                    key: _declinedListKey,
-                    onCountChanged: _fetchLiveTabCounts,
-                  ),
-                ],
-              ),
+              child: _buildTabBody(),
             ),
           ],
         ),
@@ -263,7 +339,7 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
       decoration: BoxDecoration(
         gradient: isSelected
             ? const LinearGradient(
-                colors: [Color(0xFF8B0000), Color(0xFF6B0000)], // Royal Burgundy
+                colors: [Color(0xFF750000), Color(0xFF5A0000)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -271,195 +347,37 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
         color: isSelected ? null : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSelected ? const Color(0xFF8B0000) : const Color(0xFFE8DFD5),
-          width: 1.2,
+          color: isSelected ? const Color(0xFF750000) : const Color(0xFFE8DFD5),
+          width: 1.0,
         ),
-        boxShadow: [
-          if (isSelected)
-            BoxShadow(
-              color: const Color(0xFF750000).withValues(alpha: 0.32),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-        ],
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF750000).withValues(alpha: 0.25),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
       ),
       child: Text(
         label,
         style: GoogleFonts.outfit(
-          fontSize: 12.5,
+          fontSize: 13,
           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-          color: isSelected ? Colors.white : const Color(0xFF5A0812),
-          letterSpacing: 0.2,
+          color: isSelected ? Colors.white : const Color(0xFF750000),
         ),
       ),
     );
   }
-}
 
-/// Helper wrapper for Accepted Screen inside tab stack
-class _AcceptedConnectionsWrapper extends StatefulWidget {
-  final VoidCallback? onCountChanged;
-
-  const _AcceptedConnectionsWrapper({super.key, this.onCountChanged});
-
-  @override
-  State<_AcceptedConnectionsWrapper> createState() => _AcceptedConnectionsWrapperState();
-}
-
-class _AcceptedConnectionsWrapperState extends State<_AcceptedConnectionsWrapper> {
-  final GlobalKey<State<RaniAcceptedConnectionsScreen>> _screenKey = GlobalKey();
-
-  void refreshList() {
-    setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RaniAcceptedConnectionsScreen(
-      key: _screenKey,
-      showAppBar: false,
-      onCountChanged: widget.onCountChanged,
-    );
-  }
-}
-
-/// Helper wrapper for Declined Screen inside tab stack
-class _DeclinedConnectionsWrapper extends StatefulWidget {
-  final VoidCallback? onCountChanged;
-
-  const _DeclinedConnectionsWrapper({super.key, this.onCountChanged});
-
-  @override
-  State<_DeclinedConnectionsWrapper> createState() => _DeclinedConnectionsWrapperState();
-}
-
-class _DeclinedConnectionsWrapperState extends State<_DeclinedConnectionsWrapper> {
-  final GlobalKey<State<RaniDeclinedConnectionsScreen>> _screenKey = GlobalKey();
-
-  void refreshList() {
-    setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RaniDeclinedConnectionsScreen(
-      key: _screenKey,
-      showAppBar: false,
-      onCountChanged: widget.onCountChanged,
-    );
-  }
-}
-
-/// Reusable list view component for Received & Sent Connection Requests
-class RaniConnectionRequestList extends StatefulWidget {
-  final String type; // 'received' or 'sent'
-  final VoidCallback? onAcceptSuccess;
-  final VoidCallback? onDeclineSuccess;
-
-  const RaniConnectionRequestList({
-    super.key,
-    required this.type,
-    this.onAcceptSuccess,
-    this.onDeclineSuccess,
-  });
-
-  @override
-  State<RaniConnectionRequestList> createState() => RaniConnectionRequestListState();
-}
-
-class RaniConnectionRequestListState extends State<RaniConnectionRequestList> {
-  bool _isLoading = true;
-  List<dynamic> _requests = [];
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    refreshList();
-  }
-
-  Future<void> refreshList() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final tabParam = widget.type == 'sent' ? 'sent' : 'received';
-      final res = await ApiService.instance.getInbox(tab: tabParam);
-      if (!mounted) return;
-
-      if (res['success'] == true) {
-        setState(() {
-          _requests = res['requests'] ?? [];
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = res['message'] ?? 'Unable to load connection requests.';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Network error: $e';
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _respondInterest(dynamic c, String action) async {
-    final profileId = (c['candidate_code'] ?? c['id']?.toString() ?? c['profile_id'] ?? '').toString();
-    final name = '${c['first_name'] ?? 'Candidate'}'.trim();
-
-    RaniMatrimonialLoader.show(
-      context,
-      message: action == 'accept' ? 'Accepting connection request...' : 'Declining request...',
-    );
-
-    try {
-      final res = await ApiService.instance.respondInterest(profileId, action);
-      if (!mounted) return;
-      RaniMatrimonialLoader.hide(context);
-
-      if (res['success'] == true) {
-        setState(() {
-          _requests.removeWhere((item) {
-            final itemId = (item['candidate_code'] ?? item['id']?.toString() ?? item['profile_id'] ?? '').toString();
-            return itemId == profileId || item == c;
-          });
-        });
-
-        if (action == 'accept') {
-          RaniAlert.success(
-            context,
-            'You accepted the connection request with $name! Full profile unlocked.',
-            title: 'Connection Accepted! 🎉',
-          );
-          if (widget.onAcceptSuccess != null) widget.onAcceptSuccess!();
-        } else {
-          RaniAlert.info(
-            context,
-            'Connection request with $name declined.',
-            title: 'Request Declined',
-          );
-          if (widget.onDeclineSuccess != null) widget.onDeclineSuccess!();
-        }
-      } else {
-        RaniAlert.error(context, res['message'] ?? 'Unable to process connection response.');
-      }
-    } catch (e) {
-      if (mounted) {
-        RaniMatrimonialLoader.hide(context);
-        RaniAlert.error(context, 'Error: $e');
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildTabBody() {
     if (_isLoading) {
       return const RaniSkeletonCandidateList(isAcceptedTab: false);
     }
@@ -485,7 +403,7 @@ class RaniConnectionRequestListState extends State<RaniConnectionRequestList> {
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: refreshList,
+                onPressed: _fetchRequestsForCurrentTab,
                 child: const Text('Try Again'),
               ),
             ],
@@ -494,9 +412,10 @@ class RaniConnectionRequestListState extends State<RaniConnectionRequestList> {
       );
     }
 
-    final isSent = widget.type == 'sent';
-
     if (_requests.isEmpty) {
+      final labels = ['Received', 'Sent', 'Accepted', 'Declined'];
+      final currentLabel = labels[_selectedTabIndex];
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -511,14 +430,18 @@ class RaniConnectionRequestListState extends State<RaniConnectionRequestList> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isSent ? CupertinoIcons.paperplane_fill : CupertinoIcons.tray_fill,
+                  _selectedTabIndex == 1
+                      ? CupertinoIcons.paperplane_fill
+                      : (_selectedTabIndex == 2
+                          ? CupertinoIcons.checkmark_seal_fill
+                          : (_selectedTabIndex == 3 ? CupertinoIcons.xmark_circle_fill : CupertinoIcons.tray_fill)),
                   size: 36,
                   color: const Color(0xFF750000),
                 ),
               ),
               const SizedBox(height: 18),
               Text(
-                isSent ? 'No Sent Requests' : 'No Received Requests',
+                'No $currentLabel Requests',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 20,
@@ -528,9 +451,13 @@ class RaniConnectionRequestListState extends State<RaniConnectionRequestList> {
               ),
               const SizedBox(height: 8),
               Text(
-                isSent
-                    ? 'You have not sent any pending connection requests yet. Explore matches to send connections.'
-                    : 'No pending requests received from candidates right now. When someone wants to connect, they will appear here.',
+                _selectedTabIndex == 0
+                    ? 'No pending requests received right now. When someone wants to connect with your profile, they will appear here.'
+                    : (_selectedTabIndex == 1
+                        ? 'You have not sent any pending connection requests yet. Explore compatible matches to connect.'
+                        : (_selectedTabIndex == 2
+                            ? 'No accepted connections yet. Once requests are mutually accepted, you can connect directly.'
+                            : 'No declined connection requests.')),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF6B6B6B), height: 1.4),
               ),
@@ -560,354 +487,607 @@ class RaniConnectionRequestListState extends State<RaniConnectionRequestList> {
     return RefreshIndicator(
       color: const Color(0xFF750000),
       backgroundColor: Colors.white,
-      onRefresh: refreshList,
+      onRefresh: _fetchRequestsForCurrentTab,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _requests.length,
         itemBuilder: (context, index) {
           final c = _requests[index];
-          return _buildRequestCard(c, isSent: isSent);
+          return _buildWebsiteConnectionCard(c);
         },
       ),
     );
   }
 
-  Widget _buildRequestCard(dynamic c, {required bool isSent}) {
-    final profileId = c['candidate_code'] ?? c['id']?.toString() ?? c['profile_id'] ?? 'RM00024';
+  /// Exact Website-Matched Connection Card (Matching Image media_1793275360902_10fb056f.jpg)
+  Widget _buildWebsiteConnectionCard(dynamic c) {
+    final profileId = (c['candidate_code'] ?? c['id']?.toString() ?? c['profile_id'] ?? 'RM00024').toString();
     final firstName = c['first_name'] ?? 'Candidate';
     final lastName = c['last_name'] ?? '';
     final fullName = '$firstName $lastName'.trim();
-    final age = c['age']?.toString() ?? '25';
-    final height = c['height']?.toString() ?? "5' 5\"";
+    final age = c['age']?.toString() ?? '22';
+    final height = c['height']?.toString() ?? "5' 4\" (162 cm)";
     final religion = c['religion']?.toString() ?? 'Muslim';
-    final community = c['community']?.toString() ?? '';
-    final religionWithCommunity = (community.isNotEmpty && community.toLowerCase() != 'all')
-        ? '$religion, $community'
-        : religion;
-    final profession = c['profession']?.toString() ?? c['highest_qualification']?.toString() ?? 'Professional';
-    final city = c['city']?.toString() ?? '';
-    final state = c['state']?.toString() ?? '';
-    final locationText = (city.isNotEmpty && state.isNotEmpty) ? '$city, $state' : (city.isNotEmpty ? city : state);
+    final community = c['community']?.toString() ?? 'Shia';
+    final motherTongue = c['mother_tongue']?.toString() ?? 'Bengali';
+    final diet = c['diet']?.toString() ?? 'Non-Vegetarian';
+    final profession = c['profession']?.toString() ?? 'Doctor';
+    final companyName = c['company_name']?.toString() ?? 'ESI Hospital';
+    final annualIncome = c['annual_income']?.toString() ?? '4 - 5 Lakhs';
+    final highestQualification = c['highest_qualification']?.toString() ?? 'Medical';
+    final city = c['city']?.toString() ?? 'Howrah';
+    final state = c['state']?.toString() ?? 'West Bengal';
     final photo = c['photo'] ?? c['profile_picture'] ?? '';
-    final isVerified = c['verified'] == true || (c['bluetick'] != null && c['bluetick']['is_accept'] == 1);
-    final matchScore = c['match_score']?.toString() ?? '95';
-    final receivedAgo = c['received_ago']?.toString() ?? 'Recently';
+    final photosList = (c['photos'] is List) ? (c['photos'] as List) : [photo];
+    final isVerified = c['verified'] == true || (c['bluetick'] is Map && c['bluetick']['is_accept'] == 1);
+    final matchScore = c['match_score']?.toString() ?? '87';
+    final receivedAgo = c['received_ago']?.toString() ?? 'Received recently';
+    final matchReasons = (c['match_reasons'] is List)
+        ? (c['match_reasons'] as List)
+        : ['Muslim Religion', 'Howrah Resident'];
+
+    final isReceived = _selectedTabIndex == 0;
+    final isSent = _selectedTabIndex == 1;
+    final isAccepted = _selectedTabIndex == 2;
+    final isDeclined = _selectedTabIndex == 3;
+
+    final profileMap = (c is Map<String, dynamic>)
+        ? c
+        : (c is Map ? Map<String, dynamic>.from(c) : <String, dynamic>{});
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFEFE8DE), width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(22),
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => RaniMatchDetailsScreen(
                   profileId: profileId,
-                  initialProfileData: c,
+                  initialProfileData: profileMap,
                 ),
               ),
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Photo with match badge
-                    Stack(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Photo with Top Badges & Candidate Name (Matching Website)
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 230,
+                      child: photo.toString().isNotEmpty
+                          ? Image.network(
+                              photo.toString(),
+                              fit: BoxFit.cover,
+                              alignment: Alignment.topCenter,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                color: const Color(0xFFEFE7DC),
+                                child: const Icon(CupertinoIcons.person_fill, size: 64, color: Color(0xFFB5A795)),
+                              ),
+                            )
+                          : Container(
+                              color: const Color(0xFFEFE7DC),
+                              child: const Icon(CupertinoIcons.person_fill, size: 64, color: Color(0xFFB5A795)),
+                            ),
+                    ),
+                  ),
+
+                  // Vignette gradient for text contrast at the bottom of the photo
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.25),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.75),
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Top Badges
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: SizedBox(
-                            width: 92,
-                            height: 110,
-                            child: photo.toString().isNotEmpty
-                                ? Image.network(
-                                    photo.toString(),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: const Color(0xFFEFE7DC),
-                                      child: const Icon(CupertinoIcons.person_fill, size: 42, color: Color(0xFFB5A795)),
-                                    ),
-                                  )
-                                : Container(
-                                    color: const Color(0xFFEFE7DC),
-                                    child: const Icon(CupertinoIcons.person_fill, size: 42, color: Color(0xFFB5A795)),
-                                  ),
+                        // Status badge (Amber / Green)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isAccepted
+                                ? const Color(0xFF1E7E34)
+                                : (isDeclined ? const Color(0xFF6B6B6B) : const Color(0xFFE5B842)),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isAccepted
+                                    ? CupertinoIcons.checkmark_seal_fill
+                                    : (isSent ? CupertinoIcons.paperplane_fill : CupertinoIcons.check_mark_circled_solid),
+                                size: 12,
+                                color: isAccepted ? Colors.white : const Color(0xFF1E0A0A),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isReceived
+                                    ? 'Received Interest'
+                                    : (isSent
+                                        ? 'Request Sent'
+                                        : (isAccepted ? 'Connected Partner' : 'Declined Request')),
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: isAccepted ? Colors.white : const Color(0xFF1E0A0A),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Positioned(
-                          top: 6,
-                          left: 6,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE5B842),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(CupertinoIcons.star_fill, size: 8.5, color: Color(0xFF4A0000)),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '$matchScore%',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF4A0000),
-                                  ),
-                                ),
-                              ],
+                        const SizedBox(height: 5),
+                        // Time Ago pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            receivedAgo,
+                            style: GoogleFonts.outfit(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withValues(alpha: 0.95),
                             ),
                           ),
                         ),
                       ],
                     ),
+                  ),
 
-                    const SizedBox(width: 12),
+                  // Bottom of photo: Candidate Name, ID, Match % and Photos count pill
+                  Positioned(
+                    bottom: 12,
+                    left: 14,
+                    right: 14,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      fullName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.playfairDisplay(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black.withValues(alpha: 0.6),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (isVerified) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      CupertinoIcons.checkmark_seal_fill,
+                                      size: 17,
+                                      color: Color(0xFF2196F3),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'ID: $profileId  •  $matchScore% Match',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFFF3E5AB),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Photos count pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white24, width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(CupertinoIcons.photo, size: 11, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${photosList.length} Photos',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
 
-                    // Info Column
-                    Expanded(
+              // 2. Personal & Matrimonial Profile Details (Soft box matching website)
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDFBF7),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFF0EAE1)),
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Flexible(
-                                child: Text(
-                                  fullName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF1E1E1E),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF7A7067)),
+                                    children: [
+                                      const TextSpan(text: 'Age / Ht: '),
+                                      TextSpan(
+                                        text: '$age yrs, $height',
+                                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: const Color(0xFF1E0A0A)),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              if (isVerified) ...[
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  CupertinoIcons.checkmark_seal_fill,
-                                  size: 15,
-                                  color: Color(0xFF2196F3),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF7A7067)),
+                                    children: [
+                                      const TextSpan(text: 'Religion: '),
+                                      TextSpan(
+                                        text: '$religion, $community',
+                                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: const Color(0xFF1E0A0A)),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'ID: $profileId',
-                            style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF8E8E93),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '$age yrs, $height • $religionWithCommunity',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF4A4A4A),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(CupertinoIcons.briefcase, size: 12, color: Color(0xFF750000)),
-                              const SizedBox(width: 4),
                               Expanded(
-                                child: Text(
-                                  profession,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF555555)),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF7A7067)),
+                                    children: [
+                                      const TextSpan(text: 'Tongue: '),
+                                      TextSpan(
+                                        text: motherTongue,
+                                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: const Color(0xFF1E0A0A)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF7A7067)),
+                                    children: [
+                                      const TextSpan(text: 'Diet: '),
+                                      TextSpan(
+                                        text: diet,
+                                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: const Color(0xFF1E0A0A)),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
-                          ),
-                          if (locationText.isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                const Icon(CupertinoIcons.location, size: 12, color: Color(0xFF750000)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    locationText,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF555555)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Text(
-                            isSent ? 'Sent $receivedAgo' : 'Received $receivedAgo',
-                            style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF8E8E93),
-                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
 
-                const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                // Action Bar
-                if (!isSent) ...[
-                  // Received mode: Accept and Decline buttons (Styled as in website)
-                  Row(
-                    children: [
-                      // Accept CTA (Green Gradient)
-                      Expanded(
-                        child: Container(
-                          height: 42,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF2E7D32).withValues(alpha: 0.28),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
+                    // Career & Location
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(CupertinoIcons.briefcase, size: 14, color: Color(0xFF750000)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profession,
+                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF1E0A0A)),
+                              ),
+                              Text(
+                                '$companyName  •  $annualIncome',
+                                style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF7A7067)),
                               ),
                             ],
                           ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => _respondInterest(c, 'accept'),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(CupertinoIcons.checkmark_alt, size: 17, color: Colors.white),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Accept',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Row(
+                      children: [
+                        const Icon(Icons.school_outlined, size: 15, color: Color(0xFFE5B842)),
+                        const SizedBox(width: 8),
+                        Text(
+                          highestQualification,
+                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF4A4035)),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Row(
+                      children: [
+                        const Icon(CupertinoIcons.location_solid, size: 14, color: Color(0xFF750000)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$city, $state',
+                          style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF6B6055)),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Matching reasons chips
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: matchReasons.map((reason) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFAF7F2),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFEFE8DE)),
+                          ),
+                          child: Text(
+                            '✓ $reason',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF750000),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // 3. Action Buttons Row (Matching Website: Accept + Cross Button)
+                    if (isReceived)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E7E34), // Forest Green
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 44),
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              onPressed: () => _respondInterest(c, 'accept'),
+                              icon: const Icon(CupertinoIcons.checkmark_alt, size: 18),
+                              label: Text(
+                                'Accept',
+                                style: GoogleFonts.outfit(fontSize: 14.5, fontWeight: FontWeight.w700),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 10),
-
-                      // Decline CTA (Rose Button)
-                      SizedBox(
-                        width: 46,
-                        height: 42,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFF0F2),
-                            side: const BorderSide(color: Color(0xFFFFCDD2)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: EdgeInsets.zero,
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () => _respondInterest(c, 'decline'),
+                            child: Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE5DDD2)),
+                              ),
+                              child: const Icon(CupertinoIcons.xmark, color: Color(0xFF6B6B6B), size: 19),
+                            ),
                           ),
-                          onPressed: () => _respondInterest(c, 'decline'),
-                          child: const Icon(CupertinoIcons.xmark, size: 18, color: Color(0xFFD32F2F)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  // Sent mode: Pending confirmation status + View Profile
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF8E7),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFFFE082)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(CupertinoIcons.clock_fill, size: 14, color: Color(0xFFB78103)),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Pending Response',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF8D6200),
+                        ],
+                      )
+                    else if (isSent)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF8E1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFFFE082)),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '⏳ Pending Candidate Response',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF8D6E63),
+                                  ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF750000),
-                          side: const BorderSide(color: Color(0xFF750000)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RaniMatchDetailsScreen(
-                                profileId: profileId,
-                                initialProfileData: c,
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(0, 42),
+                              backgroundColor: const Color(0xFF750000),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => RaniMatchDetailsScreen(
+                                    profileId: profileId,
+                                    initialProfileData: profileMap,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text('View Profile'),
+                          ),
+                        ],
+                      )
+                    else if (isAccepted)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF25D366), // WhatsApp Green
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 44),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RaniMatchDetailsScreen(
+                                      profileId: profileId,
+                                      initialProfileData: profileMap,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(CupertinoIcons.chat_bubble_2_fill, size: 16),
+                              label: Text(
+                                'View Contact & Chat',
+                                style: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.w700),
                               ),
                             ),
-                          );
-                        },
-                        icon: const Icon(CupertinoIcons.person_crop_circle, size: 14),
-                        label: Text(
-                          'View Profile',
-                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
-                        ),
+                          ),
+                        ],
+                      )
+                    else
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Request Declined',
+                              style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => RaniMatchDetailsScreen(
+                                    profileId: profileId,
+                                    initialProfileData: profileMap,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'View Profile',
+                              style: GoogleFonts.outfit(color: const Color(0xFF750000), fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

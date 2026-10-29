@@ -15,6 +15,7 @@ import 'package:ranimatrimonial_app/screens/connections/connection_request.dart'
 import 'package:ranimatrimonial_app/screens/connections/accepted_screen.dart';
 import 'package:ranimatrimonial_app/screens/connections/declined_screen.dart';
 import 'package:ranimatrimonial_app/screens/connections/rejected_screen.dart';
+import 'package:ranimatrimonial_app/screens/wallet/wallet_screen.dart';
 import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
 import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
@@ -437,6 +438,74 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull, reason: 'Declined screen overflow on size $size');
+      }
+    });
+
+    testWidgets('Website connection card renders without error with real API data', (tester) async {
+      final sampleData = {
+        'id': 'RM00026',
+        'db_id': 39,
+        'connection_id': 15,
+        'first_name': 'Aman',
+        'last_name': 'Islam',
+        'age': 26,
+        'height': '5\' 10" (177 cm)',
+        'religion': 'Muslim',
+        'community': 'Sunni',
+        'mother_tongue': 'Hindi',
+        'highest_qualification': 'B-Tech',
+        'profession': 'asdasd',
+        'company_name': 'asdasdasd',
+        'annual_income': '4 - 5 Lakhs',
+        'city': 'Howrah',
+        'state': 'West Bengal',
+        'diet': 'Non-Vegetarian',
+        'photo': 'https://ranimatrimonial.com/img/male/correct1.png',
+        'photos': ['https://ranimatrimonial.com/img/male/correct1.png'],
+        'match_score': 87,
+        'match_reasons': ['Muslim Religion', 'Howrah Resident'],
+        'badge': '📤 Request Sent',
+        'verified': false,
+        'received_ago': '47 minutes ago',
+        'status': 'pending',
+        'is_accepted': false,
+        'is_sent_by_me': true,
+        'is_received_by_me': false,
+        'wp_chat_status': null,
+        'is_wp_chat_accepted': false,
+        'is_wp_chat_received_by_me': false,
+        'is_wp_chat_sent_by_me': false,
+      };
+
+      final size = const Size(390, 844);
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1.0;
+
+      await tester.pumpWidget(wrapScreen(
+        Scaffold(
+          body: RaniConnectionsScreen(
+            showAppBar: true,
+            initialTabIndex: 1,
+            initialRequests: [sampleData],
+          ),
+        ),
+        size: size,
+      ));
+      await tester.pump();
+    });
+
+    testWidgets('Royal Wallet screen with luxury Privilege Card fits all phone sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          const RaniWalletScreen(showAppBar: true),
+          size: size,
+        ));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull, reason: 'Royal Wallet screen overflow on size $size');
       }
     });
   });

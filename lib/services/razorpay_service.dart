@@ -112,7 +112,7 @@ class RaniRazorpayService {
     _onSuccess = onSuccess;
     _onError = onError;
 
-    RaniMatrimonialLoader.show(context, message: 'Initiating Razorpay payment...');
+    RaniMatrimonialLoader.show(context, message: 'Opening Secure Payment...');
 
     try {
       final orderRes = await ApiService.instance.createRazorpayOrder(amount);
