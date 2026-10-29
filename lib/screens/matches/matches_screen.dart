@@ -5,7 +5,7 @@ import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
-import '../profile_detail_screen.dart';
+import 'details_screen.dart';
 import '../search/search_screen.dart';
 
 /// Screen: Matches Screen (Matches the exact UI of user's phone screenshot)
@@ -554,7 +554,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => RaniProfileDetailScreen(
+                builder: (_) => RaniMatchDetailsScreen(
                   profileId: profileId,
                   initialProfileData: c,
                 ),
@@ -792,7 +792,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => RaniProfileDetailScreen(
+                              builder: (_) => RaniMatchDetailsScreen(
                                 profileId: profileId,
                                 initialProfileData: c,
                               ),
@@ -883,7 +883,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => RaniProfileDetailScreen(
+            builder: (_) => RaniMatchDetailsScreen(
               profileId: profileId,
               initialProfileData: c,
             ),

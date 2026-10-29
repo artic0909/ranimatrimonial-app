@@ -10,6 +10,7 @@ import 'package:ranimatrimonial_app/screens/search/search_screen.dart';
 import 'package:ranimatrimonial_app/screens/auth/profile_completion_screen.dart';
 import 'package:ranimatrimonial_app/screens/auth/aadhaar_verification_screen.dart';
 import 'package:ranimatrimonial_app/screens/matches/matches_screen.dart';
+import 'package:ranimatrimonial_app/screens/matches/details_screen.dart';
 import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
 import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
@@ -24,14 +25,20 @@ void main() {
     const Size(430, 932), // iPhone 14 / 15 Pro Max
   ];
 
-  Widget wrapScreen(Widget screen, {double textScale = 1.0}) {
+  Widget wrapScreen(Widget screen, {double textScale = 1.0, Size? size}) {
     return MaterialApp(
       theme: RaniTheme.light,
-      home: MediaQuery(
-        data: MediaQueryData(
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: screen,
+      home: Builder(
+        builder: (context) {
+          final parentMq = MediaQuery.of(context);
+          return MediaQuery(
+            data: parentMq.copyWith(
+              size: size ?? parentMq.size,
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: screen,
+          );
+        },
       ),
     );
   }
@@ -218,7 +225,7 @@ void main() {
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1.0;
 
-        await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen()));
+        await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen(), size: size));
         await tester.pumpAndSettle();
 
         // Tap hamburger menu in topbar
@@ -228,7 +235,7 @@ void main() {
           await tester.pumpAndSettle();
 
           expect(find.byType(Drawer), findsOneWidget);
-          expect(tester.takeException(), isNull, reason: 'Sidebar overflow on $size');
+          expect(tester.takeException(), isNull, reason: "Sidebar overflow on $size");
 
           // Tap close button
           final closeFinder = find.byTooltip('Close Sidebar');
@@ -237,6 +244,54 @@ void main() {
             await tester.pumpAndSettle();
           }
         }
+      }
+    });
+
+    testWidgets('Matches details screen fits all phone sizes without overflow', (tester) async {
+      final sampleMatch = {
+        'id': 'RM00024',
+        'first_name': 'Rojina',
+        'last_name': 'Islam',
+        'age': 22,
+        'height': "5' 4\"",
+        'profession': 'Doctor',
+        'city': 'Howrah',
+        'state': 'West Bengal',
+        'gender': 'Female',
+        'marital_status': 'Never Married',
+        'religion': 'Muslim',
+        'community': 'Sunni',
+        'sub_community': 'General',
+        'gothra': 'N/A',
+        'manglik': 'Non-Manglik',
+        'diet': 'Non-Vegetarian',
+        'blood_group': 'B+',
+        'highest_qualification': 'MBBS',
+        'working_with': 'Private Hospital',
+        'annual_income': '₹ 15 - 20 Lakh',
+        'father_profession': 'Business Owner',
+        'mother_profession': 'Homemaker',
+        'family_financial_status': 'Upper Middle Class',
+        'match_score': 95,
+        'photos': [
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500',
+        ],
+      };
+
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          RaniMatchDetailsScreen(
+            profileId: 'RM00024',
+            initialProfileData: sampleMatch,
+          ),
+          size: size,
+        ));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull, reason: 'Match details overflow on size $size');
       }
     });
   });

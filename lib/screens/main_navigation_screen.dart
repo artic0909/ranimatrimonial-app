@@ -475,24 +475,32 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.account_balance_wallet_rounded,
-                            size: 18,
-                            color: Color(0xFF750000),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Available Balance',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF6B6B6B),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              size: 18,
+                              color: Color(0xFF750000),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Available Balance',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF6B6B6B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '₹${_walletBalance.toStringAsFixed(2)}',
                         style: GoogleFonts.outfit(
