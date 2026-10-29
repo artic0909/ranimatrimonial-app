@@ -38,19 +38,70 @@ class RaniMatchesScreen extends StatefulWidget {
 class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   String _selectedTab = 'new'; // 'new', 'accepted', 'shortlisted'
   bool _isLoading = true;
-  List<dynamic> _matches = [];
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 1;
+  static const int _pageSize = 10;
+
+  List<dynamic> _matches = []; // Currently displayed paginated items (10, then 20, 30...)
+  List<dynamic> _cachedPool = []; // Full buffer pool if all data was fetched at once
   String? _errorMessage;
   int _newCount = 0;
   int _acceptedCount = 0;
   int _shortlistedCount = 0;
 
+  final PageController _pageController = PageController();
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _fetchMatches();
+
+    // Listen to PageView vertical scroll to load next 10 items
+    _pageController.addListener(() {
+      if (_pageController.hasClients && _pageController.page != null) {
+        final currentPos = _pageController.page!.round();
+        if (currentPos >= _matches.length - 2 && !_isLoadingMore && _hasMore) {
+          _loadMoreMatches();
+        }
+      }
+    });
+
+    // Listen to ListView scroll for Accepted & Shortlisted tabs
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients) {
+        if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
+          if (!_isLoadingMore && _hasMore) {
+            _loadMoreMatches();
+          }
+        }
+      }
+    });
   }
 
-  Future<void> _fetchMatches() async {
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Initial load or reload of the first 10 candidate data items
+  Future<void> _fetchMatches({bool isRefresh = false}) async {
+    if (isRefresh) {
+      _currentPage = 1;
+      _hasMore = true;
+      _cachedPool.clear();
+      _matches.clear();
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -64,20 +115,35 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         tabParam = 'shortlisted';
       }
 
-      final res = await ApiService.instance.getMatches(tab: tabParam);
+      _currentPage = 1;
+      final res = await ApiService.instance.getMatches(tab: tabParam, page: 1);
       if (!mounted) return;
 
       if (res['success'] == true) {
-        final List<dynamic> list = res['matches'] ?? [];
+        List<dynamic> list = [];
+        if (res['matches'] is List) {
+          list = List.from(res['matches']);
+        } else if (res['matches'] is Map && res['matches']['data'] is List) {
+          list = List.from(res['matches']['data']);
+          final lastPage = res['matches']['last_page'] ?? 1;
+          _hasMore = 1 < lastPage;
+        }
+
+        // Strictly guarantee shortlisted candidates do NOT appear in the NEW tab
+        if (_selectedTab == 'new') {
+          list = list.where((m) => m['is_shortlisted'] != true).toList();
+        }
+
         final counts = res['counts'];
+        _cachedPool = list;
+
+        // Strictly show first 10 data items initially
+        final initialBatch = list.take(_pageSize).toList();
+        _hasMore = list.length > _pageSize || (_hasMore && list.isNotEmpty);
 
         setState(() {
-          // Strictly guarantee shortlisted candidates do NOT appear in the NEW tab
-          if (_selectedTab == 'new') {
-            _matches = list.where((m) => m['is_shortlisted'] != true).toList();
-          } else {
-            _matches = list;
-          }
+          _matches = initialBatch;
+
           if (counts is Map) {
             final todays = counts['todays'] ?? counts['my_matches'];
             if (todays != null) {
@@ -94,7 +160,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               _shortlistedCount = shortlisted is int ? shortlisted : int.tryParse('$shortlisted') ?? _shortlistedCount;
             }
           } else {
-            if (_selectedTab == 'new') _newCount = _matches.length;
+            if (_selectedTab == 'new') _newCount = list.length;
             if (_selectedTab == 'accepted') _acceptedCount = list.length;
             if (_selectedTab == 'shortlisted') _shortlistedCount = list.length;
           }
@@ -111,6 +177,92 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         setState(() {
           _errorMessage = 'Network error: $e';
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Load more 10 candidates when reaching near end of current list
+  Future<void> _loadMoreMatches() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      // 1. First check if we have more cached in _cachedPool
+      if (_cachedPool.length > _matches.length) {
+        final nextBatch = _cachedPool.skip(_matches.length).take(_pageSize).toList();
+        if (nextBatch.isNotEmpty) {
+          setState(() {
+            _matches.addAll(nextBatch);
+            _hasMore = _cachedPool.length > _matches.length;
+            _isLoadingMore = false;
+          });
+          return;
+        }
+      }
+
+      // 2. Fetch next page from API
+      final nextPage = _currentPage + 1;
+      String tabParam = 'todays';
+      if (_selectedTab == 'accepted') {
+        tabParam = 'accepted';
+      } else if (_selectedTab == 'shortlisted') {
+        tabParam = 'shortlisted';
+      }
+
+      final res = await ApiService.instance.getMatches(tab: tabParam, page: nextPage);
+      if (!mounted) return;
+
+      if (res['success'] == true) {
+        List<dynamic> nextList = [];
+        if (res['matches'] is List) {
+          nextList = List.from(res['matches']);
+        } else if (res['matches'] is Map && res['matches']['data'] is List) {
+          nextList = List.from(res['matches']['data']);
+          final lastPage = res['matches']['last_page'] ?? nextPage;
+          _hasMore = nextPage < lastPage;
+        }
+
+        if (_selectedTab == 'new') {
+          nextList = nextList.where((m) => m['is_shortlisted'] != true).toList();
+        }
+
+        // Deduplicate
+        final existingIds = _matches
+            .map((m) => m['candidate_code'] ?? m['profile_id'] ?? m['id']?.toString())
+            .toSet();
+        final uniqueNew = nextList.where((m) {
+          final mId = m['candidate_code'] ?? m['profile_id'] ?? m['id']?.toString();
+          return !existingIds.contains(mId);
+        }).take(_pageSize).toList();
+
+        if (uniqueNew.isNotEmpty) {
+          _currentPage = nextPage;
+          setState(() {
+            _matches.addAll(uniqueNew);
+            _cachedPool.addAll(nextList);
+            _isLoadingMore = false;
+            _hasMore = uniqueNew.length >= _pageSize;
+          });
+        } else {
+          setState(() {
+            _isLoadingMore = false;
+            _hasMore = false;
+          });
+        }
+      } else {
+        setState(() {
+          _isLoadingMore = false;
+          _hasMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
         });
       }
     }
@@ -282,8 +434,10 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        setState(() => _selectedTab = 'new');
-                        _fetchMatches();
+                        if (_selectedTab != 'new') {
+                          setState(() => _selectedTab = 'new');
+                          _fetchMatches(isRefresh: true);
+                        }
                       },
                       child: _buildTabPill('New $_newCount', _selectedTab == 'new'),
                     ),
@@ -295,8 +449,10 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        setState(() => _selectedTab = 'accepted');
-                        _fetchMatches();
+                        if (_selectedTab != 'accepted') {
+                          setState(() => _selectedTab = 'accepted');
+                          _fetchMatches(isRefresh: true);
+                        }
                       },
                       child: _buildTabPill('Accepted $_acceptedCount', _selectedTab == 'accepted'),
                     ),
@@ -308,8 +464,10 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        setState(() => _selectedTab = 'shortlisted');
-                        _fetchMatches();
+                        if (_selectedTab != 'shortlisted') {
+                          setState(() => _selectedTab = 'shortlisted');
+                          _fetchMatches(isRefresh: true);
+                        }
                       },
                       child: _buildTabPill('Shortlisted $_shortlistedCount', _selectedTab == 'shortlisted'),
                     ),
@@ -473,34 +631,96 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
       );
     }
 
-    // 1. Single profile per vertical screen view for NEW tab
+    // 1. Single profile per vertical screen view for NEW tab with 10 data pagination & infinite swipe
     if (_selectedTab == 'new') {
-      return PageView.builder(
-        scrollDirection: Axis.vertical,
-        itemCount: _matches.length,
-        itemBuilder: (context, index) {
-          final candidate = _matches[index];
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-            child: _buildFullImageMatchCard(candidate),
-          );
-        },
+      return RefreshIndicator(
+        color: const Color(0xFF750000),
+        onRefresh: () => _fetchMatches(isRefresh: true),
+        child: PageView.builder(
+          controller: _pageController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          scrollDirection: Axis.vertical,
+          itemCount: _matches.length + (_hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index < _matches.length) {
+              final candidate = _matches[index];
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                child: _buildFullImageMatchCard(candidate),
+              );
+            } else {
+              // Loading placeholder when swiping to load the next 10 items
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFEFE8DE)),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CupertinoActivityIndicator(radius: 16, color: Color(0xFF750000)),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Loading more matches...',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF750000),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+          },
+        ),
       );
     }
 
-    // 2. Scrollable ListView for Accepted and Shortlisted candidates
+    // 2. Scrollable ListView for Accepted and Shortlisted candidates with pagination
     return RefreshIndicator(
       color: const Color(0xFF750000),
-      onRefresh: _fetchMatches,
+      onRefresh: () => _fetchMatches(isRefresh: true),
       child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 4, bottom: 24),
-        itemCount: _matches.length,
+        itemCount: _matches.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          final candidate = _matches[index];
-          return _buildCandidateListCard(
-            candidate,
-            isAcceptedTab: _selectedTab == 'accepted',
-          );
+          if (index < _matches.length) {
+            final candidate = _matches[index];
+            return _buildCandidateListCard(
+              candidate,
+              isAcceptedTab: _selectedTab == 'accepted',
+            );
+          } else {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CupertinoActivityIndicator(color: Color(0xFF750000)),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Loading more candidates...',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF750000),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
         },
       ),
     );
