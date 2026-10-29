@@ -359,24 +359,6 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                             ),
                           ),
 
-                          // ID Capsule
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.50),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                            ),
-                            child: Text(
-                              'ID: $profileCode',
-                              style: GoogleFonts.outfit(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-
                           // Full-screen zoom indicator
                           GestureDetector(
                             onTap: () => _openFullScreenViewer(photos, _activePhotoIndex),
@@ -594,7 +576,17 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
               ],
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
+          Text(
+            'ID: $profileCode',
+            style: GoogleFonts.outfit(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF8E8E93),
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               const Icon(CupertinoIcons.briefcase, size: 14, color: Color(0xFF750000)),
