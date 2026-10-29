@@ -36,7 +36,7 @@ class RaniMatchesScreen extends StatefulWidget {
 }
 
 class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
-  String _selectedTab = 'new'; // 'new', 'accepted', 'shortlisted'
+  String _selectedTab = 'new'; // 'new', 'near_me', 'accepted', 'shortlisted'
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -47,6 +47,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   List<dynamic> _cachedPool = []; // Full buffer pool if all data was fetched at once
   String? _errorMessage;
   int _newCount = 0;
+  int _nearMeCount = 0;
   int _acceptedCount = 0;
   int _shortlistedCount = 0;
 
@@ -87,6 +88,30 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     super.dispose();
   }
 
+  /// Check if candidate matches logged-in candidate's city or state (or both)
+  bool _isNearMe(dynamic c, String myCity, String myState) {
+    if (c == null || c is! Map) return false;
+    final cCity = (c['city'] ?? c['district'] ?? '').toString().trim().toLowerCase();
+    final cState = (c['state'] ?? '').toString().trim().toLowerCase();
+
+    // 1. Check city match
+    if (myCity.isNotEmpty && cCity.isNotEmpty) {
+      if (cCity.contains(myCity) || myCity.contains(cCity)) return true;
+    }
+
+    // 2. Check state match
+    if (myState.isNotEmpty && cState.isNotEmpty) {
+      if (cState.contains(myState) || myState.contains(cState)) return true;
+    }
+
+    // 3. Fallback when logged-in profile has not set city/state (e.g. West Bengal / Kolkata default)
+    if (myCity.isEmpty && myState.isEmpty) {
+      if (cCity.contains('kolkata') || cState.contains('bengal') || cState.contains('west')) return true;
+    }
+
+    return false;
+  }
+
   /// Initial load or reload of the first 10 candidate data items
   Future<void> _fetchMatches({bool isRefresh = false}) async {
     if (isRefresh) {
@@ -109,15 +134,30 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
     try {
       String tabParam = 'todays';
-      if (_selectedTab == 'accepted') {
+      if (_selectedTab == 'near_me') {
+        tabParam = 'near_me';
+      } else if (_selectedTab == 'accepted') {
         tabParam = 'accepted';
       } else if (_selectedTab == 'shortlisted') {
         tabParam = 'shortlisted';
       }
 
       _currentPage = 1;
-      final res = await ApiService.instance.getMatches(tab: tabParam, page: 1);
+      var res = await ApiService.instance.getMatches(tab: tabParam, page: 1);
       if (!mounted) return;
+
+      // If near_me API returned empty list or error, fallback to fetching all candidates and filtering locally:
+      if (_selectedTab == 'near_me') {
+        final rawMatches = res['matches'];
+        final isEmptyList = (rawMatches is List && rawMatches.isEmpty) ||
+            (rawMatches is Map && rawMatches['data'] is List && (rawMatches['data'] as List).isEmpty);
+        if (res['success'] != true || isEmptyList) {
+          final allRes = await ApiService.instance.getMatches(tab: 'all', page: 1);
+          if (mounted && allRes['success'] == true) {
+            res = allRes;
+          }
+        }
+      }
 
       if (res['success'] == true) {
         List<dynamic> list = [];
@@ -129,9 +169,23 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
           _hasMore = 1 < lastPage;
         }
 
-        // Strictly guarantee shortlisted candidates do NOT appear in the NEW tab
+        final myCandidate = ApiService.instance.candidate;
+        final myCity = (myCandidate?['city'] ?? myCandidate?['district'] ?? myCandidate?['present_city'] ?? '').toString().trim().toLowerCase();
+        final myState = (myCandidate?['state'] ?? myCandidate?['present_state'] ?? '').toString().trim().toLowerCase();
+
+        // Calculate Near Me count from full pool of matches
+        final rawPool = res['matches'] is List
+            ? List.from(res['matches'])
+            : (res['matches'] is Map && res['matches']['data'] is List ? List.from(res['matches']['data']) : list);
+        final nearMePool = rawPool.where((m) => m['is_shortlisted'] != true && _isNearMe(m, myCity, myState)).toList();
+        _nearMeCount = nearMePool.length;
+
+        // Strictly guarantee shortlisted candidates do NOT appear in the NEW and NEAR ME tabs
         if (_selectedTab == 'new') {
           list = list.where((m) => m['is_shortlisted'] != true).toList();
+        } else if (_selectedTab == 'near_me') {
+          // Strictly show candidates matching logged-in candidate's city or state (or both)
+          list = list.where((m) => m['is_shortlisted'] != true && _isNearMe(m, myCity, myState)).toList();
         }
 
         final counts = res['counts'];
@@ -150,6 +204,11 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               _newCount = todays is int ? todays : int.tryParse('$todays') ?? _newCount;
             }
 
+            final nearMe = counts['near_me'] ?? counts['nearme'];
+            if (nearMe != null) {
+              _nearMeCount = nearMe is int ? nearMe : int.tryParse('$nearMe') ?? _nearMeCount;
+            }
+
             final accepted = counts['accepted'];
             if (accepted != null) {
               _acceptedCount = accepted is int ? accepted : int.tryParse('$accepted') ?? _acceptedCount;
@@ -161,6 +220,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             }
           } else {
             if (_selectedTab == 'new') _newCount = list.length;
+            if (_selectedTab == 'near_me') _nearMeCount = list.length;
             if (_selectedTab == 'accepted') _acceptedCount = list.length;
             if (_selectedTab == 'shortlisted') _shortlistedCount = list.length;
           }
@@ -207,14 +267,28 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
       // 2. Fetch next page from API
       final nextPage = _currentPage + 1;
       String tabParam = 'todays';
-      if (_selectedTab == 'accepted') {
+      if (_selectedTab == 'near_me') {
+        tabParam = 'near_me';
+      } else if (_selectedTab == 'accepted') {
         tabParam = 'accepted';
       } else if (_selectedTab == 'shortlisted') {
         tabParam = 'shortlisted';
       }
 
-      final res = await ApiService.instance.getMatches(tab: tabParam, page: nextPage);
+      var res = await ApiService.instance.getMatches(tab: tabParam, page: nextPage);
       if (!mounted) return;
+
+      if (_selectedTab == 'near_me') {
+        final rawMatches = res['matches'];
+        final isEmptyList = (rawMatches is List && rawMatches.isEmpty) ||
+            (rawMatches is Map && rawMatches['data'] is List && (rawMatches['data'] as List).isEmpty);
+        if (res['success'] != true || isEmptyList) {
+          final allRes = await ApiService.instance.getMatches(tab: 'all', page: nextPage);
+          if (mounted && allRes['success'] == true) {
+            res = allRes;
+          }
+        }
+      }
 
       if (res['success'] == true) {
         List<dynamic> nextList = [];
@@ -228,6 +302,11 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
         if (_selectedTab == 'new') {
           nextList = nextList.where((m) => m['is_shortlisted'] != true).toList();
+        } else if (_selectedTab == 'near_me') {
+          final myCandidate = ApiService.instance.candidate;
+          final myCity = (myCandidate?['city'] ?? myCandidate?['district'] ?? myCandidate?['present_city'] ?? '').toString().trim().toLowerCase();
+          final myState = (myCandidate?['state'] ?? myCandidate?['present_state'] ?? '').toString().trim().toLowerCase();
+          nextList = nextList.where((m) => m['is_shortlisted'] != true && _isNearMe(m, myCity, myState)).toList();
         }
 
         // Deduplicate
@@ -312,13 +391,14 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         setState(() {
           candidate['is_shortlisted'] = isShortlisted;
           if (isShortlisted) {
-            // Once shortlisted, remove from NEW tab immediately
-            if (_selectedTab == 'new') {
+            // Once shortlisted, remove from NEW or NEAR ME tab immediately
+            if (_selectedTab == 'new' || _selectedTab == 'near_me') {
               _matches.removeWhere((m) {
                 final mId = m['candidate_code'] ?? m['profile_id'] ?? m['id']?.toString();
                 return mId == profileId || m == candidate;
               });
-              if (_newCount > 0) _newCount--;
+              if (_selectedTab == 'new' && _newCount > 0) _newCount--;
+              if (_selectedTab == 'near_me' && _nearMeCount > 0) _nearMeCount--;
             }
             if (res['count'] is int) {
               _shortlistedCount = res['count'];
@@ -430,7 +510,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
                   const SizedBox(width: 10),
 
-                  // NEW 61
+                  // NEW
                   Center(
                     child: GestureDetector(
                       onTap: () {
@@ -445,7 +525,22 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
                   const SizedBox(width: 8),
 
-                  // Accepted 12
+                  // Near Me
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_selectedTab != 'near_me') {
+                          setState(() => _selectedTab = 'near_me');
+                          _fetchMatches(isRefresh: true);
+                        }
+                      },
+                      child: _buildTabPill('Near Me $_nearMeCount', _selectedTab == 'near_me'),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // Accepted
                   Center(
                     child: GestureDetector(
                       onTap: () {
@@ -528,7 +623,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      if (_selectedTab == 'new') {
+      if (_selectedTab == 'new' || _selectedTab == 'near_me') {
         return const RaniSkeletonMatchScreen();
       } else if (_selectedTab == 'accepted') {
         return const RaniSkeletonCandidateList(isAcceptedTab: true);
@@ -571,7 +666,10 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
       String emptyTitle = 'No Matches Right Now';
       String emptySubtitle = 'Explore other categories or adjust your filters to discover compatible candidates.';
 
-      if (_selectedTab == 'accepted') {
+      if (_selectedTab == 'near_me') {
+        emptyTitle = 'No Nearby Candidates Found';
+        emptySubtitle = 'No candidates currently found in your city or state. Explore other tabs to discover matches.';
+      } else if (_selectedTab == 'accepted') {
         emptyTitle = 'No Accepted Matches';
         emptySubtitle = 'When other members accept your connect requests, they will show up here.';
       } else if (_selectedTab == 'shortlisted') {
@@ -631,8 +729,8 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
       );
     }
 
-    // 1. Single profile per vertical screen view for NEW tab with 10 data pagination & infinite swipe
-    if (_selectedTab == 'new') {
+    // 1. Single profile per vertical screen view for NEW and NEAR ME tabs with 10 data pagination & infinite swipe
+    if (_selectedTab == 'new' || _selectedTab == 'near_me') {
       return RefreshIndicator(
         color: const Color(0xFF750000),
         onRefresh: () => _fetchMatches(isRefresh: true),

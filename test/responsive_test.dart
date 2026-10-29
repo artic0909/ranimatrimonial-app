@@ -255,6 +255,13 @@ void main() {
           }
         }
         expect(err, isNull, reason: "Overflow on size $size");
+
+        // Verify Near Me tab pill is present and switchable
+        final nearMeTab = find.textContaining('Near Me');
+        expect(nearMeTab, findsOneWidget);
+        await tester.tap(nearMeTab);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
       }
     });
 
