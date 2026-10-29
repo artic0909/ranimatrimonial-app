@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
-import '../components/rani_skeleton_loader.dart';
-import 'profile_detail_screen.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
+import '../../components/rani_skeleton_loader.dart';
+import '../profile_detail_screen.dart';
 
 /// Screen: Candidate Search & Dynamic Filter
 /// Complete 100% feature-parity with website search.blade.php

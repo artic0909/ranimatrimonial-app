@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
 import 'aadhaar_verification_screen.dart';
 
 /// Screen: Candidate Profile Details Completion

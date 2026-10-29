@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
-import '../components/rani_skeleton_loader.dart';
-import 'profile_detail_screen.dart';
-import 'search_screen.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
+import '../../components/rani_skeleton_loader.dart';
+import '../profile_detail_screen.dart';
+import '../search/search_screen.dart';
 
 /// Screen: Home Screen with ultra-modern UI & Candidate Name Header
 /// Replaces "RANI MATRIMONIAL" text with the logged-in candidate's actual name & avatar.

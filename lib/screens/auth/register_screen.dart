@@ -7,9 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'profile_completion_screen.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
-import '../components/rani_matrimonial_loader.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
+import '../../components/rani_matrimonial_loader.dart';
 
 /// Screen: Complete 14-Step Registration Screen for Rani Matrimonial
 /// Pixel-perfect matching with all 14 design screenshots:

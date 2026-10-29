@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
-import '../components/rani_matrimonial_loader.dart';
-import '../components/rani_skeleton_loader.dart';
-import 'profile_detail_screen.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
+import '../../components/rani_matrimonial_loader.dart';
+import '../../components/rani_skeleton_loader.dart';
+import '../profile_detail_screen.dart';
 
 /// Screen: Candidate Inbox (matching website inbox.blade.php)
 /// Sub-tabs: Received, Accepted, Declined

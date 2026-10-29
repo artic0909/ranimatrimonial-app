@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../components/rani_top_bar.dart';
 import '../services/api_service.dart';
-import 'home_screen.dart';
-import 'matches_screen.dart';
-import 'inbox_screen.dart';
-import 'wallet_screen.dart';
-import 'profile_screen.dart';
-import 'search_screen.dart';
-import 'aadhaar_verification_screen.dart';
+import 'home/home_screen.dart';
+import 'matches/matches_screen.dart';
+import 'inbox/inbox_screen.dart';
+import 'wallet/wallet_screen.dart';
+import 'profile/profile_screen.dart';
+import 'search/search_screen.dart';
+import 'auth/aadhaar_verification_screen.dart';
 import 'splash_screen.dart';
 
 /// Main Application Navigation Shell

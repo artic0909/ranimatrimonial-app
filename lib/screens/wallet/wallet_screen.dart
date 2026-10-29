@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
-import '../components/rani_matrimonial_loader.dart';
-import '../components/rani_skeleton_loader.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
+import '../../components/rani_matrimonial_loader.dart';
+import '../../components/rani_skeleton_loader.dart';
 
 /// Screen: Royal Wallet & Transactions with native Razorpay Gateway Integration
 /// Displays:

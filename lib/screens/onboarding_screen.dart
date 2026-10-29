@@ -6,7 +6,7 @@ import '../theme/rani_colors.dart';
 import '../theme/rani_elevation.dart';
 import '../theme/rani_spacing.dart';
 import '../theme/rani_typography.dart';
-import 'register_screen.dart';
+import 'auth/register_screen.dart';
 import 'main_navigation_screen.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';

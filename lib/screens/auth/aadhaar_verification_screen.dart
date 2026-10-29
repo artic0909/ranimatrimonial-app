@@ -3,9 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
-import 'main_navigation_screen.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
+import '../main_navigation_screen.dart';
 
 /// Screen: Government Document / Aadhaar Verification (Matching website bluetick_verification.blade.php)
 /// Allows candidate to verify their identity with Aadhaar front & back photos to earn the Blue Tick badge.

@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/rani_colors.dart';
-import '../theme/rani_spacing.dart';
-import '../theme/rani_typography.dart';
+import '../../theme/rani_colors.dart';
+import '../../theme/rani_spacing.dart';
+import '../../theme/rani_typography.dart';
 import 'register_screen.dart';
-import 'main_navigation_screen.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
+import '../main_navigation_screen.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
 
 /// Screen: Opulent Mobile + 4-Digit OTP Login Screen
 /// Features:

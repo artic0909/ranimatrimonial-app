@@ -2,13 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/api_service.dart';
-import '../components/rani_alert.dart';
-import '../components/rani_matrimonial_loader.dart';
-import '../components/rani_skeleton_loader.dart';
-import 'splash_screen.dart';
-import 'wallet_screen.dart';
-import 'help_support_screen.dart';
+import '../../services/api_service.dart';
+import '../../components/rani_alert.dart';
+import '../../components/rani_matrimonial_loader.dart';
+import '../../components/rani_skeleton_loader.dart';
+import '../splash_screen.dart';
+import '../wallet/wallet_screen.dart';
+import '../help_support_screen.dart';
 
 /// Screen: Candidate Profile & Account Dashboard (matching website my_profile.blade.php)
 class RaniProfileScreen extends StatefulWidget {
