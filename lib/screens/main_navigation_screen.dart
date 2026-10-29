@@ -85,9 +85,16 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   PreferredSizeWidget _buildTopBarForCurrentScreen() {
     switch (_currentIndex) {
       case 0:
-        // Home Screen TopBar
+        // Home Screen TopBar: Candidate short name (e.g. Rahul M.) + Circular Filter Button + Notification Button
+        final candidate = ApiService.instance.candidate;
+        final firstName = candidate?['first_name']?.toString() ?? 'Rahul';
+        final lastName = candidate?['last_name']?.toString() ?? 'M.';
+        final shortName = lastName.trim().isNotEmpty
+            ? '$firstName ${lastName.trim()[0]}.'
+            : firstName;
+
         return RaniTopBar(
-          title: 'Home',
+          title: shortName,
           notificationCount: _notificationCount,
           onMenuPressed: () {
             _fetchLiveWalletBalance();
@@ -95,15 +102,35 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           },
           onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, _notificationCount),
           actions: [
-            IconButton(
-              icon: const Icon(CupertinoIcons.slider_horizontal_3, color: Color(0xFF1E1E1E), size: 21),
-              tooltip: 'Quick Filter',
-              onPressed: () {
+            GestureDetector(
+              onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const RaniSearchScreen()),
                 );
               },
+              child: Container(
+                width: 36,
+                height: 36,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE8DFD5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF750000).withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  CupertinoIcons.slider_horizontal_3,
+                  size: 18,
+                  color: Color(0xFF750000), // Royal Burgundy
+                ),
+              ),
             ),
           ],
         );
@@ -601,7 +628,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           // 0. Home Screen
           RaniHomeScreen(
             key: ValueKey('home_$_homeRefreshKey'),
-            showCandidateHeader: false,
+            showAppBar: false,
             onOpenSearch: () {
               Navigator.push(
                 context,
@@ -615,6 +642,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
               );
             },
             onOpenProfile: () => _navigateToTab(4),
+            onOpenMatches: () => _navigateToTab(1),
           ),
 
           // 1. Matches Screen

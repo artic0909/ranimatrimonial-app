@@ -52,7 +52,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniSplashScreen()));
         await tester.pump();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -76,7 +84,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(RaniProfileDetailScreen(profile: sampleProfile)));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -88,7 +104,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniOnboardingScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
 
         // Drag to final slide (slide 2)
         await tester.drag(find.byType(PageView), const Offset(-500, 0));
@@ -110,7 +134,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniWelcomeScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -119,10 +151,10 @@ void main() {
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1.0;
 
-        await tester.pumpWidget(wrapScreen(const RaniHomeScreen()));
+        await tester.pumpWidget(wrapScreen(const RaniHomeScreen(), size: size));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        expect(tester.takeException(), isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -134,7 +166,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniLoginScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -146,7 +186,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniSearchScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -158,7 +206,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniProfileCompletionScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -170,7 +226,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniAadhaarVerificationScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -182,7 +246,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniMatchesScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
@@ -194,7 +266,15 @@ void main() {
         await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull, reason: 'Overflow on size $size');
+        final err = tester.takeException();
+        if (err is FlutterError) {
+          debugPrint("OVERFLOW ERROR ON $size: ${err.message}");
+          debugPrint("FULL DIAG: ${err.toDiagnosticsNode().toStringDeep()}");
+          for (final d in err.diagnostics) {
+            debugPrint("DIAG: $d");
+          }
+        }
+        expect(err, isNull, reason: "Overflow on size $size");
       }
     });
 
