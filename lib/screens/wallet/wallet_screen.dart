@@ -31,17 +31,14 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _walletData;
   Map<String, dynamic>? _candidate;
-  List<dynamic> _transactions = [];
-  String _transactionFilter = 'all'; // 'all', 'credit', 'debit'
   final TextEditingController _customAmountController = TextEditingController();
-  final TextEditingController _searchController = TextEditingController();
   String? _errorMessage;
 
   final List<Map<String, dynamic>> _rechargePlans = [
-    {'amount': 500.0, 'label': 'Starter Pack', 'bonus': '0% Bonus', 'popular': false},
-    {'amount': 1000.0, 'label': 'Royal Standard', 'bonus': '+₹100 Extra', 'popular': true},
-    {'amount': 2500.0, 'label': 'Elite Privilege', 'bonus': '+₹350 Extra', 'popular': false},
-    {'amount': 5000.0, 'label': 'Imperial Crown', 'bonus': '+₹1000 Extra', 'popular': false},
+    {'amount': 500.0, 'label': 'Starter Pack', 'popular': false},
+    {'amount': 1000.0, 'label': 'Royal Standard', 'popular': true},
+    {'amount': 2500.0, 'label': 'Elite Privilege', 'popular': false},
+    {'amount': 5000.0, 'label': 'Imperial Crown', 'popular': false},
   ];
 
   static double _toDouble(dynamic val, [double fallback = 0.0]) {
@@ -64,7 +61,6 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   @override
   void dispose() {
     _customAmountController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -76,11 +72,6 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
 
     try {
       final res = await ApiService.instance.getWallet();
-      final txnRes = await ApiService.instance.getWalletTransactions(
-        type: _transactionFilter == 'all' ? null : _transactionFilter,
-        search: _searchController.text.trim(),
-      );
-
       _candidate = ApiService.instance.candidate;
 
       if (mounted) {
@@ -93,7 +84,6 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                   'total_credit': 0.0,
                   'total_debit': 0.0,
                 };
-          _transactions = txnRes['transactions']?['data'] ?? [];
           _isLoading = false;
         });
       }
@@ -297,30 +287,6 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
 
         // 4. Custom Amount Recharge Card
         _buildCustomRechargeCard(),
-
-        const SizedBox(height: 26),
-
-        // 5. Transaction Statement Header & Search
-        Text(
-          'Transaction Statement',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1E0A0A),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        _buildSearchBar(),
-
-        const SizedBox(height: 12),
-
-        _buildTransactionFilterTabs(),
-
-        const SizedBox(height: 14),
-
-        // 6. Transaction Statement List
-        _buildTransactionList(),
       ],
     );
   }
@@ -917,15 +883,14 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   Widget _buildRechargePlanCard(Map<String, dynamic> plan) {
     final amount = _toDouble(plan['amount']);
     final label = plan['label'] as String;
-    final bonus = plan['bonus'] as String;
     final isPopular = plan['popular'] == true;
 
     return InkWell(
       onTap: () => _startRecharge(amount),
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        constraints: const BoxConstraints(minHeight: 92),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        constraints: const BoxConstraints(minHeight: 76),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -945,7 +910,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -956,7 +921,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.outfit(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF6B6B6B),
                     ),
@@ -981,24 +946,13 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               '₹ ${amount.toInt()}',
               style: GoogleFonts.playfairDisplay(
-                fontSize: 19,
+                fontSize: 20,
                 fontWeight: FontWeight.w800,
                 color: const Color(0xFF750000),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              bonus,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF2E7D32),
               ),
             ),
           ],
@@ -1141,220 +1095,6 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                 ),
               );
             }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Search bar for transactions
-  Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEFE8DE)),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: GoogleFonts.outfit(fontSize: 14, color: const Color(0xFF1E0A0A)),
-        decoration: InputDecoration(
-          hintText: 'Search statement by title, ID or gateway...',
-          hintStyle: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFFA0988E)),
-          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF750000), size: 20),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF8C827A)),
-                  onPressed: () {
-                    _searchController.clear();
-                    _fetchWalletData();
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-        ),
-        onSubmitted: (_) => _fetchWalletData(),
-      ),
-    );
-  }
-
-  /// Transaction statement filter chips (All, Credits, Debits)
-  Widget _buildTransactionFilterTabs() {
-    final filters = [
-      {'id': 'all', 'label': 'All Transactions'},
-      {'id': 'credit', 'label': 'Credits (+)'},
-      {'id': 'debit', 'label': 'Debits (-)'},
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: filters.map((f) {
-          final isSelected = _transactionFilter == f['id'];
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(f['label']!),
-              selected: isSelected,
-              onSelected: (val) {
-                if (val) {
-                  setState(() => _transactionFilter = f['id']!);
-                  _fetchWalletData();
-                }
-              },
-              selectedColor: const Color(0xFF750000),
-              backgroundColor: Colors.white,
-              labelStyle: GoogleFonts.outfit(
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? Colors.white : const Color(0xFF6B6B6B),
-              ),
-              side: BorderSide(
-                color: isSelected ? const Color(0xFF750000) : const Color(0xFFEFE8DE),
-              ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  /// Transaction statement list
-  Widget _buildTransactionList() {
-    if (_transactions.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEFE8DE)),
-        ),
-        child: Column(
-          children: [
-            const Icon(Icons.receipt_long_outlined, size: 44, color: Color(0xFFE5B842)),
-            const SizedBox(height: 10),
-            Text(
-              'No Transactions Found',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E0A0A),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Your wallet transaction records will appear here.',
-              style: GoogleFonts.outfit(fontSize: 12.5, color: const Color(0xFF8C827A)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: _transactions.map((txn) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _buildTransactionItem(txn),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildTransactionItem(dynamic txn) {
-    final type = txn['type'] ?? 'credit';
-    final isCredit = type == 'credit';
-    final amount = _toDouble(txn['amount']);
-    final title = txn['title'] ?? (isCredit ? 'Wallet Top-up' : 'Connection Unlock');
-    final createdAt = txn['created_at_formatted'] ?? txn['created_at']?.toString().substring(0, 10) ?? 'Recent';
-    final method = txn['payment_method'] ?? 'Razorpay';
-    final txnId = txn['transaction_id'] ?? '';
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEFE8DE)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isCredit ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-              size: 18,
-              color: isCredit ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E0A0A),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$createdAt • $method${txnId.isNotEmpty ? ' • ID: $txnId' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF8C827A)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${isCredit ? '+' : '-'} ₹ ${_formatCurrency(amount)}',
-                style: GoogleFonts.outfit(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: isCredit ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isCredit
-                      ? const Color(0xFF2E7D32).withValues(alpha: 0.1)
-                      : const Color(0xFF750000).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'Success',
-                  style: GoogleFonts.outfit(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w600,
-                    color: isCredit ? const Color(0xFF2E7D32) : const Color(0xFF750000),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
