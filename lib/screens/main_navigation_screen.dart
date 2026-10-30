@@ -1,10 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../components/rani_top_bar.dart';
 import '../services/api_service.dart';
 import 'home/home_screen.dart';
 import 'matches/matches_screen.dart';
+import 'matches/details_screen.dart';
 import 'connections/connection_request.dart';
 import 'wallet/wallet_screen.dart';
 import 'profile/profile_screen.dart';
@@ -12,6 +14,7 @@ import 'search/search_screen.dart';
 import 'auth/aadhaar_verification_screen.dart';
 import 'splash_screen.dart';
 import '../services/razorpay_service.dart';
+import '../services/push_notification_service.dart';
 
 /// Main Application Navigation Shell
 /// Features:
@@ -42,6 +45,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   int _interestsCount = 5;
   double _walletBalance = 0.00;
   List<dynamic> _dynamicNotifications = [];
+  final Set<String> _dismissedNotificationIds = {};
 
   // Refresh counters: incrementing forces full refresh & skeleton shimmer when switching tabs
   int _homeRefreshKey = 0;
@@ -54,7 +58,33 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _loadDismissedNotifications();
     _fetchLiveMetrics();
+    PushNotificationService.syncDeviceToken();
+  }
+
+  Future<void> _loadDismissedNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('dismissed_notif_ids') ?? [];
+      _dismissedNotificationIds.addAll(list);
+    } catch (_) {}
+  }
+
+  Future<void> _saveDismissedNotification(String id) async {
+    _dismissedNotificationIds.add(id);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('dismissed_notif_ids', _dismissedNotificationIds.toList());
+    } catch (_) {}
+  }
+
+  Future<void> _saveAllDismissedNotifications(List<String> ids) async {
+    _dismissedNotificationIds.addAll(ids);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('dismissed_notif_ids', _dismissedNotificationIds.toList());
+    } catch (_) {}
   }
 
   Future<void> _fetchLiveMetrics() async {
@@ -99,31 +129,32 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       final dashRes = await ApiService.instance.getDashboard();
       if (mounted && dashRes['success'] == true && dashRes['data'] != null) {
         final data = dashRes['data'] as Map<String, dynamic>;
-        final metrics = (data['metrics'] is Map) ? data['metrics'] as Map : null;
-        final notifList = (data['notifications'] as List?) ?? [];
+        final rawNotifs = (data['notifications'] as List?) ?? [];
 
-        final unreadNotif = _toInt(
-          metrics?['unread_notifications_count'] ??
-              metrics?['unreadNotificationsCount'] ??
-              data['unreadNotificationsCount'],
-          notifList.length,
-        );
+        // Filter out notifications dismissed locally or on server
+        final validNotifs = rawNotifs.where((n) {
+          final id = (n['id'] ?? n['db_id'] ?? n['notification_id'])?.toString();
+          if (id != null && _dismissedNotificationIds.contains(id)) {
+            return false;
+          }
+          if (n['is_dismissed'] == true) {
+            return false;
+          }
+          return true;
+        }).toList();
+
+        final unreadCount = validNotifs.where((n) => n['is_new'] == true || n['is_read'] == false).length;
 
         final matchesLen = (data['matches'] as List?)?.length ??
             _toInt(data['newMatchesCount'] ?? data['totalMatchesCount']);
 
         final pendingInvitations = _toInt(
-          metrics?['pending_invitations_count'] ?? data['pendingInvitationsCount'],
+          data['metrics']?['pending_invitations_count'] ?? data['pendingInvitationsCount'],
         );
 
         setState(() {
-          if (unreadNotif > 0) {
-            _notificationCount = unreadNotif;
-          } else if (notifList.isNotEmpty) {
-            _notificationCount = notifList.length;
-          }
-
-          _dynamicNotifications = notifList;
+          _notificationCount = unreadCount;
+          _dynamicNotifications = validNotifs;
 
           if (matchesLen > 0) {
             _matchesCount = matchesLen;
@@ -161,9 +192,44 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       context,
       _notificationCount,
       notifications: _dynamicNotifications,
-      onNotificationTap: (notif) {
-        final link = notif['link']?.toString() ?? '';
-        if (link.contains('inbox') || link.contains('connection')) {
+      onNotificationTap: (notif) async {
+        final notifId = notif['id'] ?? notif['db_id'] ?? notif['notification_id'];
+
+        // 1. Instantly mark read and hide from list in UI & decrement count
+        setState(() {
+          _dynamicNotifications.removeWhere((n) =>
+              (n['id'] ?? n['db_id'] ?? n['notification_id'])?.toString() == notifId?.toString());
+          if (_notificationCount > 0) {
+            _notificationCount--;
+          }
+        });
+
+        // 2. Persist dismissal locally so it never reappears on reload
+        if (notifId != null) {
+          _saveDismissedNotification(notifId.toString());
+        }
+
+        // 3. Call backend to mark read & dismissed in database
+        if (notifId != null) {
+          try {
+            await ApiService.instance.markNotificationRead(notifId);
+          } catch (_) {}
+        }
+
+        // 4. Navigate to target screen
+        final link = notif['link']?.toString() ?? notif['action_url']?.toString() ?? '';
+        final profileId = notif['profile_id'] ?? notif['candidate_id'] ?? notif['candidate_code'];
+
+        if (profileId != null && profileId.toString().isNotEmpty) {
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RaniMatchDetailsScreen(profileId: profileId.toString()),
+              ),
+            );
+          }
+        } else if (link.contains('inbox') || link.contains('connection') || link.contains('request')) {
           _navigateToTab(2); // Interests/Connections
         } else if (link.contains('profile')) {
           _navigateToTab(4); // Profile
@@ -172,6 +238,36 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         } else {
           _navigateToTab(1); // Matches
         }
+      },
+      onNotificationDismiss: (notif) async {
+        final notifId = notif['id'] ?? notif['db_id'] ?? notif['notification_id'];
+        setState(() {
+          _dynamicNotifications.removeWhere((n) =>
+              (n['id'] ?? n['db_id'] ?? n['notification_id'])?.toString() == notifId?.toString());
+          if (_notificationCount > 0) {
+            _notificationCount--;
+          }
+        });
+        if (notifId != null) {
+          _saveDismissedNotification(notifId.toString());
+          try {
+            await ApiService.instance.markNotificationRead(notifId);
+          } catch (_) {}
+        }
+      },
+      onDismissAll: () async {
+        final notifIds = _dynamicNotifications
+            .map((n) => (n['id'] ?? n['db_id'] ?? n['notification_id'])?.toString())
+            .whereType<String>()
+            .toList();
+        setState(() {
+          _dynamicNotifications.clear();
+          _notificationCount = 0;
+        });
+        _saveAllDismissedNotifications(notifIds);
+        try {
+          await ApiService.instance.clearAllNotifications();
+        } catch (_) {}
       },
     );
   }

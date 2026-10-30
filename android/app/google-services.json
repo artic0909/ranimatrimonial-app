@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "367518152017",
+    "project_id": "rani-matrimonial",
+    "storage_bucket": "rani-matrimonial.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:367518152017:android:21cae58ae1d36f6f940f70",
+        "android_client_info": {
+          "package_name": "com.rani.matrimonial"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFv4AseLZwv0aBWuY6NrjO-lQmiXdUYDo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

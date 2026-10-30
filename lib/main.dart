@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'services/api_service.dart';
+import 'services/push_notification_service.dart';
 import 'theme/rani_colors.dart';
 import 'theme/rani_theme.dart';
 import 'screens/splash_screen.dart';
@@ -10,6 +11,11 @@ void main() async {
 
   // Initialize API service and restore Sanctum session if available
   await ApiService.instance.init();
+
+  // Initialize Firebase Cloud Messaging & OS-level Push Notification Service
+  try {
+    await PushNotificationService.initialize();
+  } catch (_) {}
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

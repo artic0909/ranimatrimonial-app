@@ -524,9 +524,30 @@ class ApiService {
   }
 
   /// Mark notification read
-  Future<Map<String, dynamic>> markNotificationRead(int notificationId) async {
+  Future<Map<String, dynamic>> markNotificationRead(dynamic notificationId) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/notifications/$notificationId/read');
     final response = await http.post(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Clear all notifications
+  Future<Map<String, dynamic>> clearAllNotifications() async {
+    await _ensureAuthLoaded();
+    final uri = Uri.parse('$baseUrl/notifications/clear-all');
+    final response = await http.post(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Register Device FCM Token with backend for background OS push notifications
+  Future<Map<String, dynamic>> saveFcmToken(String fcmToken) async {
+    await _ensureAuthLoaded();
+    final uri = Uri.parse('$baseUrl/save-fcm-token');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'fcm_token': fcmToken}),
+    );
     return _processResponse(response);
   }
 

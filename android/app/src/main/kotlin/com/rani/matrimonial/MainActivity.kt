@@ -1,5 +1,6 @@
-package com.example.ranimatrimonial_app
+package com.rani.matrimonial
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+
