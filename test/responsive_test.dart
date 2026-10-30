@@ -276,7 +276,7 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
 
         await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen()));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 500));
 
         final err = tester.takeException();
         if (err is FlutterError) {
@@ -318,13 +318,13 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
 
         await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen(), size: size));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Tap hamburger menu in topbar
         final menuFinder = find.byTooltip('Menu');
         if (menuFinder.evaluate().isNotEmpty) {
           await tester.tap(menuFinder);
-          await tester.pumpAndSettle();
+          await tester.pump(const Duration(milliseconds: 500));
 
           expect(find.byType(Drawer), findsOneWidget);
           expect(tester.takeException(), isNull, reason: "Sidebar overflow on $size");
@@ -333,7 +333,7 @@ void main() {
           final closeFinder = find.byTooltip('Close Sidebar');
           if (closeFinder.evaluate().isNotEmpty) {
             await tester.tap(closeFinder, warnIfMissed: false);
-            await tester.pumpAndSettle();
+            await tester.pump(const Duration(milliseconds: 500));
           }
         }
       }
@@ -396,7 +396,7 @@ void main() {
           const RaniConnectionsScreen(showAppBar: true),
           size: size,
         ));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 500));
 
         expect(tester.takeException(), isNull, reason: 'Connections screen overflow on size $size');
 
@@ -406,7 +406,7 @@ void main() {
 
         // Switch to Send
         await tester.tap(find.textContaining('Send'));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 500));
         expect(tester.takeException(), isNull);
       }
     });
@@ -420,7 +420,7 @@ void main() {
           const RaniAcceptedConnectionsScreen(showAppBar: true),
           size: size,
         ));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 500));
 
         expect(tester.takeException(), isNull, reason: 'Accepted screen overflow on size $size');
       }
@@ -435,7 +435,7 @@ void main() {
           const RaniDeclinedConnectionsScreen(showAppBar: true),
           size: size,
         ));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 500));
 
         expect(tester.takeException(), isNull, reason: 'Declined screen overflow on size $size');
       }

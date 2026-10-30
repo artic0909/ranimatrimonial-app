@@ -1068,7 +1068,10 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
     final profession = candidate['profession'] ?? candidate['designation'] ?? 'Professional';
     final city = candidate['city'] ?? 'Kolkata';
     final photo = candidate['profile_picture'] ?? candidate['photo'] ?? '';
-    final matchScore = (candidate['match_score'] as num?)?.toInt() ?? 92;
+    final rawScore = candidate['match_score'];
+    final matchScore = (rawScore is num)
+        ? rawScore.toInt()
+        : int.tryParse(rawScore?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '') ?? 92;
 
     return Container(
       width: 155,

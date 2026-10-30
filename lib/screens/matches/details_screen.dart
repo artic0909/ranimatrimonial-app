@@ -212,7 +212,19 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     final firstName = d['first_name'] ?? 'Candidate';
     final lastName = d['last_name'] ?? '';
     final fullName = '$firstName $lastName'.trim();
-    final profileCode = d['candidate_code'] ?? d['profile_id'] ?? (d['id'] != null ? 'RM${d['id'].toString().padLeft(5, '0')}' : widget.profileId);
+    final rawCode = (d['candidate_code'] ?? d['profile_id'] ?? d['id'] ?? widget.profileId).toString().trim();
+    String cleanCode = rawCode;
+    while (cleanCode.toUpperCase().startsWith('RMRM')) {
+      cleanCode = cleanCode.substring(2);
+    }
+    if (!cleanCode.toUpperCase().startsWith('RM')) {
+      if (int.tryParse(cleanCode) != null) {
+        cleanCode = 'RM${cleanCode.padLeft(5, '0')}';
+      } else {
+        cleanCode = 'RM$cleanCode';
+      }
+    }
+    final profileCode = cleanCode;
     final age = d['age']?.toString() ?? '24';
     final height = d['height']?.toString() ?? "5' 4\"";
     final profession = d['profession'] ?? d['designation'] ?? 'Professional';

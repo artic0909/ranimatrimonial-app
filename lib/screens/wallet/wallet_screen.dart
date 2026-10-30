@@ -44,6 +44,16 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
     {'amount': 5000.0, 'label': 'Imperial Crown', 'bonus': '+₹1000 Extra', 'popular': false},
   ];
 
+  static double _toDouble(dynamic val, [double fallback = 0.0]) {
+    if (val == null) return fallback;
+    if (val is num) return val.toDouble();
+    if (val is String) {
+      final clean = val.replaceAll(RegExp(r'[^0-9.-]'), '');
+      return double.tryParse(clean) ?? fallback;
+    }
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -167,7 +177,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                 onPressed: () => Navigator.pop(context),
               ),
               title: Text(
-                'Royal Wallet',
+                'My Wallet',
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -224,9 +234,9 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   }
 
   Widget _buildContent() {
-    final balance = (_walletData?['avl_balance'] as num?)?.toDouble() ?? 0.0;
-    final totalCredit = (_walletData?['total_credit'] as num?)?.toDouble() ?? 0.0;
-    final totalDebit = (_walletData?['total_debit'] as num?)?.toDouble() ?? 0.0;
+    final balance = _toDouble(_walletData?['avl_balance']);
+    final totalCredit = _toDouble(_walletData?['total_credit']);
+    final totalDebit = _toDouble(_walletData?['total_debit']);
 
     final candidate = _candidate ?? ApiService.instance.candidate;
     final firstName = candidate?['first_name']?.toString() ?? 'Rojina';
@@ -905,7 +915,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   }
 
   Widget _buildRechargePlanCard(Map<String, dynamic> plan) {
-    final amount = (plan['amount'] as num).toDouble();
+    final amount = _toDouble(plan['amount']);
     final label = plan['label'] as String;
     final bonus = plan['bonus'] as String;
     final isPopular = plan['popular'] == true;
@@ -1257,7 +1267,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   Widget _buildTransactionItem(dynamic txn) {
     final type = txn['type'] ?? 'credit';
     final isCredit = type == 'credit';
-    final amount = (txn['amount'] as num?)?.toDouble() ?? 0.0;
+    final amount = _toDouble(txn['amount']);
     final title = txn['title'] ?? (isCredit ? 'Wallet Top-up' : 'Connection Unlock');
     final createdAt = txn['created_at_formatted'] ?? txn['created_at']?.toString().substring(0, 10) ?? 'Recent';
     final method = txn['payment_method'] ?? 'Razorpay';

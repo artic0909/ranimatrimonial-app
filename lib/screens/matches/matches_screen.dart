@@ -563,22 +563,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
                   const SizedBox(width: 8),
 
-                  // Accepted
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        if (_selectedTab != 'accepted') {
-                          setState(() => _selectedTab = 'accepted');
-                          _fetchMatches(isRefresh: true);
-                        }
-                      },
-                      child: _buildTabPill('Accepted $_acceptedCount', _selectedTab == 'accepted'),
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  // Shortlisted 8
+                  // Shortlisted
                   Center(
                     child: GestureDetector(
                       onTap: () {
@@ -847,9 +832,26 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     );
   }
 
+  String _formatCandidateId(dynamic c) {
+    if (c == null) return 'RM00024';
+    final raw = c['candidate_code'] ?? c['profile_id'] ?? c['id'];
+    if (raw == null) return 'RM00024';
+    String str = raw.toString().trim();
+    while (str.toUpperCase().startsWith('RMRM')) {
+      str = str.substring(2);
+    }
+    if (!str.toUpperCase().startsWith('RM')) {
+      if (int.tryParse(str) != null) {
+        return 'RM${str.padLeft(5, '0')}';
+      }
+      return 'RM$str';
+    }
+    return str;
+  }
+
   /// Candidate List Card for Accepted & Shortlisted tabs
   Widget _buildCandidateListCard(dynamic c, {required bool isAcceptedTab}) {
-    final profileId = c['candidate_code'] ?? c['profile_id'] ?? (c['id'] != null ? 'RM${c['id'].toString().padLeft(5, '0')}' : 'RM00024');
+    final profileId = _formatCandidateId(c);
     final firstName = c['first_name'] ?? 'Candidate';
     final lastName = c['last_name'] ?? '';
     final fullName = '$firstName $lastName'.trim();
@@ -1200,7 +1202,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
   /// Full-Image Immersive Profile Match Card
   Widget _buildFullImageMatchCard(dynamic c) {
-    final profileId = c['candidate_code'] ?? c['profile_id'] ?? (c['id'] != null ? 'RM${c['id'].toString().padLeft(5, '0')}' : 'RM00024');
+    final profileId = _formatCandidateId(c);
     final firstName = c['first_name'] ?? 'Candidate';
     final lastName = c['last_name'] ?? '';
     final fullName = '$firstName $lastName'.trim();

@@ -62,12 +62,32 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     _fetchLiveDashboardAndNotifications();
   }
 
+  static double _toDouble(dynamic val, [double fallback = 0.0]) {
+    if (val == null) return fallback;
+    if (val is num) return val.toDouble();
+    if (val is String) {
+      final clean = val.replaceAll(RegExp(r'[^0-9.-]'), '');
+      return double.tryParse(clean) ?? fallback;
+    }
+    return fallback;
+  }
+
+  static int _toInt(dynamic val, [int fallback = 0]) {
+    if (val == null) return fallback;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final clean = val.replaceAll(RegExp(r'[^0-9.-]'), '');
+      return int.tryParse(clean) ?? double.tryParse(clean)?.toInt() ?? fallback;
+    }
+    return fallback;
+  }
+
   Future<void> _fetchLiveWalletBalance() async {
     try {
       final res = await ApiService.instance.getWallet();
       if (mounted && res['success'] == true && res['wallet'] != null) {
         setState(() {
-          _walletBalance = (res['wallet']['avl_balance'] as num?)?.toDouble() ?? _walletBalance;
+          _walletBalance = _toDouble(res['wallet']['avl_balance'], _walletBalance);
         });
       }
     } catch (_) {}
@@ -82,31 +102,34 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         final metrics = (data['metrics'] is Map) ? data['metrics'] as Map : null;
         final notifList = (data['notifications'] as List?) ?? [];
 
-        final unreadNotif = (metrics?['unread_notifications_count'] ??
-                metrics?['unreadNotificationsCount'] ??
-                data['unreadNotificationsCount'] ??
-                notifList.length) as num?;
+        final unreadNotif = _toInt(
+          metrics?['unread_notifications_count'] ??
+              metrics?['unreadNotificationsCount'] ??
+              data['unreadNotificationsCount'],
+          notifList.length,
+        );
 
         final matchesLen = (data['matches'] as List?)?.length ??
-            (data['newMatchesCount'] ?? data['totalMatchesCount'] as num?)?.toInt();
+            _toInt(data['newMatchesCount'] ?? data['totalMatchesCount']);
 
-        final pendingInvitations = (metrics?['pending_invitations_count'] ??
-                data['pendingInvitationsCount'] as num?)?.toInt();
+        final pendingInvitations = _toInt(
+          metrics?['pending_invitations_count'] ?? data['pendingInvitationsCount'],
+        );
 
         setState(() {
-          if (unreadNotif != null && unreadNotif > 0) {
-            _notificationCount = unreadNotif.toInt();
+          if (unreadNotif > 0) {
+            _notificationCount = unreadNotif;
           } else if (notifList.isNotEmpty) {
             _notificationCount = notifList.length;
           }
 
           _dynamicNotifications = notifList;
 
-          if (matchesLen != null && matchesLen > 0) {
+          if (matchesLen > 0) {
             _matchesCount = matchesLen;
           }
 
-          if (pendingInvitations != null && pendingInvitations > 0) {
+          if (pendingInvitations > 0) {
             _interestsCount = pendingInvitations;
           }
         });
@@ -116,16 +139,16 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       final inboxRes = await ApiService.instance.getInbox(tab: 'received');
       if (mounted && inboxRes['success'] == true && inboxRes['counts'] is Map) {
         final counts = inboxRes['counts'] as Map;
-        final rec = (counts['received'] ?? counts['pending'] as num?)?.toInt();
-        final sent = (counts['sent'] as num?)?.toInt();
-        final total = (counts['total'] as num?)?.toInt();
+        final rec = _toInt(counts['received'] ?? counts['pending']);
+        final sent = _toInt(counts['sent']);
+        final total = _toInt(counts['total']);
 
         setState(() {
-          if (rec != null && rec > 0) {
+          if (rec > 0) {
             _interestsCount = rec;
-          } else if (total != null && total > 0) {
+          } else if (total > 0) {
             _interestsCount = total;
-          } else if (sent != null && sent > 0) {
+          } else if (sent > 0) {
             _interestsCount = sent;
           }
         });
@@ -250,7 +273,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       case 3:
         // Wallet Screen TopBar
         return RaniTopBar(
-          title: 'Royal Wallet',
+          title: 'My Wallet',
           notificationCount: _notificationCount,
           onMenuPressed: () {
             _fetchLiveWalletBalance();

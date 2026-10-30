@@ -149,7 +149,10 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     final name = '${c['first_name'] ?? 'Candidate'} ${c['last_name'] ?? ''}'.trim();
     final profileCode = c['candidate_code'] ?? c['profile_id'] ?? 'RM-PROFILE';
     final photo = c['profile_picture'] ?? '';
-    final balance = (_wallet?['avl_balance'] as num?)?.toDouble() ?? 0.0;
+    final rawBal = _wallet?['avl_balance'];
+    final double balance = (rawBal is num)
+        ? rawBal.toDouble()
+        : double.tryParse(rawBal?.toString().replaceAll(RegExp(r'[^0-9.-]'), '') ?? '') ?? 0.0;
     final isBlueTickVerified = _bluetick != null && _bluetick!['is_accept'] == 1;
 
     return Scaffold(

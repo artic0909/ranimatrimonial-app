@@ -74,6 +74,20 @@ class ApiService {
     }
   }
 
+  /// Ensure session token and candidate data are loaded from storage
+  Future<void> _ensureAuthLoaded() async {
+    if (_token == null || _token!.isEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        _token = prefs.getString(_keyToken);
+        final candidateJson = prefs.getString(_keyCandidate);
+        if (_candidate == null && candidateJson != null && candidateJson.isNotEmpty) {
+          _candidate = jsonDecode(candidateJson) as Map<String, dynamic>;
+        }
+      } catch (_) {}
+    }
+  }
+
   /// Standard Headers
   Map<String, String> get _headers {
     final headers = {
@@ -328,6 +342,7 @@ class ApiService {
 
   /// Fetch candidate dashboard metrics, matches, notifications
   Future<Map<String, dynamic>> getDashboard() async {
+    await _ensureAuthLoaded();
     try {
       final uri = Uri.parse('$baseUrl/dashboard');
       final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
@@ -535,6 +550,7 @@ class ApiService {
 
   /// Send Interest / Connection Request
   Future<Map<String, dynamic>> sendInterest(String profileId) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/send-interest');
     final response = await http.post(
       uri,
@@ -546,6 +562,7 @@ class ApiService {
 
   /// Respond to an Interest (accept / decline)
   Future<Map<String, dynamic>> respondInterest(String profileId, String action) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/respond-interest');
     final response = await http.post(
       uri,
@@ -560,6 +577,7 @@ class ApiService {
 
   /// Toggle candidate shortlist
   Future<Map<String, dynamic>> toggleShortlist(String profileId) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/toggle-shortlist');
     final response = await http.post(
       uri,
@@ -600,6 +618,7 @@ class ApiService {
 
   /// Fetch Inbox connection requests ('received', 'accepted', 'declined', 'sent')
   Future<Map<String, dynamic>> getInbox({String tab = 'received'}) async {
+    await _ensureAuthLoaded();
     try {
       final uri = Uri.parse('$baseUrl/inbox?tab=$tab');
       final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
@@ -638,6 +657,7 @@ class ApiService {
 
   /// Fetch wallet balance, summary and recharge plans
   Future<Map<String, dynamic>> getWallet() async {
+    await _ensureAuthLoaded();
     try {
       final uri = Uri.parse('$baseUrl/wallet');
       final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
@@ -654,6 +674,7 @@ class ApiService {
 
   /// Fetch wallet transactions
   Future<Map<String, dynamic>> getWalletTransactions({String? type, String? search, int page = 1}) async {
+    await _ensureAuthLoaded();
     try {
       final params = <String, String>{'page': page.toString()};
       if (type != null && type.isNotEmpty && type != 'all') {
