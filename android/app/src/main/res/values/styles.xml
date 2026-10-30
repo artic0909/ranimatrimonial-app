@@ -15,4 +15,14 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <!-- Theme for Image Cropper (UCrop) to strictly respect status bar & camera notch insets -->
+    <style name="CustomUCropTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:fitsSystemWindows">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">#750000</item>
+        <item name="colorPrimary">#750000</item>
+        <item name="colorPrimaryDark">#4A0000</item>
+        <item name="colorAccent">#E5B842</item>
+    </style>
 </resources>
