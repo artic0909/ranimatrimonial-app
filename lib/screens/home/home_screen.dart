@@ -1,28 +1,31 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
+import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_top_bar.dart';
+import '../../components/rani_image_cropper_modal.dart';
 import '../search/search_screen.dart';
 import '../matches/details_screen.dart';
 import '../matches/matches_screen.dart';
-import '../auth/aadhaar_verification_screen.dart';
-import '../auth/profile_completion_screen.dart';
 import '../wallet/wallet_screen.dart';
+import 'profile_edit.dart';
+import 'verify_profile.dart';
+import 'photos.dart';
 
 /// Screen: Modern Home Screen redesigned matching the Matches screen theme
 /// Theme: Ivory/Cream canvas (#FAF7F2), Royal Burgundy (#750000), Gold (#E5B842)
-/// Updates:
-/// 1. Flat, non-card style for action items (no 3D shadow or border boxes) with clean text, icons, and dividers (hr)
-/// 2. Fixed search bar staying pinned at the top during scrolling
-/// 3. Recommended for you profiles in a single line horizontal scrollable row (left to right & right to left)
 class RaniHomeScreen extends StatefulWidget {
   final bool showAppBar;
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenFilter;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenMatches;
+  final VoidCallback? onOpenWallet;
   final bool showCandidateHeader;
 
   const RaniHomeScreen({
@@ -32,6 +35,7 @@ class RaniHomeScreen extends StatefulWidget {
     this.onOpenFilter,
     this.onOpenProfile,
     this.onOpenMatches,
+    this.onOpenWallet,
     this.showCandidateHeader = true,
   });
 
@@ -47,8 +51,10 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
   // Search controller
   final TextEditingController _searchController = TextEditingController();
 
-  // Cached candidate profile data
+  // Cached candidate profile data & bluetick verification
   Map<String, dynamic>? _candidate;
+  Map<String, dynamic>? _bluetick;
+  int? _profileCompleteness;
 
   @override
   void initState() {
@@ -78,7 +84,29 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
         _candidate = ApiService.instance.candidate;
       }
 
-      // 2. Fetch matches for recommended section
+      // 2. Fetch Blue Tick Aadhaar verification status
+      try {
+        final bluetickRes = await ApiService.instance.getBlueTickVerification();
+        if (mounted && bluetickRes['success'] == true) {
+          _bluetick = bluetickRes['bluetick'] as Map<String, dynamic>?;
+        }
+      } catch (_) {}
+
+      // 3. Fetch dashboard for metrics (completion percentage, wallet status, bluetick backup)
+      try {
+        final dashRes = await ApiService.instance.getDashboard();
+        if (mounted && dashRes['success'] == true && dashRes['data'] != null) {
+          final data = dashRes['data'] as Map<String, dynamic>;
+          if (_bluetick == null && data['bluetick'] != null) {
+            _bluetick = data['bluetick'] as Map<String, dynamic>?;
+          }
+          if (data['metrics']?['profile_completeness'] != null) {
+            _profileCompleteness = (data['metrics']['profile_completeness'] as num).toInt();
+          }
+        }
+      } catch (_) {}
+
+      // 4. Fetch matches for recommended section
       final res = await ApiService.instance.getMatches(tab: 'all');
       if (mounted) {
         if (res['success'] == true) {
@@ -159,6 +187,14 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
     }
   }
 
+  String _formatPhotoUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return '';
+    final trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    final serverBase = ApiService.baseUrl.replaceAll('/api', '');
+    return '$serverBase/storage/${trimmed.replaceFirst(RegExp(r'^/?(storage/)?'), '')}';
+  }
+
   void _showAddPhotoDialog() {
     showModalBottomSheet(
       context: context,
@@ -195,7 +231,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Choose a clear, front-facing photo to increase your connection requests.',
+                  'Choose a photo to adjust, crop and save as your profile picture.',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     color: const Color(0xFF6E6E6E),
@@ -216,9 +252,16 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                     style: GoogleFonts.outfit(fontSize: 14.5, fontWeight: FontWeight.w600),
                   ),
                   trailing: const Icon(CupertinoIcons.chevron_right, size: 16, color: Colors.grey),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(ctx);
-                    RaniAlert.info(context, 'Camera capture will open.');
+                    final perm = await Permission.camera.request();
+                    if (perm.isGranted) {
+                      _pickCropAndUpload(ImageSource.camera);
+                    } else if (perm.isPermanentlyDenied) {
+                      openAppSettings();
+                    } else {
+                      if (mounted) RaniAlert.warning(context, 'Camera permission is required.');
+                    }
                   },
                 ),
                 ListTile(
@@ -237,7 +280,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                   trailing: const Icon(CupertinoIcons.chevron_right, size: 16, color: Colors.grey),
                   onTap: () {
                     Navigator.pop(ctx);
-                    RaniAlert.info(context, 'Gallery picker will open.');
+                    _pickCropAndUpload(ImageSource.gallery);
                   },
                 ),
               ],
@@ -248,12 +291,64 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
     );
   }
 
+  Future<void> _pickCropAndUpload(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 92,
+      );
+      if (picked == null) return;
+
+      final rawFile = File(picked.path);
+      if (!mounted) return;
+
+      // Open interactive cropping modal (matches website's profile_cropper_modal.blade.php)
+      final croppedFile = await RaniImageCropperModal.show(
+        context,
+        imageFile: rawFile,
+        title: 'Adjust Profile Photo',
+        isCircle: true,
+      );
+
+      if (croppedFile == null || !mounted) return;
+
+      RaniMatrimonialLoader.show(context, message: 'Saving profile photo...');
+
+      final res = await ApiService.instance.uploadProfilePicture(croppedFile);
+
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        if (res['success'] == true) {
+          RaniAlert.success(context, 'Profile picture updated successfully!');
+          await _loadInitialData();
+        } else {
+          RaniAlert.error(context, res['message'] ?? 'Failed to update profile picture.');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        RaniAlert.error(context, 'Error processing image: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final candidate = _candidate ?? ApiService.instance.candidate;
     final shortName = _getShortCandidateName(candidate);
-    final completionPercent = _calculateCompletionPercentage(candidate);
-    final isVerified = candidate?['verified'] == true || candidate?['aadhaar_verified'] == true;
+    final calculatedPercent = _calculateCompletionPercentage(candidate);
+    final completionPercent = _profileCompleteness ?? calculatedPercent;
+    final isBluetickVerified = candidate?['is_bluetick_verified'] == true ||
+        candidate?['verified'] == true ||
+        candidate?['aadhaar_verified'] == true ||
+        _bluetick?['status'] == 'verified' ||
+        _bluetick?['is_accept'] == 1;
+    final isBluetickPending = !isBluetickVerified &&
+        (_bluetick?['status'] == 'pending' || _bluetick?['is_accept'] == 0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F2), // Theme ivory canvas
@@ -286,12 +381,12 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
                   children: [
                     // 4. Candidate Profile Info (Flat on canvas, no heavy box)
-                    _buildCandidateHeader(candidate, isVerified),
+                    _buildCandidateHeader(candidate, isBluetickVerified),
 
                     const SizedBox(height: 12),
 
                     // 5. In one line: Profile Edit button & Add Money button
-                    _buildProfileAndMoneyActionButtons(),
+                    _buildProfileAndMoneyActionButtons(candidate),
 
                     // 6. Horizontal Divider (hr)
                     const Padding(
@@ -300,7 +395,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                     ),
 
                     // 7. Verify Your Profile (Flat list tile style: text and icon, no card/shadow/border)
-                    _buildVerifyProfileRow(isVerified),
+                    _buildVerifyProfileRow(isBluetickVerified, isBluetickPending),
 
                     // 8. Horizontal Divider (hr)
                     const Padding(
@@ -309,7 +404,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                     ),
 
                     // 9. Complete Your Profile (Flat list tile style with % details & progress bar, no card/shadow/border)
-                    _buildCompleteProfileRow(completionPercent),
+                    _buildCompleteProfileRow(candidate, completionPercent),
 
                     // 10. Horizontal Divider (hr)
                     const Padding(
@@ -422,11 +517,16 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
 
   /// 4. Left: Round profile image with plus corner icon; Right: ID, below it Full Name (Flat, non-card, responsive)
   Widget _buildCandidateHeader(Map<String, dynamic>? candidate, bool isVerified) {
-    final firstName = candidate?['first_name']?.toString() ?? 'Rahul';
-    final lastName = candidate?['last_name']?.toString() ?? 'Mukherjee';
-    final fullName = '$firstName $lastName'.trim().isNotEmpty ? '$firstName $lastName'.trim() : 'Royal Candidate';
-    final candidateCode = candidate?['candidate_code'] ?? candidate?['profile_id'] ?? 'RM00024';
-    final photo = candidate?['profile_picture']?.toString() ?? '';
+    final firstName = candidate?['first_name']?.toString() ?? 'Candidate';
+    final lastName = candidate?['last_name']?.toString() ?? '';
+    final fullName = candidate?['full_name']?.toString().isNotEmpty == true
+        ? candidate!['full_name'].toString()
+        : ('$firstName $lastName'.trim().isNotEmpty ? '$firstName $lastName'.trim() : 'Royal Candidate');
+    final candidateCode = candidate?['candidate_code'] ?? candidate?['profile_id'] ?? 'RM00026';
+    final rawPhoto = candidate?['profile_picture_url']?.toString().isNotEmpty == true
+        ? candidate!['profile_picture_url'].toString()
+        : (candidate?['profile_picture']?.toString() ?? '');
+    final photo = _formatPhotoUrl(rawPhoto);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -542,10 +642,10 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
   }
 
   /// 5. In one line: Profile Edit button & Add Money button
-  Widget _buildProfileAndMoneyActionButtons() {
+  Widget _buildProfileAndMoneyActionButtons(Map<String, dynamic>? candidate) {
     return Row(
       children: [
-        // Profile Edit Button
+        // Profile Edit Button -> Opens full profile editor
         Expanded(
           child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
@@ -559,7 +659,9 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const RaniProfileCompletionScreen()),
+                MaterialPageRoute(
+                  builder: (_) => RaniProfileEditScreen(initialCandidate: candidate),
+                ),
               ).then((_) => _loadInitialData());
             },
             icon: const Icon(CupertinoIcons.pencil_ellipsis_rectangle, size: 16, color: Color(0xFF750000)),
@@ -574,7 +676,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        // Add Money Button
+        // Add Money Button -> Opens My Wallet
         Expanded(
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -585,10 +687,14 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
               elevation: 0,
             ),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RaniWalletScreen()),
-              );
+              if (widget.onOpenWallet != null) {
+                widget.onOpenWallet!();
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RaniWalletScreen()),
+                );
+              }
             },
             icon: const Icon(Icons.account_balance_wallet_rounded, size: 16, color: Color(0xFFE5B842)),
             label: Text(
@@ -605,14 +711,64 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
     );
   }
 
-  /// 7. Verify Your Profile (Flat list tile style: text and icon, no card/shadow/border)
-  Widget _buildVerifyProfileRow(bool isVerified) {
+  /// 7. Verify Your Profile (Handles Active submission, Waiting for Approval, and Verified badge)
+  Widget _buildVerifyProfileRow(bool isVerified, bool isPending) {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () {
+        if (isPending) {
+          // Show Waiting for Approval modal / alert
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              title: Row(
+                children: [
+                  const Icon(CupertinoIcons.clock_fill, color: Color(0xFFD97706), size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Under Review',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 17),
+                  ),
+                ],
+              ),
+              content: Text(
+                'Your Aadhaar verification documents have been submitted and are under review by our admin team. The verification process takes 24-48 hours.',
+                style: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFF4A4A4A), height: 1.4),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Close', style: GoogleFonts.outfit(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF750000),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RaniVerifyProfileScreen(initialBluetick: _bluetick),
+                      ),
+                    ).then((_) => _loadInitialData());
+                  },
+                  child: Text('View Details', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+
+        // Active tap for unsubmitted / verified
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const RaniAadhaarVerificationScreen()),
+          MaterialPageRoute(
+            builder: (_) => RaniVerifyProfileScreen(initialBluetick: _bluetick),
+          ),
         ).then((_) => _loadInitialData());
       },
       child: Padding(
@@ -625,13 +781,21 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
               decoration: BoxDecoration(
                 color: isVerified
                     ? const Color(0xFFE8F5E9)
-                    : const Color(0xFF750000).withValues(alpha: 0.08),
+                    : isPending
+                        ? const Color(0xFFFEF3C7)
+                        : const Color(0xFF750000).withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                CupertinoIcons.checkmark_seal_fill,
+                isPending
+                    ? CupertinoIcons.clock_fill
+                    : CupertinoIcons.checkmark_seal_fill,
                 size: 20,
-                color: isVerified ? const Color(0xFF2E7D32) : const Color(0xFF750000),
+                color: isVerified
+                    ? const Color(0xFF2E7D32)
+                    : isPending
+                        ? const Color(0xFFD97706)
+                        : const Color(0xFF750000),
               ),
             ),
             const SizedBox(width: 12),
@@ -647,7 +811,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                           style: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E1E1E),
+                            color: isPending ? const Color(0xFF555555) : const Color(0xFF1E1E1E),
                           ),
                         ),
                       ),
@@ -668,6 +832,24 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                             ),
                           ),
                         ),
+                      ] else if (isPending) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            'Waiting for Approval',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFD97706),
+                            ),
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -675,32 +857,40 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                   Text(
                     isVerified
                         ? 'Your identity is fully verified with Aadhaar'
-                        : 'Upload Aadhaar to get the trusted Blue Badge',
+                        : isPending
+                            ? 'Documents under review by admin'
+                            : 'Upload Aadhaar to get the trusted Blue Badge',
                     style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF757575),
+                      color: isPending ? const Color(0xFF888888) : const Color(0xFF757575),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(CupertinoIcons.chevron_right, size: 16, color: Color(0xFF750000)),
+            Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: isPending ? const Color(0xFFB0B0B0) : const Color(0xFF750000),
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// 9. Complete your profile (Flat list tile style with % details & progress bar, no card/shadow/border)
-  Widget _buildCompleteProfileRow(int completionPercent) {
+  /// 9. Complete your profile (Navigates to RaniProfileEditScreen with real percentage)
+  Widget _buildCompleteProfileRow(Map<String, dynamic>? candidate, int completionPercent) {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const RaniProfileCompletionScreen()),
+          MaterialPageRoute(
+            builder: (_) => RaniProfileEditScreen(initialCandidate: candidate),
+          ),
         ).then((_) => _loadInitialData());
       },
       child: Padding(
@@ -786,11 +976,18 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
     );
   }
 
-  /// 10. Add Photos (Flat list tile style: text and icon, no card/shadow/border)
+  /// 10. Add Photos (Opens gallery photo management screen)
   Widget _buildAddPhotosRow() {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: _showAddPhotoDialog,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const RaniPhotosScreen(),
+          ),
+        ).then((_) => _loadInitialData());
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
         child: Row(

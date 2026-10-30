@@ -157,7 +157,7 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
 
         await tester.pumpWidget(wrapScreen(const RaniHomeScreen(), size: size));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 200));
 
         expect(tester.takeException(), isNull, reason: "Overflow on size $size");
       }

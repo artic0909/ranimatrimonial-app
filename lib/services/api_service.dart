@@ -415,51 +415,75 @@ class ApiService {
 
   /// Get candidate photos
   Future<Map<String, dynamic>> getMyPhotos() async {
-    final uri = Uri.parse('$baseUrl/my-photos');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    await _ensureAuthLoaded();
+    try {
+      final uri = Uri.parse('$baseUrl/my-photos');
+      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] getMyPhotos error: $e');
+      return {'success': false, 'message': 'Failed to load photos: $e'};
+    }
   }
 
   /// Upload gallery photos
   Future<Map<String, dynamic>> uploadGalleryPhotos(List<File> files) async {
-    final uri = Uri.parse('$baseUrl/upload-gallery-photos');
-    final request = http.MultipartRequest('POST', uri);
-    request.headers.addAll({
-      'Accept': 'application/json',
-      if (isAuthenticated) 'Authorization': 'Bearer $_token',
-    });
+    await _ensureAuthLoaded();
+    try {
+      final uri = Uri.parse('$baseUrl/upload-gallery-photos');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll({
+        'Accept': 'application/json',
+        if (isAuthenticated) 'Authorization': 'Bearer $_token',
+      });
 
-    for (final file in files) {
-      if (await file.exists()) {
-        request.files.add(await http.MultipartFile.fromPath('photos[]', file.path));
+      for (final file in files) {
+        if (await file.exists()) {
+          request.files.add(await http.MultipartFile.fromPath('photos[]', file.path));
+        }
       }
-    }
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-    return _processResponse(response);
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] uploadGalleryPhotos error: $e');
+      return {'success': false, 'message': 'Failed to upload photos: $e'};
+    }
   }
 
   /// Set gallery photo as main profile photo
-  Future<Map<String, dynamic>> setProfilePhoto(int photoId) async {
-    final uri = Uri.parse('$baseUrl/set-profile-photo');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'photo_id': photoId}),
-    );
-    return _processResponse(response);
+  Future<Map<String, dynamic>> setProfilePhoto(dynamic photoId) async {
+    await _ensureAuthLoaded();
+    try {
+      final uri = Uri.parse('$baseUrl/set-profile-photo');
+      final response = await http.post(
+        uri,
+        headers: _headers,
+        body: jsonEncode({'photo_id': photoId}),
+      ).timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] setProfilePhoto error: $e');
+      return {'success': false, 'message': 'Failed to set profile photo: $e'};
+    }
   }
 
   /// Delete photo from gallery
-  Future<Map<String, dynamic>> deletePhoto(int photoId) async {
-    final uri = Uri.parse('$baseUrl/delete-photo');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'photo_id': photoId}),
-    );
-    return _processResponse(response);
+  Future<Map<String, dynamic>> deletePhoto(dynamic photoId) async {
+    await _ensureAuthLoaded();
+    try {
+      final uri = Uri.parse('$baseUrl/delete-photo');
+      final response = await http.post(
+        uri,
+        headers: _headers,
+        body: jsonEncode({'photo_id': photoId}),
+      ).timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] deletePhoto error: $e');
+      return {'success': false, 'message': 'Failed to delete photo: $e'};
+    }
   }
 
   /// Update Photo & Album privacy settings
@@ -467,16 +491,22 @@ class ApiService {
     required String photoPrivacy,
     required String albumPrivacy,
   }) async {
-    final uri = Uri.parse('$baseUrl/update-photo-settings');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({
-        'photo_privacy': photoPrivacy,
-        'album_privacy': albumPrivacy,
-      }),
-    );
-    return _processResponse(response);
+    await _ensureAuthLoaded();
+    try {
+      final uri = Uri.parse('$baseUrl/update-photo-settings');
+      final response = await http.post(
+        uri,
+        headers: _headers,
+        body: jsonEncode({
+          'photo_privacy': photoPrivacy,
+          'album_privacy': albumPrivacy,
+        }),
+      ).timeout(const Duration(seconds: 10));
+      return _processResponse(response);
+    } catch (e) {
+      debugPrint('[ApiService] updatePhotoSettings error: $e');
+      return {'success': false, 'message': 'Failed to update photo settings: $e'};
+    }
   }
 
   // ==========================================
@@ -489,6 +519,9 @@ class ApiService {
     final response = await http.get(uri, headers: _headers);
     return _processResponse(response);
   }
+
+  /// Alias for getBlueTickVerification
+  Future<Map<String, dynamic>> showBlueTickVerification() => getBlueTickVerification();
 
   /// Validate Aadhaar number
   Future<Map<String, dynamic>> validateAadhar(String aadharNumber) async {

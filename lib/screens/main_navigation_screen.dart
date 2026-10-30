@@ -855,6 +855,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             },
             onOpenProfile: () => _navigateToTab(4),
             onOpenMatches: () => _navigateToTab(1),
+            onOpenWallet: () => _navigateToTab(3),
           ),
 
           // 1. Matches Screen

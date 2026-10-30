@@ -6,6 +6,7 @@ import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
+import '../../components/rani_image_cropper_modal.dart';
 import '../splash_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../help_support_screen.dart';
@@ -59,13 +60,58 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
   }
 
   Future<void> _changeProfilePhoto() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Update Profile Photo', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFF750000)),
+                title: Text('Take a Photo', style: GoogleFonts.outfit(fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickCropAndSave(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xFF750000)),
+                title: Text('Choose from Gallery', style: GoogleFonts.outfit(fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickCropAndSave(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickCropAndSave(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final picked = await picker.pickImage(source: source, imageQuality: 90);
       if (picked == null || !mounted) return;
 
+      final cropped = await RaniImageCropperModal.show(
+        context,
+        imageFile: File(picked.path),
+        title: 'Adjust Profile Photo',
+        isCircle: true,
+      );
+
+      if (cropped == null || !mounted) return;
+
       RaniMatrimonialLoader.show(context, message: 'Updating Profile Photo...');
-      final res = await ApiService.instance.uploadProfilePicture(File(picked.path));
+      final res = await ApiService.instance.uploadProfilePicture(cropped);
       if (!mounted) return;
       RaniMatrimonialLoader.hide(context);
 
