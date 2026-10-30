@@ -543,6 +543,7 @@ class ApiService {
 
   /// Get candidate profile details by token or ID
   Future<Map<String, dynamic>> getProfileDetails(dynamic id) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/profile/$id');
     final response = await http.get(uri, headers: _headers);
     return _processResponse(response);
@@ -589,6 +590,7 @@ class ApiService {
 
   /// Request WhatsApp Chat unlock
   Future<Map<String, dynamic>> requestWhatsAppChat(String profileId) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/request-whatsapp-chat');
     final response = await http.post(
       uri,
@@ -600,6 +602,7 @@ class ApiService {
 
   /// Respond to WhatsApp Chat unlock request (accept / decline)
   Future<Map<String, dynamic>> respondWhatsAppChat(String profileId, String action) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/respond-whatsapp-chat');
     final response = await http.post(
       uri,

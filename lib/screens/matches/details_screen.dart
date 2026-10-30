@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_service.dart';
 import '../../services/razorpay_service.dart';
 import '../../components/rani_alert.dart';
@@ -33,6 +35,8 @@ class RaniMatchDetailsScreen extends StatefulWidget {
 class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _data;
+  Map<String, dynamic> _status = {};
+  bool _isWpChatLoading = false;
   int _activePhotoIndex = 0;
   final PageController _pageController = PageController();
 
@@ -41,6 +45,14 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     super.initState();
     if (widget.initialProfileData != null) {
       _data = Map<String, dynamic>.from(widget.initialProfileData!);
+      if (_data!['is_accepted'] == true ||
+          _data!['request_type'] == 'accepted' ||
+          _data!['status']?.toString().toLowerCase() == 'accepted') {
+        _status['is_accepted'] = true;
+      }
+      if (_data!['is_wp_chat_accepted'] == true) {
+        _status['is_wp_chat_accepted'] = true;
+      }
       _isLoading = false;
     }
     _fetchDetails();
@@ -56,14 +68,19 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     try {
       final res = await ApiService.instance.getProfileDetails(widget.profileId);
       if (mounted) {
-        if (res['success'] == true && res['candidate'] != null) {
+        if (res['success'] == true) {
+          final profileData = res['profile'] ?? res['candidate'] ?? res['data'];
           setState(() {
-            final fetched = Map<String, dynamic>.from(res['candidate']);
-            // Merge existing data with freshly fetched profile
-            if (_data != null) {
-              _data!.addAll(fetched);
-            } else {
-              _data = fetched;
+            if (profileData is Map) {
+              final fetched = Map<String, dynamic>.from(profileData);
+              if (_data != null) {
+                _data!.addAll(fetched);
+              } else {
+                _data = fetched;
+              }
+            }
+            if (res['status'] is Map) {
+              _status = Map<String, dynamic>.from(res['status']);
             }
             _isLoading = false;
           });
@@ -76,6 +93,7 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     }
   }
 
+  /*
   Future<void> _toggleShortlist() async {
     if (_data == null) return;
     final isCurrentlyShortlisted = _data!['is_shortlisted'] == true;
@@ -114,6 +132,7 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
       }
     }
   }
+  */
 
   Future<void> _sendRoyalInterest() async {
     if (_data == null) return;
@@ -161,6 +180,205 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
         _sendRoyalInterest();
       },
     );
+  }
+
+  String _getProfileCode() {
+    final d = _data ?? {};
+    final raw = (d['candidate_code'] ?? d['profile_id'] ?? d['id'] ?? widget.profileId).toString().trim();
+    String clean = raw;
+    while (clean.toUpperCase().startsWith('RMRM')) {
+      clean = clean.substring(2);
+    }
+    if (!clean.toUpperCase().startsWith('RM')) {
+      if (int.tryParse(clean) != null) {
+        clean = 'RM${clean.padLeft(5, '0')}';
+      } else {
+        clean = 'RM$clean';
+      }
+    }
+    return clean;
+  }
+
+  Future<void> _requestWhatsAppChat() async {
+    final profileCode = _getProfileCode();
+    final name = _data?['first_name'] ?? 'Candidate';
+
+    setState(() => _isWpChatLoading = true);
+    RaniMatrimonialLoader.show(context, message: 'Requesting WhatsApp chat access...');
+
+    try {
+      final res = await ApiService.instance.requestWhatsAppChat(profileCode);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+      setState(() => _isWpChatLoading = false);
+
+      if (res['success'] == true) {
+        setState(() {
+          _status['is_wp_chat_sent_by_me'] = true;
+          _status['is_wp_chat_cooldown'] = true;
+          _status['is_wp_chat_pending'] = true;
+        });
+        RaniAlert.success(
+          context,
+          res['message'] ?? 'WhatsApp chat request sent to $name! A notification has been delivered.',
+          title: 'Request Sent! 💬',
+        );
+      } else {
+        if (res['cooldown'] == true) {
+          setState(() {
+            _status['is_wp_chat_cooldown'] = true;
+          });
+        }
+        RaniAlert.error(
+          context,
+          res['message'] ?? 'Unable to send WhatsApp chat request.',
+          title: 'Notice',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        setState(() => _isWpChatLoading = false);
+        RaniAlert.error(context, 'Error: $e');
+      }
+    }
+  }
+
+  Future<void> _respondWhatsAppChat(String action) async {
+    final profileCode = _getProfileCode();
+    final name = _data?['first_name'] ?? 'Candidate';
+
+    RaniMatrimonialLoader.show(
+      context,
+      message: action == 'accept' ? 'Accepting WhatsApp chat request...' : 'Declining request...',
+    );
+
+    try {
+      final res = await ApiService.instance.respondWhatsAppChat(profileCode, action);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (res['success'] == true) {
+        if (action == 'accept') {
+          setState(() {
+            _status['is_wp_chat_accepted'] = true;
+            _status['is_wp_chat_received_by_me'] = false;
+            _status['is_wp_chat_pending'] = false;
+            if (res['unmasked_mobile'] != null) {
+              _data?['mobile'] = res['unmasked_mobile'];
+            }
+          });
+          RaniAlert.success(
+            context,
+            'You accepted the WhatsApp chat request with $name! Full verified contact particulars unlocked.',
+            title: 'Chat Unlocked! 🎉',
+          );
+        } else {
+          setState(() {
+            _status['is_wp_chat_received_by_me'] = false;
+            _status['is_wp_chat_pending'] = false;
+          });
+          RaniAlert.info(
+            context,
+            'WhatsApp chat request declined.',
+            title: 'Request Declined',
+          );
+        }
+      } else {
+        RaniAlert.error(context, res['message'] ?? 'Unable to process request.');
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        RaniAlert.error(context, 'Error: $e');
+      }
+    }
+  }
+
+  Future<void> _openWhatsApp(String rawMobile) async {
+    final clean = rawMobile.replaceAll(RegExp(r'[^0-9]'), '');
+    final phone = clean.startsWith('91') ? clean : '91$clean';
+    final uri = Uri.parse('https://wa.me/$phone');
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniAlert.error(context, 'Unable to launch WhatsApp: $e');
+      }
+    }
+  }
+
+  void _copyToClipboard(String text, String label) {
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    RaniAlert.info(context, '$label copied to clipboard');
+  }
+
+  String _maskPhone(String raw) {
+    final clean = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.length >= 10) {
+      final last10 = clean.substring(clean.length - 10);
+      return '+91 ${last10.substring(0, 3)}XXXXX${last10.substring(8)}';
+    }
+    return '+91 629XXXXX08';
+  }
+
+  String _formatPhone(String raw) {
+    final clean = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.length >= 10) {
+      final last10 = clean.substring(clean.length - 10);
+      return '+91 ${last10.substring(0, 5)} ${last10.substring(5)}';
+    }
+    return raw.isNotEmpty ? raw : '+91 62922 37208';
+  }
+
+  String _maskEmail(String raw) {
+    if (raw.contains('@')) {
+      final parts = raw.split('@');
+      final username = parts[0];
+      final domain = parts[1];
+      if (username.length <= 2) {
+        return '$username*****@$domain';
+      }
+      return '${username.substring(0, 2)}*****${username.substring(username.length - 1)}@$domain';
+    }
+    return 'ro*****a@gmail.com';
+  }
+
+  String _maskAddress(String addr) {
+    if (addr.isEmpty) {
+      return 'M Plaza, Near SBI Bank, *****, Amta Road';
+    }
+    final parts = addr.split(',');
+    if (parts.length >= 3) {
+      final list = <String>[];
+      for (int i = 0; i < parts.length; i++) {
+        final p = parts[i].trim();
+        if (i == 0 || i == parts.length - 1) {
+          list.add(p);
+        } else {
+          list.add('***** ${p.length > 3 ? p.substring(p.length - 3) : ''}'.trim());
+        }
+      }
+      return list.join(', ');
+    } else if (parts.length == 2) {
+      return '${parts[0].trim()}, *****, ${parts[1].trim()}';
+    }
+    if (addr.length > 10) {
+      return '${addr.substring(0, 4)} ********** ${addr.substring(addr.length - 4)}';
+    }
+    return '***** Protected Address *****';
+  }
+
+  String _maskPincode(String pin) {
+    final clean = pin.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.length >= 4) {
+      return '${clean.substring(0, 3)}***';
+    }
+    return '711***';
   }
 
   List<String> _extractPhotos() {
@@ -233,8 +451,29 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     final locationText = (city.isNotEmpty && state.isNotEmpty) ? '$city, $state' : (city.isNotEmpty ? city : state);
     final isVerified = d['verified'] == true || d['is_verified'] == 1 || (d['bluetick'] != null && d['bluetick']['is_accept'] == 1);
     final matchScore = int.tryParse(d['match_score']?.toString() ?? d['match_percentage']?.toString() ?? '95') ?? 95;
-    final isShortlisted = d['is_shortlisted'] == true;
+    // final isShortlisted = d['is_shortlisted'] == true;
     final isConnected = d['request_type'] == 'sent' || d['request_type'] == 'accepted' || d['is_connected'] == true;
+    final status = _status;
+    final isAccepted = status['is_accepted'] == true ||
+        d['request_type'] == 'accepted' ||
+        d['is_accepted'] == true ||
+        (d['status']?.toString().toLowerCase() == 'accepted');
+    final isWpChatAccepted = status['is_wp_chat_accepted'] == true ||
+        d['is_wp_chat_accepted'] == true;
+    final isWpChatSentByMe = status['is_wp_chat_sent_by_me'] == true ||
+        d['is_wp_chat_sent_by_me'] == true;
+    final isWpChatReceivedByMe = status['is_wp_chat_received_by_me'] == true ||
+        d['is_wp_chat_received_by_me'] == true;
+    final isWpChatCooldown = status['is_wp_chat_cooldown'] == true ||
+        d['is_wp_chat_cooldown'] == true;
+
+    // Contact details
+    final rawMobile = (d['mobile'] ?? d['raw_mobile'] ?? d['details']?['mobile'] ?? d['details']?['raw_mobile'] ?? '').toString();
+    final rawEmail = (d['email'] ?? d['details']?['email'] ?? '').toString();
+    final rawAddress = (d['full_address'] ?? d['details']?['full_address'] ?? d['address'] ?? '').toString();
+    final rawPincode = (d['pincode'] ?? d['details']?['pincode'] ?? d['zip_code'] ?? '711302').toString();
+    final policeSt = (d['police_st'] ?? d['details']?['police_st'] ?? 'Panchla').toString();
+    final residencyStatus = (d['residency_status'] ?? d['details']?['residency_status'] ?? 'Citizen').toString();
 
     // About Myself
     final aboutMyself = (d['about_yourself'] ?? d['about'] ?? d['bio'] ?? d['details']?['about_yourself'] ?? '').toString().trim();
@@ -455,6 +694,25 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
 
                       const SizedBox(height: 16),
 
+                      // UNLOCKED CONTACT & RESIDENTIAL CARD (Highlighted for Accepted Match - matches website)
+                      if (isAccepted) ...[
+                        _buildVerifiedContactParticularsCard(
+                          profileCode: profileCode,
+                          rawMobile: rawMobile,
+                          rawEmail: rawEmail,
+                          rawAddress: rawAddress,
+                          locationText: locationText,
+                          rawPincode: rawPincode,
+                          policeSt: policeSt,
+                          residencyStatus: residencyStatus,
+                          isWpChatAccepted: isWpChatAccepted,
+                          isWpChatSentByMe: isWpChatSentByMe,
+                          isWpChatReceivedByMe: isWpChatReceivedByMe,
+                          isWpChatCooldown: isWpChatCooldown,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       // 2. Compatibility Match Score & What items matched
                       _buildMatchCompatibilitySection(
                         matchScore: matchScore,
@@ -539,14 +797,19 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
             ],
           ),
 
-          // 6. Fixed Bottom Action Buttons (Wishlist Heart & Send Connection)
+          // 6. Fixed Bottom Action Button (Full-width)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: _buildBottomActionBar(
-              isShortlisted: isShortlisted,
               isConnected: isConnected,
+              isAccepted: isAccepted,
+              isWpChatAccepted: isWpChatAccepted,
+              isWpChatSentByMe: isWpChatSentByMe,
+              isWpChatReceivedByMe: isWpChatReceivedByMe,
+              isWpChatCooldown: isWpChatCooldown,
+              rawMobile: rawMobile,
             ),
           ),
         ],
@@ -900,10 +1163,589 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     );
   }
 
-  /// 6. Fixed Bottom Action Bar: Heart Wishlist & Send Connection
+  /// Verified Contact Particulars Card for Accepted Connection
+  Widget _buildVerifiedContactParticularsCard({
+    required String profileCode,
+    required String rawMobile,
+    required String rawEmail,
+    required String rawAddress,
+    required String locationText,
+    required String rawPincode,
+    required String policeSt,
+    required String residencyStatus,
+    required bool isWpChatAccepted,
+    required bool isWpChatSentByMe,
+    required bool isWpChatReceivedByMe,
+    required bool isWpChatCooldown,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF6EE7B7), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF059669).withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row: Icon + Title + Subtitle
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF059669),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(CupertinoIcons.phone_fill, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Verified Contact Particulars',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0F172A),
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isWpChatAccepted
+                          ? 'Direct WhatsApp Communication Unlocked ✓'
+                          : 'Mutual Connection Established • Request Direct WhatsApp Access',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF047857),
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Header Action Banner (WhatsApp Request / Accept / Open)
+          _buildWhatsAppActionBanner(
+            rawMobile: rawMobile,
+            isWpChatAccepted: isWpChatAccepted,
+            isWpChatSentByMe: isWpChatSentByMe,
+            isWpChatReceivedByMe: isWpChatReceivedByMe,
+            isWpChatCooldown: isWpChatCooldown,
+          ),
+
+          const SizedBox(height: 14),
+          const Divider(color: Color(0xFFD1FAE5), height: 1, thickness: 1),
+          const SizedBox(height: 14),
+
+          // Two side-by-side cards: Mobile & Email
+          Row(
+            children: [
+              // Mobile Card
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFA7F3D0).withValues(alpha: 0.8)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Mobile Phone / WhatsApp',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          _buildStatusPill(isProtected: !isWpChatAccepted),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              !isWpChatAccepted
+                                  ? _maskPhone(rawMobile)
+                                  : _formatPhone(rawMobile),
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A),
+                                letterSpacing: 0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isWpChatAccepted)
+                            GestureDetector(
+                              onTap: () => _copyToClipboard(rawMobile, 'Mobile Number'),
+                              child: const Padding(
+                                padding: EdgeInsets.only(left: 4),
+                                child: Icon(CupertinoIcons.doc_on_doc, size: 14, color: Color(0xFF059669)),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Email Card
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFA7F3D0).withValues(alpha: 0.8)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Verified Email Address',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          _buildStatusPill(isProtected: !isWpChatAccepted),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              !isWpChatAccepted
+                                  ? _maskEmail(rawEmail)
+                                  : (rawEmail.isNotEmpty ? rawEmail : 'email@ranimatrimonial.com'),
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isWpChatAccepted && rawEmail.isNotEmpty)
+                            GestureDetector(
+                              onTap: () => _copyToClipboard(rawEmail, 'Email'),
+                              child: const Padding(
+                                padding: EdgeInsets.only(left: 4),
+                                child: Icon(CupertinoIcons.doc_on_doc, size: 14, color: Color(0xFF059669)),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Full Residential Address Card (Masked with *** when protected)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFA7F3D0).withValues(alpha: 0.8)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Full Residential Address',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                    _buildStatusPill(isProtected: !isWpChatAccepted),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  !isWpChatAccepted
+                      ? _maskAddress(rawAddress)
+                      : (rawAddress.isNotEmpty ? rawAddress : '$locationText, India'),
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E293B),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Divider(color: Color(0xFFF1F5F9), height: 1, thickness: 1),
+                const SizedBox(height: 12),
+                // 2x2 grid for City & State, Pincode, Police Station, Residency Status
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('City & State', style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF94A3B8))),
+                          const SizedBox(height: 2),
+                          Text(
+                            locationText.isNotEmpty ? locationText : 'Howrah, West Bengal',
+                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF334155)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Pincode / Zip', style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF94A3B8))),
+                          const SizedBox(height: 2),
+                          Text(
+                            !isWpChatAccepted ? _maskPincode(rawPincode) : (rawPincode.isNotEmpty ? rawPincode : '711302'),
+                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF334155)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Police Station', style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF94A3B8))),
+                          const SizedBox(height: 2),
+                          Text(
+                            policeSt.isNotEmpty ? policeSt : 'Panchla',
+                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF334155)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Residency Status', style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF94A3B8))),
+                          const SizedBox(height: 2),
+                          Text(
+                            residencyStatus.isNotEmpty ? residencyStatus : 'Citizen',
+                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF334155)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Status Pill Widget (Protected vs Unlocked)
+  Widget _buildStatusPill({required bool isProtected}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isProtected ? const Color(0xFFECFDF5) : const Color(0xFFD1FAE5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isProtected ? const Color(0xFFA7F3D0) : const Color(0xFF6EE7B7),
+        ),
+      ),
+      child: Text(
+        isProtected ? 'Protected' : 'Unlocked ✓',
+        style: GoogleFonts.outfit(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: isProtected ? const Color(0xFF047857) : const Color(0xFF065F46),
+        ),
+      ),
+    );
+  }
+
+  /// WhatsApp Action Banner inside the Contact Particulars Card
+  Widget _buildWhatsAppActionBanner({
+    required String rawMobile,
+    required bool isWpChatAccepted,
+    required bool isWpChatSentByMe,
+    required bool isWpChatReceivedByMe,
+    required bool isWpChatCooldown,
+  }) {
+    if (isWpChatAccepted) {
+      return GestureDetector(
+        onTap: () => _openWhatsApp(rawMobile),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF25D366), Color(0xFF128C7E)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF25D366).withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(CupertinoIcons.chat_bubble_2_fill, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                'Chat on WhatsApp',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isWpChatReceivedByMe) {
+      return Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: GestureDetector(
+              onTap: () => _respondWhatsAppChat('accept'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF25D366), Color(0xFF128C7E)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF25D366).withValues(alpha: 0.25),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    'Accept WhatsApp Chat',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 1,
+            child: GestureDetector(
+              onTap: () => _respondWhatsAppChat('decline'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    'Decline',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF475569),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (isWpChatSentByMe || isWpChatCooldown) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE2E8F0),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(CupertinoIcons.clock_fill, size: 14, color: Color(0xFF64748B)),
+            const SizedBox(width: 8),
+            Text(
+              'WhatsApp Request Sent (Wait 6h)',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: _isWpChatLoading ? null : _requestWhatsAppChat,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF25D366), Color(0xFF10B981)],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF10B981).withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_isWpChatLoading)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            else
+              const Icon(CupertinoIcons.chat_bubble_2_fill, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              _isWpChatLoading ? 'Sending Request...' : 'Request WhatsApp Chat',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 6. Fixed Bottom Action Bar: Send Connection / WhatsApp Chat (Full Width)
   Widget _buildBottomActionBar({
-    required bool isShortlisted,
     required bool isConnected,
+    required bool isAccepted,
+    required bool isWpChatAccepted,
+    required bool isWpChatSentByMe,
+    required bool isWpChatReceivedByMe,
+    required bool isWpChatCooldown,
+    required String rawMobile,
   }) {
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -925,36 +1767,83 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Wishlist Heart Button
-          GestureDetector(
-            onTap: _toggleShortlist,
-            child: Container(
-              width: 50,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isShortlisted ? const Color(0xFFFFF0F2) : const Color(0xFFF7F5F0),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isShortlisted ? const Color(0xFFFFCDD2) : const Color(0xFFE8DFD5),
-                ),
-              ),
-              child: Icon(
-                isShortlisted ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                color: isShortlisted ? const Color(0xFFE53935) : const Color(0xFF4A4A4A),
-                size: 22,
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Send Connection Button
-          Expanded(
-            child: SizedBox(
-              height: 48,
-              child: ElevatedButton.icon(
+      child: SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: isAccepted
+            ? (isWpChatAccepted
+                ? ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () => _openWhatsApp(rawMobile),
+                    icon: const Icon(CupertinoIcons.chat_bubble_2_fill, size: 18),
+                    label: Text(
+                      'Chat on WhatsApp',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  )
+                : (isWpChatReceivedByMe
+                    ? ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () => _respondWhatsAppChat('accept'),
+                        icon: const Icon(CupertinoIcons.checkmark_alt, size: 18),
+                        label: Text(
+                          'Accept WhatsApp Chat',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    : (isWpChatSentByMe || isWpChatCooldown
+                        ? ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFCBD5E1),
+                              foregroundColor: const Color(0xFF475569),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            onPressed: null,
+                            icon: const Icon(CupertinoIcons.clock, size: 18),
+                            label: Text(
+                              'Request Sent (Wait 6h)',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        : ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            onPressed: _isWpChatLoading ? null : _requestWhatsAppChat,
+                            icon: const Icon(CupertinoIcons.chat_bubble_2_fill, size: 18),
+                            label: Text(
+                              'Request WhatsApp Chat',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ))))
+            : ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isConnected ? const Color(0xFF2E7D32) : const Color(0xFF750000), // Royal burgundy
                   foregroundColor: Colors.white,
@@ -975,9 +1864,6 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
       ),
     );
   }
