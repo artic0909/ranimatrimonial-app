@@ -298,15 +298,38 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
   Future<void> _openWhatsApp(String rawMobile) async {
     final clean = rawMobile.replaceAll(RegExp(r'[^0-9]'), '');
     final phone = clean.startsWith('91') ? clean : '91$clean';
-    final uri = Uri.parse('https://wa.me/$phone');
+
+    // Auto-copy number to clipboard for user convenience
+    Clipboard.setData(ClipboardData(text: '+$phone'));
+
+    final nativeWhatsappUri = Uri.parse('whatsapp://send?phone=$phone');
+    final webWhatsappUri = Uri.parse('https://wa.me/$phone');
+
     try {
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      // 1. First attempt direct native WhatsApp app via whatsapp:// scheme
+      if (await canLaunchUrl(nativeWhatsappUri)) {
+        await launchUrl(nativeWhatsappUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // 2. Fallback to universal wa.me link with externalApplication
+      final launched = await launchUrl(webWhatsappUri, mode: LaunchMode.externalApplication);
       if (!launched) {
-        await launchUrl(uri, mode: LaunchMode.platformDefault);
+        await launchUrl(webWhatsappUri, mode: LaunchMode.platformDefault);
       }
     } catch (e) {
+      // 3. Fallback attempt via platformDefault
+      try {
+        await launchUrl(webWhatsappUri, mode: LaunchMode.platformDefault);
+        return;
+      } catch (_) {}
+
       if (mounted) {
-        RaniAlert.error(context, 'Unable to launch WhatsApp: $e');
+        RaniAlert.info(
+          context,
+          'Phone (+${phone.substring(0, 2)} ${phone.substring(2)}) has been copied to your clipboard. If WhatsApp didn\'t open automatically, please ensure WhatsApp is installed and restart the app.',
+          title: 'WhatsApp Contact',
+        );
       }
     }
   }

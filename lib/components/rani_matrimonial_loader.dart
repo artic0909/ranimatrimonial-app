@@ -41,7 +41,12 @@ class RaniMatrimonialLoader extends StatelessWidget {
         child: Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          shape: const RoundedRectangleBorder(
+            side: BorderSide.none,
+          ),
           child: Center(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(22),
@@ -54,18 +59,18 @@ class RaniMatrimonialLoader extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFF2A0808).withValues(alpha: 0.92),
-                        const Color(0xFF140202).withValues(alpha: 0.95),
+                        const Color(0xFF2A0808).withValues(alpha: 0.94),
+                        const Color(0xFF140202).withValues(alpha: 0.96),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(
-                      color: const Color(0xFFE5B842).withValues(alpha: 0.35),
+                      color: Colors.white.withValues(alpha: 0.12),
                       width: 1.0,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
+                        color: Colors.black.withValues(alpha: 0.4),
                         blurRadius: 24,
                         offset: const Offset(0, 8),
                       ),

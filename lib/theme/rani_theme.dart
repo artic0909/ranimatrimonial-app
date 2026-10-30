@@ -154,10 +154,7 @@ class RaniTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: RaniSpacing.roundedLg,
-          side: const BorderSide(
-            color: RaniColors.gold,
-            width: RaniSpacing.borderMedium,
-          ),
+          side: BorderSide.none,
         ),
         titleTextStyle: RaniTypography.headingLg(color: Colors.white),
         contentTextStyle: RaniTypography.bodySm(color: Colors.white),
