@@ -3,12 +3,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:ranimatrimonial_app/firebase_options.dart';
 import 'package:ranimatrimonial_app/services/api_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (_) {}
 }
 
@@ -41,7 +44,9 @@ class PushNotificationService {
     onNotificationClicked = onNotificationClick;
 
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
       // 1. Register background message handler
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -158,8 +163,11 @@ class PushNotificationService {
       // ignore: deprecated_member_use
       final token = explicitToken ?? await FirebaseMessaging.instance.getToken();
       if (token != null && token.isNotEmpty) {
+        debugPrint('🔥 [FCM Device Token]: $token');
         await ApiService.instance.saveFcmToken(token);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('FCM Token sync error: $e');
+    }
   }
 }
