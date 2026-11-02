@@ -10,7 +10,7 @@ import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 
 /// Screen: Candidate Gallery Photos & Profile Picture Management
-/// Matches website's my_photos.blade.php
+/// Matches website's my_photos.blade.php (Full CRUD: Create, Read, Update, Delete & Settings)
 class RaniPhotosScreen extends StatefulWidget {
   const RaniPhotosScreen({super.key});
 
@@ -19,8 +19,28 @@ class RaniPhotosScreen extends StatefulWidget {
 }
 
 class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
+  // Tab: 'photo' or 'settings'
+  String _activeTab = 'photo';
+
   bool _isLoading = false;
+  bool _isSavingSettings = false;
   List<dynamic> _photos = [];
+
+  // Privacy Settings matching website's my_photos.blade.php
+  String _photoPrivacy = 'Visible to all Members (Recommended)';
+  String _albumPrivacy = 'Visible to all Members';
+
+  final List<String> _photoPrivacyOptions = [
+    'Visible to all Members (Recommended)',
+    'Visible to Members I like and to all Premium Members',
+    'Visible only to Members I like',
+  ];
+
+  final List<String> _albumPrivacyOptions = [
+    'Visible to all Members',
+    'Visible to all with request',
+    'Blur until request accepted',
+  ];
 
   String _formatPhotoUrl(dynamic raw) {
     if (raw == null) return '';
@@ -42,6 +62,13 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     try {
       final cand = ApiService.instance.candidate;
       if (cand != null) {
+        if (cand['photo_privacy'] != null && cand['photo_privacy'].toString().isNotEmpty) {
+          _photoPrivacy = cand['photo_privacy'].toString();
+        }
+        if (cand['album_privacy'] != null && cand['album_privacy'].toString().isNotEmpty) {
+          _albumPrivacy = cand['album_privacy'].toString();
+        }
+
         final cached = cand['photos'];
         if (cached is List && cached.isNotEmpty) {
           _photos = List.from(cached);
@@ -81,14 +108,39 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
       final res = await ApiService.instance.getMyPhotos();
       if (!mounted) return;
 
-      final list = res['data']?['photos'] ?? res['photos'];
-      if (list is List && list.isNotEmpty) {
+      // Extract privacy settings
+      final dataObj = res['data'] is Map ? res['data'] : null;
+      if (dataObj != null) {
+        if (dataObj['photo_privacy'] != null) {
+          _photoPrivacy = dataObj['photo_privacy'].toString();
+        }
+        if (dataObj['album_privacy'] != null) {
+          _albumPrivacy = dataObj['album_privacy'].toString();
+        }
+      }
+
+      dynamic rawList = res['data']?['photos'] ?? res['photos'];
+      if (rawList == null && res['data'] is List) {
+        rawList = res['data'];
+      }
+
+      List<dynamic>? list;
+      if (rawList is List) {
+        list = rawList;
+      } else if (rawList is String) {
+        try {
+          final parsed = jsonDecode(rawList);
+          if (parsed is List) list = parsed;
+        } catch (_) {}
+      }
+
+      if (list != null && list.isNotEmpty) {
         setState(() {
-          _photos = List.from(list);
+          _photos = List.from(list!);
           _isLoading = false;
         });
       } else {
-        // If photos list is empty from API, check for active profile picture fallback
+        // Fallback to active profile picture if gallery is empty
         final cand = ApiService.instance.candidate;
         final profilePic = res['data']?['profile_picture_url'] ??
             res['data']?['profile_picture'] ??
@@ -120,7 +172,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     }
   }
 
-  /// Directly upload without cropping
+  /// [C - CREATE]: Directly upload photos without cropping (supports single or multi-select)
   Future<void> _pickAndUploadPhoto() async {
     showModalBottomSheet(
       context: context,
@@ -212,6 +264,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     }
   }
 
+  /// [U - UPDATE]: Set a gallery photo as the primary profile picture
   Future<void> _setAsProfile(dynamic photoId) async {
     if (photoId == null || photoId == 'profile_main') return;
     RaniMatrimonialLoader.show(context, message: 'Updating profile picture...');
@@ -233,6 +286,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     }
   }
 
+  /// [D - DELETE]: Delete a gallery photo
   Future<void> _deletePhoto(dynamic photoId) async {
     if (photoId == null) return;
     if (photoId == 'profile_main') {
@@ -248,7 +302,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('Delete Photo', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
         content: Text(
-          'Are you sure you want to delete this photo from your gallery?',
+          'Are you sure you want to delete this photo from your gallery? This action cannot be undone.',
           style: GoogleFonts.outfit(fontSize: 13.5),
         ),
         actions: [
@@ -282,6 +336,130 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
       RaniMatrimonialLoader.hide(context);
       RaniAlert.error(context, 'Error: $e');
     }
+  }
+
+  /// [U - UPDATE SETTINGS]: Save photo & album privacy settings
+  Future<void> _savePrivacySettings() async {
+    setState(() => _isSavingSettings = true);
+    RaniMatrimonialLoader.show(context, message: 'Saving privacy settings...');
+
+    try {
+      final res = await ApiService.instance.updatePhotoSettings(
+        photoPrivacy: _photoPrivacy,
+        albumPrivacy: _albumPrivacy,
+      );
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+      setState(() => _isSavingSettings = false);
+
+      if (res['success'] == true) {
+        RaniAlert.success(context, 'Photo privacy settings updated successfully!');
+      } else {
+        RaniAlert.error(context, res['message'] ?? 'Failed to update privacy settings.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+      setState(() => _isSavingSettings = false);
+      RaniAlert.error(context, 'Error: $e');
+    }
+  }
+
+  Widget _buildSubTabs() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFE8DE),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _activeTab = 'photo'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _activeTab == 'photo' ? const Color(0xFF750000) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(11),
+                  boxShadow: _activeTab == 'photo'
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.photo_on_rectangle,
+                      size: 16,
+                      color: _activeTab == 'photo' ? Colors.white : const Color(0xFF6E6E6E),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Photos',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: _activeTab == 'photo' ? Colors.white : const Color(0xFF4A4A4A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _activeTab = 'settings'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: _activeTab == 'settings' ? const Color(0xFF750000) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(11),
+                  boxShadow: _activeTab == 'settings'
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.lock_shield,
+                      size: 16,
+                      color: _activeTab == 'settings' ? Colors.white : const Color(0xFF6E6E6E),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Privacy Settings',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: _activeTab == 'settings' ? Colors.white : const Color(0xFF4A4A4A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAddPhotoBanner() {
@@ -322,7 +500,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Profiles with 3+ photos get 80% more interest and matches.',
+                  'Get more responses by uploading up to 20 photos on your profile.',
                   style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF6E6E6E)),
                 ),
               ],
@@ -555,14 +733,270 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  /// Settings Tab Content (Matches website's Privacy Settings tab)
+  Widget _buildSettingsTab() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEFE8DE)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Photo Privacy Settings',
+                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Control who can see your photos on Rani Matrimonial',
+                style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF6E6E6E)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Section 1: Profile Photo Privacy
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEFE8DE)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(CupertinoIcons.person_crop_circle, color: Color(0xFF750000), size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Profile Photo Visibility',
+                    style: GoogleFonts.outfit(fontSize: 14.5, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ..._photoPrivacyOptions.map((opt) {
+                final isSelected = _photoPrivacy == opt;
+                return InkWell(
+                  onTap: () => setState(() => _photoPrivacy = opt),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                          color: isSelected ? const Color(0xFF750000) : const Color(0xFFB5A8A0),
+                          size: 19,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            opt,
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                              color: isSelected ? const Color(0xFF1E1E1E) : const Color(0xFF5A4E46),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Section 2: Gallery / Album Privacy
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEFE8DE)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(CupertinoIcons.photo_on_rectangle, color: Color(0xFF750000), size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Gallery Album Visibility',
+                    style: GoogleFonts.outfit(fontSize: 14.5, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ..._albumPrivacyOptions.map((opt) {
+                final isSelected = _albumPrivacy == opt;
+                return InkWell(
+                  onTap: () => setState(() => _albumPrivacy = opt),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                          color: isSelected ? const Color(0xFF750000) : const Color(0xFFB5A8A0),
+                          size: 19,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            opt,
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                              color: isSelected ? const Color(0xFF1E1E1E) : const Color(0xFF5A4E46),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+
+        // Save Button
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF750000),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 2,
+            ),
+            onPressed: _isSavingSettings ? null : _savePrivacySettings,
+            child: _isSavingSettings
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : Text(
+                    'Save Settings',
+                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Photo Tab Content
+  Widget _buildPhotoTab() {
     // Group photos into pairs for 2-column layout in ListView
     final photoRows = <List<dynamic>>[];
     for (var i = 0; i < _photos.length; i += 2) {
       photoRows.add(_photos.sublist(i, (i + 2 > _photos.length) ? _photos.length : i + 2));
     }
 
+    return RefreshIndicator(
+      color: const Color(0xFF750000),
+      onRefresh: _loadPhotos,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          // 1. Add Photo Banner
+          _buildAddPhotoBanner(),
+          const SizedBox(height: 20),
+
+          // 2. Section Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Photos (${_photos.length} / 20)',
+                style: GoogleFonts.outfit(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E1E1E),
+                ),
+              ),
+              if (_photos.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _pickAndUploadPhoto,
+                  icon: const Icon(Icons.add, size: 16, color: Color(0xFF750000)),
+                  label: Text(
+                    'Add More',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF750000),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 3. Photo Content or Empty State
+          if (_photos.isEmpty)
+            _buildEmptyState()
+          else
+            ...photoRows.asMap().entries.map((entry) {
+              final rowIndex = entry.key;
+              final rowItems = entry.value;
+              final item1 = rowItems[0];
+              final item2 = rowItems.length > 1 ? rowItems[1] : null;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Expanded(child: _buildPhotoCard(item1, rowIndex * 2)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: item2 != null
+                          ? _buildPhotoCard(item2, rowIndex * 2 + 1)
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              );
+            }),
+
+          const SizedBox(height: 14),
+
+          // 4. Photo Tips Box
+          _buildPhotoTipsBox(),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
@@ -582,83 +1016,21 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
         ),
         centerTitle: true,
       ),
-      body: _isLoading && _photos.isEmpty
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF750000)),
-            )
-          : RefreshIndicator(
-              color: const Color(0xFF750000),
-              onRefresh: _loadPhotos,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: [
-                  // 1. Add Photo Banner
-                  _buildAddPhotoBanner(),
-                  const SizedBox(height: 22),
+      body: Column(
+        children: [
+          // Sub-tabs: Photos & Privacy Settings (matching website)
+          _buildSubTabs(),
 
-                  // 2. Section Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'My Photos (${_photos.length})',
-                        style: GoogleFonts.outfit(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E1E1E),
-                        ),
-                      ),
-                      if (_photos.isNotEmpty)
-                        TextButton.icon(
-                          onPressed: _pickAndUploadPhoto,
-                          icon: const Icon(Icons.add, size: 16, color: Color(0xFF750000)),
-                          label: Text(
-                            'Add More',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF750000),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 3. Photo Content or Empty State
-                  if (_photos.isEmpty)
-                    _buildEmptyState()
-                  else
-                    ...photoRows.asMap().entries.map((entry) {
-                      final rowIndex = entry.key;
-                      final rowItems = entry.value;
-                      final item1 = rowItems[0];
-                      final item2 = rowItems.length > 1 ? rowItems[1] : null;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Expanded(child: _buildPhotoCard(item1, rowIndex * 2)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: item2 != null
-                                  ? _buildPhotoCard(item2, rowIndex * 2 + 1)
-                                  : const SizedBox.shrink(),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-
-                  const SizedBox(height: 14),
-
-                  // 4. Photo Tips Box
-                  _buildPhotoTipsBox(),
-                ],
-              ),
-            ),
+          // Body Content
+          Expanded(
+            child: _isLoading && _photos.isEmpty
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF750000)),
+                  )
+                : (_activeTab == 'photo' ? _buildPhotoTab() : _buildSettingsTab()),
+          ),
+        ],
+      ),
     );
   }
 }
