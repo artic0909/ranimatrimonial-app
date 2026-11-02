@@ -312,6 +312,26 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
       RaniMatrimonialLoader.hide(context);
 
       if (res['success'] == true) {
+        // Immediately sync chosen photo URL with candidate notifier across the whole app
+        final chosen = _photos.firstWhere(
+          (p) => p['id']?.toString() == photoId.toString(),
+          orElse: () => <String, dynamic>{},
+        );
+        final newUrl = res['profile_picture'] ??
+            res['profile_picture_url'] ??
+            res['image_url'] ??
+            chosen['url'] ??
+            chosen['photo_url'] ??
+            chosen['path'];
+        if (newUrl != null && newUrl.toString().trim().isNotEmpty) {
+          final cand = ApiService.instance.candidate != null
+              ? Map<String, dynamic>.from(ApiService.instance.candidate!)
+              : <String, dynamic>{};
+          cand['profile_picture'] = newUrl.toString().trim();
+          cand['profile_picture_url'] = newUrl.toString().trim();
+          await ApiService.instance.updateCachedCandidate(cand);
+        }
+        if (!mounted) return;
         RaniAlert.success(context, 'Profile picture updated successfully!');
         _loadPhotos();
       } else {

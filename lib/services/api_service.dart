@@ -18,9 +18,31 @@ class ApiService {
   String? _token;
   Map<String, dynamic>? _candidate;
 
+  final ValueNotifier<Map<String, dynamic>?> candidateNotifier = ValueNotifier<Map<String, dynamic>?>(null);
+  final ValueNotifier<double> walletBalanceNotifier = ValueNotifier<double>(0.0);
+
   String? get token => _token;
   Map<String, dynamic>? get candidate => _candidate;
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
+
+  /// Safely format any photo/avatar URL (handles local dev domains, relative storage paths, and absolute URLs)
+  static String formatImageUrl(dynamic raw) {
+    if (raw == null) return '';
+    final urlStr = raw.toString().trim();
+    if (urlStr.isEmpty) return '';
+    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+      if (urlStr.contains('ranimatrimonial.test') ||
+          urlStr.contains('localhost') ||
+          urlStr.contains('127.0.0.1')) {
+        final serverBase = baseUrl.replaceAll('/api', '');
+        final path = urlStr.replaceFirst(RegExp(r'^https?://[^/]+/?'), '');
+        return '$serverBase/$path';
+      }
+      return urlStr;
+    }
+    final serverBase = baseUrl.replaceAll('/api', '');
+    return '$serverBase/storage/${urlStr.replaceFirst(RegExp(r'^/?(storage/)?'), '')}';
+  }
 
   /// Accurate profile completeness percentage calculation (shared across Home & Profile screens)
   static int calculateProfileCompleteness(Map<String, dynamic>? candidate) {
@@ -58,6 +80,13 @@ class ApiService {
     return pct.clamp(20, 100);
   }
 
+  static double _extractBalance(dynamic raw) {
+    if (raw == null) return 0.0;
+    if (raw is num) return raw.toDouble();
+    final clean = raw.toString().replaceAll(RegExp(r'[^0-9.-]'), '');
+    return double.tryParse(clean) ?? 0.0;
+  }
+
   /// Initialize and load saved session from local SharedPreferences
   Future<void> init() async {
     try {
@@ -66,6 +95,11 @@ class ApiService {
       final candidateJson = prefs.getString(_keyCandidate);
       if (candidateJson != null && candidateJson.isNotEmpty) {
         _candidate = jsonDecode(candidateJson) as Map<String, dynamic>;
+        candidateNotifier.value = _candidate;
+        final rawBal = _candidate?['wallet']?['avl_balance'] ?? _candidate?['avl_balance'];
+        if (rawBal != null) {
+          walletBalanceNotifier.value = _extractBalance(rawBal);
+        }
       }
       debugPrint('[ApiService] Initialized. IsAuthenticated: $isAuthenticated');
     } catch (e) {
@@ -77,6 +111,11 @@ class ApiService {
   Future<void> saveSession(String token, Map<String, dynamic> candidate) async {
     _token = token;
     _candidate = candidate;
+    candidateNotifier.value = Map<String, dynamic>.from(candidate);
+    final rawBal = candidate['wallet']?['avl_balance'] ?? candidate['avl_balance'];
+    if (rawBal != null) {
+      walletBalanceNotifier.value = _extractBalance(rawBal);
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyToken, token);
@@ -89,6 +128,11 @@ class ApiService {
   /// Update cached candidate data
   Future<void> updateCachedCandidate(Map<String, dynamic> candidate) async {
     _candidate = candidate;
+    candidateNotifier.value = Map<String, dynamic>.from(candidate);
+    final rawBal = candidate['wallet']?['avl_balance'] ?? candidate['avl_balance'];
+    if (rawBal != null) {
+      walletBalanceNotifier.value = _extractBalance(rawBal);
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyCandidate, jsonEncode(candidate));
@@ -101,6 +145,8 @@ class ApiService {
   Future<void> clearSession() async {
     _token = null;
     _candidate = null;
+    candidateNotifier.value = null;
+    walletBalanceNotifier.value = 0.0;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyToken);
@@ -451,8 +497,18 @@ class ApiService {
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
     final data = _processResponse(response);
-    if (data['success'] == true && data['candidate'] != null) {
-      await updateCachedCandidate(data['candidate'] as Map<String, dynamic>);
+    if (data['success'] == true) {
+      if (data['candidate'] != null && data['candidate'] is Map<String, dynamic>) {
+        await updateCachedCandidate(Map<String, dynamic>.from(data['candidate']));
+      } else {
+        final newPic = data['profile_picture'] ?? data['profile_picture_url'] ?? data['image_url'] ?? data['url'] ?? data['photo'];
+        if (newPic != null && _candidate != null) {
+          final cand = Map<String, dynamic>.from(_candidate!);
+          cand['profile_picture'] = newPic.toString();
+          cand['profile_picture_url'] = newPic.toString();
+          await updateCachedCandidate(cand);
+        }
+      }
     }
     return data;
   }
@@ -510,7 +566,21 @@ class ApiService {
         headers: _headers,
         body: jsonEncode({'photo_id': photoId}),
       ).timeout(const Duration(seconds: 10));
-      return _processResponse(response);
+      final res = _processResponse(response);
+      if (res['success'] == true) {
+        if (res['candidate'] != null && res['candidate'] is Map<String, dynamic>) {
+          await updateCachedCandidate(Map<String, dynamic>.from(res['candidate']));
+        } else {
+          final newPic = res['profile_picture'] ?? res['profile_picture_url'] ?? res['image_url'] ?? res['url'] ?? res['photo'];
+          if (newPic != null && _candidate != null) {
+            final cand = Map<String, dynamic>.from(_candidate!);
+            cand['profile_picture'] = newPic.toString();
+            cand['profile_picture_url'] = newPic.toString();
+            await updateCachedCandidate(cand);
+          }
+        }
+      }
+      return res;
     } catch (e) {
       debugPrint('[ApiService] setProfilePhoto error: $e');
       return {'success': false, 'message': 'Failed to set profile photo: $e'};
@@ -767,7 +837,12 @@ class ApiService {
     try {
       final uri = Uri.parse('$baseUrl/wallet');
       final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
-      return _processResponse(response);
+      final res = _processResponse(response);
+      if (res['success'] == true && res['wallet'] != null) {
+        final bal = _extractBalance(res['wallet']['avl_balance']);
+        walletBalanceNotifier.value = bal;
+      }
+      return res;
     } catch (e) {
       debugPrint('[ApiService] getWallet error: $e');
       return {

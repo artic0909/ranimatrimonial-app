@@ -13,6 +13,7 @@ import 'profile/profile_screen.dart';
 import 'search/search_screen.dart';
 import 'auth/aadhaar_verification_screen.dart';
 import 'splash_screen.dart';
+import 'help_support_screen.dart';
 import '../services/razorpay_service.dart';
 import '../services/push_notification_service.dart';
 
@@ -58,9 +59,30 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    ApiService.instance.candidateNotifier.addListener(_onMainCandidateChanged);
+    ApiService.instance.walletBalanceNotifier.addListener(_onMainWalletChanged);
     _loadDismissedNotifications();
     _fetchLiveMetrics();
     PushNotificationService.syncDeviceToken();
+  }
+
+  void _onMainCandidateChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onMainWalletChanged() {
+    if (mounted) {
+      setState(() {
+        _walletBalance = ApiService.instance.walletBalanceNotifier.value;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    ApiService.instance.candidateNotifier.removeListener(_onMainCandidateChanged);
+    ApiService.instance.walletBalanceNotifier.removeListener(_onMainWalletChanged);
+    super.dispose();
   }
 
   Future<void> _loadDismissedNotifications() async {
@@ -510,16 +532,10 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   }
 
   /// Full-Screen Sidebar Drawer:
-  /// - Top: Profile image, Candidate ID (fixed), Candidate Name & Close (X) button
-  /// - Middle: Scrollable multiple nav items
-  /// - Bottom Fixed: Available Wallet Balance & "Recharge Wallet" CTA button
+  /// - Top: Profile image, Candidate ID, Candidate Name & Close (X) button
+  /// - Middle: Scrollable multiple nav items styled with Royal Theme colors
+  /// - Bottom Fixed: Dynamic Available Wallet Balance & "Recharge Wallet" CTA button
   Widget _buildFullScreenSidebar() {
-    final candidate = ApiService.instance.candidate;
-    final firstName = candidate?['first_name'] ?? 'Candidate';
-    final lastName = candidate?['last_name'] ?? '';
-    final fullName = '$firstName $lastName'.trim();
-    final candidateCode = candidate?['candidate_code'] ?? candidate?['profile_id'] ?? 'RM00024';
-    final photo = candidate?['profile_picture'] ?? '';
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Drawer(
@@ -528,87 +544,141 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       child: SafeArea(
         child: Column(
           children: [
-            // 1. Fixed Top Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFFEFE8DE), width: 1.0),
-                ),
-              ),
-              child: Row(
-                children: [
-                  // Profile Image
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: const Color(0xFF750000),
-                    backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
-                    child: photo.isEmpty
-                        ? Text(
-                            fullName.isNotEmpty ? fullName[0].toUpperCase() : 'R',
-                            style: GoogleFonts.outfit(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
+            // 1. Fixed Top Header (Reactive with candidateNotifier)
+            ValueListenableBuilder<Map<String, dynamic>?>(
+              valueListenable: ApiService.instance.candidateNotifier,
+              builder: (context, candidate, _) {
+                final firstName = candidate?['first_name'] ?? 'Candidate';
+                final lastName = candidate?['last_name'] ?? '';
+                final fullName = '$firstName $lastName'.trim();
+                final candidateCode = candidate?['candidate_code'] ?? candidate?['profile_id'] ?? 'RM00026';
+                final rawPhoto = candidate?['profile_picture_url'] ?? candidate?['profile_picture'] ?? candidate?['photo'] ?? '';
+                final photoUrl = ApiService.formatImageUrl(rawPhoto);
 
-                  // Candidate Name and Fixed ID
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          fullName.isNotEmpty ? fullName : 'Rani Member',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.outfit(
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E1E1E),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF750000).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'ID: $candidateCode',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF750000),
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
-                      ],
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFEFE8DE), width: 1.0),
                     ),
                   ),
+                  child: Row(
+                    children: [
+                      // Profile Image with Royal Gold border ring
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _navigateToTab(4); // Profile
+                        },
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFE5B842), width: 2.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF750000).withValues(alpha: 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: photoUrl.isNotEmpty
+                                ? Image.network(
+                                    photoUrl,
+                                    width: 52,
+                                    height: 52,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (ctx, err, stack) => _buildSidebarAvatarFallback(fullName),
+                                  )
+                                : _buildSidebarAvatarFallback(fullName),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
 
-                  // Cross Button to Close Sidebar
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.xmark, size: 22, color: Color(0xFF1E1E1E)),
-                    tooltip: 'Close Sidebar',
-                    onPressed: () => Navigator.pop(context),
+                      // Candidate Name, Fixed ID & View Profile action
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _navigateToTab(4);
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                fullName.isNotEmpty ? fullName : 'Rani Member',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF1E1E1E),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF750000).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFF750000).withValues(alpha: 0.16),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Text(
+                                  'ID: $candidateCode',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF750000),
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Cross Button to Close Sidebar
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7F3EC),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFE8DFD5)),
+                            ),
+                            child: const Icon(CupertinoIcons.xmark, size: 18, color: Color(0xFF1E1E1E)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
 
-            // 2. Middle Scrollable Nav Items
+            // 2. Middle Scrollable Nav Items with Clean Sections
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
+                  _buildSidebarSectionHeader('EXPLORE & CONNECT'),
                   _buildSidebarItem(
                     icon: CupertinoIcons.sparkles,
                     title: 'Discover Matches',
@@ -618,7 +688,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                     },
                   ),
                   _buildSidebarItem(
-                    icon: CupertinoIcons.heart,
+                    icon: CupertinoIcons.heart_fill,
                     title: 'Interests & Requests',
                     count: _interestsCount,
                     onTap: () {
@@ -627,7 +697,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                     },
                   ),
                   _buildSidebarItem(
-                    icon: Icons.account_balance_wallet_outlined,
+                    icon: Icons.account_balance_wallet_rounded,
                     title: 'Royal Wallet',
                     onTap: () {
                       Navigator.pop(context);
@@ -635,14 +705,15 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                     },
                   ),
                   _buildSidebarItem(
-                    icon: CupertinoIcons.person,
+                    icon: CupertinoIcons.person_crop_circle_fill,
                     title: 'My Profile',
                     onTap: () {
                       Navigator.pop(context);
                       _navigateToTab(4);
                     },
                   ),
-                  const Divider(color: Color(0xFFEFE8DE), indent: 16, endIndent: 16),
+
+                  _buildSidebarSectionHeader('SEARCH & DISCOVERY'),
                   _buildSidebarItem(
                     icon: CupertinoIcons.search,
                     title: 'Advanced Search',
@@ -655,7 +726,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                     },
                   ),
                   _buildSidebarItem(
-                    icon: CupertinoIcons.bookmark,
+                    icon: CupertinoIcons.bookmark_fill,
                     title: 'Shortlisted Profiles',
                     onTap: () {
                       Navigator.pop(context);
@@ -673,8 +744,10 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                       );
                     },
                   ),
+
+                  _buildSidebarSectionHeader('SECURITY & SUPPORT'),
                   _buildSidebarItem(
-                    icon: CupertinoIcons.checkmark_seal_fill,
+                    icon: CupertinoIcons.checkmark_shield_fill,
                     title: 'Aadhaar & Verification',
                     onTap: () {
                       Navigator.pop(context);
@@ -685,16 +758,26 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                     },
                   ),
                   _buildSidebarItem(
-                    icon: CupertinoIcons.question_circle,
-                    title: 'Help & Support',
-                    onTap: () => Navigator.pop(context),
+                    icon: CupertinoIcons.question_circle_fill,
+                    title: 'Help & Support Desk',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RaniHelpSupportScreen()),
+                      );
+                    },
                   ),
                   _buildSidebarItem(
-                    icon: CupertinoIcons.gear_alt,
+                    icon: CupertinoIcons.gear_alt_fill,
                     title: 'Account Settings',
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToTab(4); // Open profile & account tab
+                    },
                   ),
-                  const Divider(color: Color(0xFFEFE8DE), indent: 16, endIndent: 16),
+
+                  _buildSidebarSectionHeader('SESSION'),
                   _buildSidebarItem(
                     icon: Icons.logout_rounded,
                     title: 'Log Out',
@@ -708,11 +791,12 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
               ),
             ),
 
-            // 3. Fixed Bottom Area: Available Wallet Balance & Recharge CTA Button
+            // 3. Fixed Bottom Area: Dynamic Wallet Balance & Recharge CTA Button
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               decoration: BoxDecoration(
                 color: Colors.white,
+                border: const Border(top: BorderSide(color: Color(0xFFEFE8DE), width: 1.0)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
@@ -731,12 +815,19 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.account_balance_wallet_rounded,
-                              size: 18,
-                              color: Color(0xFF750000),
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF750000).withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                size: 16,
+                                color: Color(0xFF750000),
+                              ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 'Available Balance',
@@ -753,13 +844,20 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        '₹${_walletBalance.toStringAsFixed(2)}',
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF750000),
-                        ),
+                      ValueListenableBuilder<double>(
+                        valueListenable: ApiService.instance.walletBalanceNotifier,
+                        builder: (context, balance, _) {
+                          final displayBal = balance > 0 ? balance : _walletBalance;
+                          return Text(
+                            '₹${displayBal.toStringAsFixed(2)}',
+                            maxLines: 1,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF750000),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -803,6 +901,36 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     );
   }
 
+  Widget _buildSidebarAvatarFallback(String fullName) {
+    return Container(
+      color: const Color(0xFF750000),
+      alignment: Alignment.center,
+      child: Text(
+        fullName.isNotEmpty ? fullName[0].toUpperCase() : 'R',
+        style: GoogleFonts.outfit(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          color: const Color(0xFFE5B842),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: Text(
+        title,
+        style: GoogleFonts.outfit(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF9E8E7E),
+          letterSpacing: 1.1,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSidebarItem({
     required IconData icon,
     required String title,
@@ -810,38 +938,84 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     bool isDestructive = false,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isDestructive ? const Color(0xFFD32F2F) : const Color(0xFF4A4A4A),
-        size: 21,
-      ),
-      title: Text(
-        title,
-        style: GoogleFonts.outfit(
-          fontSize: 14.5,
-          fontWeight: FontWeight.w600,
-          color: isDestructive ? const Color(0xFFD32F2F) : const Color(0xFF222222),
-        ),
-      ),
-      trailing: (count != null && count > 0)
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFF750000),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.outfit(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+    final primaryColor = isDestructive ? const Color(0xFFD32F2F) : const Color(0xFF750000);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8.5),
+          child: Row(
+            children: [
+              // Theme colored squircle icon container
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isDestructive
+                      ? const Color(0xFFD32F2F).withValues(alpha: 0.08)
+                      : const Color(0xFF750000).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDestructive
+                        ? const Color(0xFFD32F2F).withValues(alpha: 0.18)
+                        : const Color(0xFF750000).withValues(alpha: 0.12),
+                    width: 0.8,
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: primaryColor,
                 ),
               ),
-            )
-          : const Icon(CupertinoIcons.chevron_forward, size: 14, color: Color(0xFFB0B0B0)),
-      onTap: onTap,
+              const SizedBox(width: 14),
+
+              // Title
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDestructive ? const Color(0xFFD32F2F) : const Color(0xFF1E1E1E),
+                  ),
+                ),
+              ),
+
+              // Trailing Badge or Chevron
+              if (count != null && count > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF750000),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              Icon(
+                CupertinoIcons.chevron_forward,
+                size: 14,
+                color: isDestructive
+                    ? const Color(0xFFD32F2F).withValues(alpha: 0.5)
+                    : const Color(0xFFC2B6A6),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

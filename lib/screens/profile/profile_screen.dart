@@ -41,7 +41,35 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     super.initState();
     // Pre-populate with cached candidate data so screen displays fast
     _candidate = ApiService.instance.candidate;
+    ApiService.instance.candidateNotifier.addListener(_onProfileCandidateChanged);
+    ApiService.instance.walletBalanceNotifier.addListener(_onProfileWalletChanged);
     _loadProfileData();
+  }
+
+  void _onProfileCandidateChanged() {
+    if (mounted) {
+      setState(() {
+        _candidate = ApiService.instance.candidate;
+      });
+    }
+  }
+
+  void _onProfileWalletChanged() {
+    if (mounted && ApiService.instance.walletBalanceNotifier.value > 0) {
+      setState(() {
+        _wallet = {
+          ...?_wallet,
+          'avl_balance': ApiService.instance.walletBalanceNotifier.value,
+        };
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    ApiService.instance.candidateNotifier.removeListener(_onProfileCandidateChanged);
+    ApiService.instance.walletBalanceNotifier.removeListener(_onProfileWalletChanged);
+    super.dispose();
   }
 
   Future<void> _loadProfileData() async {
@@ -76,12 +104,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
   }
 
   String _formatPhotoUrl(dynamic raw) {
-    if (raw == null) return '';
-    final urlStr = raw.toString().trim();
-    if (urlStr.isEmpty) return '';
-    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) return urlStr;
-    final serverBase = ApiService.baseUrl.replaceAll('/api', '');
-    return '$serverBase/storage/${urlStr.replaceFirst(RegExp(r'^/?(storage/)?'), '')}';
+    return ApiService.formatImageUrl(raw);
   }
 
   Future<void> _changeProfilePhoto() async {

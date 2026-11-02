@@ -59,11 +59,21 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
   void initState() {
     super.initState();
     _candidate = ApiService.instance.candidate;
+    ApiService.instance.candidateNotifier.addListener(_onCandidateNotifierChanged);
     _loadInitialData();
+  }
+
+  void _onCandidateNotifierChanged() {
+    if (mounted) {
+      setState(() {
+        _candidate = ApiService.instance.candidate;
+      });
+    }
   }
 
   @override
   void dispose() {
+    ApiService.instance.candidateNotifier.removeListener(_onCandidateNotifierChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -167,11 +177,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
   }
 
   String _formatPhotoUrl(String? url) {
-    if (url == null || url.trim().isEmpty) return '';
-    final trimmed = url.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-    final serverBase = ApiService.baseUrl.replaceAll('/api', '');
-    return '$serverBase/storage/${trimmed.replaceFirst(RegExp(r'^/?(storage/)?'), '')}';
+    return ApiService.formatImageUrl(url);
   }
 
   void _showAddPhotoDialog() {
