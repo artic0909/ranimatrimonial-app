@@ -23,7 +23,7 @@ class RaniImageCropperModal {
             toolbarWidgetColor: Colors.white,
             activeControlsWidgetColor: const Color(0xFFE5B842), // Royal Gold
             backgroundColor: const Color(0xFFFAF7F2),
-            statusBarColor: const Color(0xFF4A0000),
+            statusBarLight: false,
             cropStyle: isCircle ? CropStyle.circle : CropStyle.rectangle,
             aspectRatioPresets: isCircle
                 ? [CropAspectRatioPreset.square]

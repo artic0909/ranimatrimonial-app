@@ -145,8 +145,13 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
 
         final unreadCount = validNotifs.where((n) => n['is_new'] == true || n['is_read'] == false).length;
 
-        final matchesLen = (data['matches'] as List?)?.length ??
-            _toInt(data['newMatchesCount'] ?? data['totalMatchesCount']);
+        final matchesLen = _toInt(
+          data['metrics']?['new_matches_count'] ??
+              data['metrics']?['total_matches_count'] ??
+              data['newMatchesCount'] ??
+              data['totalMatchesCount'] ??
+              (data['matches'] as List?)?.length,
+        );
 
         final pendingInvitations = _toInt(
           data['metrics']?['pending_invitations_count'] ?? data['pendingInvitationsCount'],
@@ -166,7 +171,27 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         });
       }
 
-      // 2. Fetch live inbox tab counts
+      // 2. Fetch live matches total count for bottom nav badge
+      try {
+        final matchesRes = await ApiService.instance.getMatches(tab: 'new');
+        if (mounted && matchesRes['success'] == true) {
+          int count = 0;
+          if (matchesRes['counts'] is Map) {
+            final c = matchesRes['counts'] as Map;
+            count = _toInt(c['todays'] ?? c['my_matches'] ?? c['new']);
+          }
+          if (count == 0 && matchesRes['matches'] is List) {
+            count = (matchesRes['matches'] as List).length;
+          }
+          if (count > 0 && mounted) {
+            setState(() {
+              _matchesCount = count;
+            });
+          }
+        }
+      } catch (_) {}
+
+      // 3. Fetch live inbox tab counts
       final inboxRes = await ApiService.instance.getInbox(tab: 'received');
       if (mounted && inboxRes['success'] == true && inboxRes['counts'] is Map) {
         final counts = inboxRes['counts'] as Map;
@@ -869,6 +894,11 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
               );
             },
             onOpenNotifications: _openNotificationsSheet,
+            onMatchesCountChanged: (count) {
+              if (mounted && count > 0 && _matchesCount != count) {
+                setState(() => _matchesCount = count);
+              }
+            },
           ),
 
           // 2. Interests / Connections Screen (Top 4 tabs: Received, Send, Accepted, Declined)

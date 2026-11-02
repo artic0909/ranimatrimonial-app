@@ -24,12 +24,14 @@ import '../search/search_screen.dart';
 class RaniMatchesScreen extends StatefulWidget {
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenNotifications;
+  final ValueChanged<int>? onMatchesCountChanged;
   final bool showAppBar;
 
   const RaniMatchesScreen({
     super.key,
     this.onOpenSearch,
     this.onOpenNotifications,
+    this.onMatchesCountChanged,
     this.showAppBar = true,
   });
 
@@ -225,6 +227,9 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             if (_selectedTab == 'near_me') _nearMeCount = list.length;
             if (_selectedTab == 'accepted') _acceptedCount = list.length;
             if (_selectedTab == 'shortlisted') _shortlistedCount = list.length;
+          }
+          if (_newCount > 0) {
+            widget.onMatchesCountChanged?.call(_newCount);
           }
           _isLoading = false;
         });
