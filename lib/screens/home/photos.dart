@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -45,15 +46,27 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
         final cached = cand['photos'];
         if (cached is List && cached.isNotEmpty) {
           _photos = List.from(cached);
-        } else if (cand['profile_picture'] != null &&
-            cand['profile_picture'].toString().isNotEmpty) {
-          _photos = [
-            {
-              'id': 'profile_main',
-              'url': cand['profile_picture'],
-              'is_profile': true,
+        } else if (cached is String && cached.trim().isNotEmpty) {
+          try {
+            final parsed = jsonDecode(cached);
+            if (parsed is List && parsed.isNotEmpty) {
+              _photos = List.from(parsed);
             }
-          ];
+          } catch (_) {}
+        }
+
+        // If gallery is still empty, fallback to active profile picture
+        if (_photos.isEmpty) {
+          final profilePic = cand['profile_picture_url'] ?? cand['profile_picture'] ?? cand['photo'];
+          if (profilePic != null && profilePic.toString().trim().isNotEmpty) {
+            _photos = [
+              {
+                'id': 'profile_main',
+                'url': profilePic.toString(),
+                'is_profile': true,
+              }
+            ];
+          }
         }
       }
     } catch (e) {
@@ -70,13 +83,37 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
       if (!mounted) return;
 
       final list = res['data']?['photos'] ?? res['photos'];
-      if (list is List) {
+      if (list is List && list.isNotEmpty) {
         setState(() {
           _photos = List.from(list);
           _isLoading = false;
         });
       } else {
-        setState(() => _isLoading = false);
+        // If photos list is empty from API, check for active profile picture fallback
+        final cand = ApiService.instance.candidate;
+        final profilePic = res['data']?['profile_picture_url'] ??
+            res['data']?['profile_picture'] ??
+            cand?['profile_picture_url'] ??
+            cand?['profile_picture'] ??
+            cand?['photo'];
+
+        if (profilePic != null && profilePic.toString().trim().isNotEmpty) {
+          setState(() {
+            _photos = [
+              {
+                'id': 'profile_main',
+                'url': profilePic.toString(),
+                'is_profile': true,
+              }
+            ];
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _photos = [];
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       debugPrint('[PhotosScreen] Load photos error: $e');
@@ -172,6 +209,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
   }
 
   Future<void> _setAsProfile(dynamic photoId) async {
+    if (photoId == null || photoId == 'profile_main') return;
     RaniMatrimonialLoader.show(context, message: 'Updating profile picture...');
     try {
       final res = await ApiService.instance.setProfilePhoto(photoId);
@@ -192,6 +230,15 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
   }
 
   Future<void> _deletePhoto(dynamic photoId) async {
+    if (photoId == null) return;
+    if (photoId == 'profile_main') {
+      RaniAlert.warning(
+        context,
+        'This is your primary profile photo. To change it, upload a new photo and tap "Set as Profile".',
+      );
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -339,6 +386,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
   }
 
   Widget _buildPhotoCard(int index) {
+    if (index >= _photos.length) return const SizedBox.shrink();
     final item = _photos[index];
     dynamic photoId;
     bool isProfile = false;
@@ -380,16 +428,24 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              url,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+            if (url.isNotEmpty)
+              Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: const Color(0xFFF5EFEB),
+                  child: const Center(
+                    child: Icon(Icons.broken_image, color: Colors.grey, size: 32),
+                  ),
+                ),
+              )
+            else
+              Container(
                 color: const Color(0xFFF5EFEB),
                 child: const Center(
-                  child: Icon(Icons.broken_image, color: Colors.grey, size: 32),
+                  child: Icon(Icons.photo_outlined, color: Colors.grey, size: 32),
                 ),
               ),
-            ),
 
             // Profile Badge
             if (isProfile)
@@ -424,21 +480,22 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
               ),
 
             // Delete Button
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () => _deletePhoto(photoId),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
+            if (photoId != 'profile_main')
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () => _deletePhoto(photoId),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(CupertinoIcons.trash, size: 14, color: Colors.white),
                   ),
-                  child: const Icon(CupertinoIcons.trash, size: 14, color: Colors.white),
                 ),
               ),
-            ),
 
             // Bottom "Set as Profile" Button
             if (!isProfile)
@@ -512,86 +569,84 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
         ),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
-        color: const Color(0xFF750000),
-        onRefresh: _loadPhotos,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Add Photo Banner
-                    _buildAddPhotoBanner(),
-                    const SizedBox(height: 22),
-                    // 2. Section Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'My Photos (${_photos.length})',
-                          style: GoogleFonts.outfit(
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E1E1E),
-                          ),
-                        ),
-                        if (_photos.isNotEmpty)
-                          TextButton.icon(
-                            onPressed: _pickAndUploadPhoto,
-                            icon: const Icon(Icons.add, size: 16, color: Color(0xFF750000)),
-                            label: Text(
-                              'Add More',
-                              style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF750000),
+      body: _isLoading && _photos.isEmpty
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF750000)),
+            )
+          : RefreshIndicator(
+              color: const Color(0xFF750000),
+              onRefresh: _loadPhotos,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. Add Photo Banner
+                          _buildAddPhotoBanner(),
+                          const SizedBox(height: 22),
+                          // 2. Section Header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'My Photos (${_photos.length})',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF1E1E1E),
+                                ),
                               ),
-                            ),
+                              if (_photos.isNotEmpty)
+                                TextButton.icon(
+                                  onPressed: _pickAndUploadPhoto,
+                                  icon: const Icon(Icons.add, size: 16, color: Color(0xFF750000)),
+                                  label: Text(
+                                    'Add More',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF750000),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                      ],
+                          const SizedBox(height: 12),
+                          if (_photos.isEmpty)
+                            _buildEmptyState(),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    if (_isLoading && _photos.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        alignment: Alignment.center,
-                        child: const CircularProgressIndicator(color: Color(0xFF750000)),
-                      )
-                    else if (_photos.isEmpty)
-                      _buildEmptyState(),
-                  ],
-                ),
+                  ),
+                  if (_photos.isNotEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverGrid(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.78,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildPhotoCard(index),
+                          childCount: _photos.length,
+                        ),
+                      ),
+                    ),
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverToBoxAdapter(
+                      child: _buildPhotoTipsBox(),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (_photos.isNotEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.78,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildPhotoCard(index),
-                    childCount: _photos.length,
-                  ),
-                ),
-              ),
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverToBoxAdapter(
-                child: _buildPhotoTipsBox(),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
