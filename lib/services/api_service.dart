@@ -256,11 +256,21 @@ class ApiService {
     return _processResponse(response);
   }
 
+  Map<String, dynamic>? _cachedRegistrationOptions;
+  Map<String, dynamic>? get cachedRegistrationOptions => _cachedRegistrationOptions;
+
   /// Fetch Master Dropdown Options for Registration & Profile screens
   Future<Map<String, dynamic>> getRegistrationOptions() async {
+    if (_cachedRegistrationOptions != null) {
+      return {'success': true, 'data': _cachedRegistrationOptions};
+    }
     final uri = Uri.parse('$baseUrl/registration-options');
     final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    final data = _processResponse(response);
+    if (data['success'] == true && data['data'] != null && data['data'] is Map) {
+      _cachedRegistrationOptions = data['data'] as Map<String, dynamic>;
+    }
+    return data;
   }
 
   /// Final Registration

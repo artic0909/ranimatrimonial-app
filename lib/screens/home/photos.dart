@@ -46,7 +46,18 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     if (raw == null) return '';
     final urlStr = raw.toString().trim();
     if (urlStr.isEmpty) return '';
-    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) return urlStr;
+    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+      // If the backend returns a local dev host (e.g. ranimatrimonial.test),
+      // re-route to ApiService.baseUrl host so phones and emulators can load images
+      if (urlStr.contains('ranimatrimonial.test') ||
+          urlStr.contains('localhost') ||
+          urlStr.contains('127.0.0.1')) {
+        final serverBase = ApiService.baseUrl.replaceAll('/api', '');
+        final path = urlStr.replaceFirst(RegExp(r'^https?://[^/]+/?'), '');
+        return '$serverBase/$path';
+      }
+      return urlStr;
+    }
     final serverBase = ApiService.baseUrl.replaceAll('/api', '');
     return '$serverBase/storage/${urlStr.replaceFirst(RegExp(r'^/?(storage/)?'), '')}';
   }
@@ -546,22 +557,30 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF750000),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 36),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            ),
-            onPressed: _pickAndUploadPhoto,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.add_a_photo_rounded, size: 14),
-                SizedBox(width: 5),
-                Text('Upload', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ],
+          Material(
+            color: const Color(0xFF750000),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              onTap: _pickAndUploadPhoto,
+              borderRadius: BorderRadius.circular(10),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_a_photo_rounded, size: 14, color: Colors.white),
+                    SizedBox(width: 5),
+                    Text(
+                      'Upload',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../services/api_service.dart';
 
 enum ProfileSection {
   about,
@@ -14,6 +16,7 @@ enum ProfileSection {
 }
 
 /// Modal Bottom Sheet for editing specific profile sections individually
+/// Aligned 100% with DB master models & website profile modals (dependent dropdowns & choosable items)
 class RaniSectionEditModal extends StatefulWidget {
   final ProfileSection section;
   final Map<String, dynamic> candidate;
@@ -51,33 +54,54 @@ class RaniSectionEditModal extends StatefulWidget {
 class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
   bool _isSaving = false;
 
-  // Master Dropdown Options matching website and mobile register options
-  static const List<String> _maritalStatuses = [
-    'Never Married',
-    'Divorced',
-    'Widowed',
-    'Awaiting Divorce',
-  ];
+  // ==========================================
+  // Master Lists (Seeded with standard defaults & updated from DB via API)
+  // ==========================================
+  List<String> _countryOptions = ['India', 'Bangladesh', 'United States', 'United Kingdom', 'Canada', 'Australia', 'United Arab Emirates'];
+  Map<String, List<String>> _countryToStates = {
+    'India': [
+      'West Bengal',
+      'Maharashtra',
+      'Delhi',
+      'Karnataka',
+      'Tamil Nadu',
+      'Uttar Pradesh',
+      'Gujarat',
+      'Telangana',
+      'Kerala',
+      'Rajasthan',
+      'Punjab',
+      'Haryana',
+      'Bihar',
+      'Odisha',
+      'Assam',
+      'Madhya Pradesh',
+      'Jharkhand',
+      'Andhra Pradesh',
+    ],
+  };
 
-  static const List<String> _heights = [
-    "4' 8\"", "4' 9\"", "4' 10\"", "4' 11\"", "5' 0\"", "5' 1\"", "5' 2\"", "5' 3\"",
-    "5' 4\"", "5' 5\"", "5' 6\"", "5' 7\"", "5' 8\"", "5' 9\"", "5' 10\"", "5' 11\"",
-    "6' 0\"", "6' 1\"", "6' 2\"", "6' 3\"", "6' 4\""
-  ];
+  Map<String, Map<String, List<String>>> _countryStateToCities = {
+    'India': {
+      'West Bengal': [
+        'Kolkata',
+        'Howrah',
+        'Siliguri',
+        'Durgapur',
+        'Asansol',
+        'Bardhaman',
+        'Kharagpur',
+        'Malda',
+        'Berhampore',
+        'Habra',
+      ],
+      'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Thane', 'Nashik'],
+      'Delhi': ['New Delhi', 'North Delhi', 'South Delhi', 'East Delhi', 'West Delhi'],
+      'Karnataka': ['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi'],
+    },
+  };
 
-  static const List<String> _diets = [
-    'Vegetarian',
-    'Non-Vegetarian',
-    'Eggetarian',
-    'Jain',
-    'Vegan',
-  ];
-
-  static const List<String> _bloodGroups = [
-    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
-  ];
-
-  static const List<String> _religions = [
+  List<String> _religionOptions = [
     'Hindu',
     'Muslim',
     'Christian',
@@ -87,6 +111,86 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     'Parsi',
     'Jewish',
     'Other',
+  ];
+
+  Map<String, List<String>> _religionToCommunities = {
+    'Hindu': ['Brahmin', 'Kayastha', 'Baishya', 'Kshatriya', 'Sunri', 'Mahisya', 'Sadgope', 'Agarwal', 'Marwari', 'Baniya', 'Khatri', 'Other'],
+    'Muslim': ['Sunni', 'Shia', 'Ansari', 'Qureshi', 'Sayyid', 'Shaikh', 'Pathan', 'Other'],
+    'Christian': ['Roman Catholic', 'Protestant', 'Orthodox', 'Born Again', 'Evangelical', 'Other'],
+    'Sikh': ['Jat', 'Khatri', 'Ramgarhia', 'Arora', 'Other'],
+    'Jain': ['Digambar', 'Shwetambar', 'Other'],
+    'Buddhist': ['Neo-Buddhist', 'Theravada', 'Other'],
+    'Other': ['Other'],
+  };
+
+  List<String> _qualificationOptions = [
+    'B.Tech / B.E. (Engineering)',
+    'B-Tech',
+    'B.Sc. (Bachelor of Science)',
+    'B.Com. (Bachelor of Commerce)',
+    'B.A. (Bachelor of Arts)',
+    'BBA / BMS (Management)',
+    'BCA / B.Sc. IT',
+    'MBBS / BDS (Medical)',
+    'MD / MS (Medical)',
+    'MBA / PGDM (Management)',
+    'M.Tech / M.E. (Engineering)',
+    'M.Sc. (Master of Science)',
+    'M.Com. (Master of Commerce)',
+    'M.A. (Master of Arts)',
+    'MCA / M.Sc. IT',
+    'CA / CS / ICWA',
+    'LLB / LLM (Law)',
+    'Diploma / Polytechnic',
+    'High School (10th / 12th)',
+    'Ph.D. / Doctorate',
+    'Other Professional Degree',
+  ];
+
+  List<String> _workingSectorOptions = [
+    'Private Company',
+    'Government / PSU',
+    'Business / Self-Employed',
+    'Defense / Civil Services',
+    'Not Working',
+  ];
+
+  List<String> _incomeOptions = [
+    'No Income',
+    'Under ₹ 3 Lakh',
+    '₹ 3 - 5 Lakh',
+    '₹ 5 - 10 Lakh',
+    '₹ 10 - 15 Lakh',
+    '₹ 15 - 20 Lakh',
+    '₹ 20 - 30 Lakh',
+    '₹ 30 - 50 Lakh',
+    '₹ 50 Lakh+',
+  ];
+
+  List<String> _maritalStatusOptions = [
+    'Never Married',
+    'Divorced',
+    'Widowed',
+    'Awaiting Divorce',
+    'Annulled',
+  ];
+
+  List<String> _heightOptions = [
+    "4' 8\"", "4' 9\"", "4' 10\"", "4' 11\"", "5' 0\"", "5' 1\"", "5' 2\"", "5' 3\"",
+    "5' 4\"", "5' 5\"", "5' 6\"", "5' 7\"", "5' 8\"", "5' 9\"", "5' 10\"", "5' 11\"",
+    "6' 0\"", "6' 1\"", "6' 2\"", "6' 3\"", "6' 4\""
+  ];
+
+  List<String> _dietOptions = [
+    'Vegetarian',
+    'Non-Vegetarian',
+    'Eggetarian',
+    'Jain',
+    'Vegan',
+  ];
+
+  static const List<String> _bloodGroups = [
+    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
   ];
 
   static const List<String> _motherTongues = [
@@ -112,26 +216,6 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     'Don\'t Know',
   ];
 
-  static const List<String> _workingSectors = [
-    'Private Company',
-    'Government / PSU',
-    'Business / Self-Employed',
-    'Defense / Civil Services',
-    'Not Working',
-  ];
-
-  static const List<String> _incomes = [
-    'No Income',
-    'Under ₹ 3 Lakh',
-    '₹ 3 - 5 Lakh',
-    '₹ 5 - 10 Lakh',
-    '₹ 10 - 15 Lakh',
-    '₹ 15 - 20 Lakh',
-    '₹ 20 - 30 Lakh',
-    '₹ 30 - 50 Lakh',
-    '₹ 50 Lakh+',
-  ];
-
   static const List<String> _residencyTypes = [
     'Citizen',
     'Permanent Resident',
@@ -147,15 +231,43 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
   ];
 
   static const List<String> _contactDisplayOptions = [
-    'Show to all connected matches',
-    'Show only after express interest accepted',
-    'Keep hidden',
+    'Visible to all Premium Members',
+    'Visible only after I accept connection',
+    'Hide my contact details from all',
   ];
 
-  // Controllers & Values
+  // Master Hobbies list
+  List<String> _allHobbies = [
+    'Reading Books',
+    'Traveling & Exploring',
+    'Cooking & Culinary Arts',
+    'Music & Playing Instruments',
+    'Singing',
+    'Photography',
+    'Dancing',
+    'Painting & Sketching',
+    'Gardening & Plants',
+    'Fitness, Gym & Workouts',
+    'Yoga & Meditation',
+    'Movies & OTT Series',
+    'Writing & Blogging',
+    'Playing Sports (Cricket, Football, Badminton)',
+    'Trekking & Outdoor Adventures',
+    'Video Gaming & Esports',
+    'Volunteering & Social Service',
+    'Pet Care & Animals',
+    'Theater & Performing Arts',
+    'Cycling & Running',
+    'Board Games & Puzzles',
+    'DIY & Crafting',
+  ];
+
+  final Set<String> _selectedHobbies = {};
+  final TextEditingController _customHobbyController = TextEditingController();
+
+  // Selected State Values
   // 1. About
   late final TextEditingController _aboutController;
-  late final TextEditingController _hobbiesController;
 
   // 2. Basics
   String? _maritalStatus;
@@ -168,7 +280,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
 
   // 3. Religious
   String? _religion;
-  late final TextEditingController _communityController;
+  String? _community;
   late final TextEditingController _subCommunityController;
   String? _motherTongue;
   late final TextEditingController _gothraController;
@@ -179,7 +291,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
   late final TextEditingController _cityOfBirthController;
 
   // 5. Education & Career
-  late final TextEditingController _qualificationController;
+  String? _qualification;
   late final TextEditingController _collegeController;
   String? _workingWith;
   late final TextEditingController _professionController;
@@ -188,9 +300,10 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
   String? _annualIncome;
 
   // 6. Location
-  late final TextEditingController _countryController;
-  late final TextEditingController _stateController;
-  late final TextEditingController _cityController;
+  String? _country;
+  String? _state;
+  String? _city;
+  late final TextEditingController _cityTextController;
   String? _residencyStatus;
   late final TextEditingController _pincodeController;
   late final TextEditingController _policeStController;
@@ -214,29 +327,64 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
 
     // 1. About
     _aboutController = TextEditingController(text: c['about_yourself']?.toString() ?? '');
+
+    // Parse pre-selected hobbies from database candidate
     dynamic rawHobbies = c['hobbies_interests'];
-    String hobbiesText = '';
     if (rawHobbies is List) {
-      hobbiesText = rawHobbies.join(', ');
-    } else if (rawHobbies != null) {
-      hobbiesText = rawHobbies.toString();
+      for (var h in rawHobbies) {
+        if (h != null && h.toString().trim().isNotEmpty) {
+          _selectedHobbies.add(h.toString().trim());
+        }
+      }
+    } else if (rawHobbies is String && rawHobbies.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawHobbies);
+        if (decoded is List) {
+          for (var h in decoded) {
+            if (h != null && h.toString().trim().isNotEmpty) {
+              _selectedHobbies.add(h.toString().trim());
+            }
+          }
+        } else {
+          _selectedHobbies.addAll(
+            rawHobbies.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty),
+          );
+        }
+      } catch (_) {
+        _selectedHobbies.addAll(
+          rawHobbies.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty),
+        );
+      }
     }
-    _hobbiesController = TextEditingController(text: hobbiesText);
+
+    // Ensure candidate's hobbies are included in _allHobbies
+    for (final h in _selectedHobbies) {
+      if (!_allHobbies.any((item) => item.toLowerCase() == h.toLowerCase())) {
+        _allHobbies.insert(0, h);
+      }
+    }
 
     // 2. Basics
-    _maritalStatus = _findMatch(_maritalStatuses, c['marital_status']);
-    _height = _findMatch(_heights, c['height']);
-    _diet = _findMatch(_diets, c['diet']);
+    _maritalStatus = _findMatch(_maritalStatusOptions, c['marital_status']);
+    _height = _findMatch(_heightOptions, c['height']);
+    _diet = _findMatch(_dietOptions, c['diet']);
     _bloodGroup = _findMatch(_bloodGroups, c['blood_group']);
     _healthInfoController = TextEditingController(text: c['health_info']?.toString() ?? '');
     _grewUpInController = TextEditingController(text: c['grew_up_in']?.toString() ?? '');
     _disabilityController = TextEditingController(text: c['disability']?.toString() ?? 'None');
 
     // 3. Religious
-    _religion = _findMatch(_religions, c['religion']);
-    _communityController = TextEditingController(text: c['community']?.toString() ?? '');
+    _religion = _findMatch(_religionOptions, c['religion']);
+    final initialComms = _availableCommunities;
+    _community = _findMatch(initialComms, c['community']) ?? c['community']?.toString().trim();
+    if (_community != null && _community!.isNotEmpty && !initialComms.contains(_community)) {
+      if (_religion != null) {
+        _religionToCommunities[_religion!] ??= [];
+        _religionToCommunities[_religion!]!.insert(0, _community!);
+      }
+    }
     _subCommunityController = TextEditingController(text: c['sub_community']?.toString() ?? '');
-    _motherTongue = _findMatch(_motherTongues, c['mother_tongue']);
+    _motherTongue = _findMatch(_motherTongues, c['mother_tongue']) ?? c['mother_tongue']?.toString().trim();
     _gothraController = TextEditingController(text: c['gothra']?.toString() ?? '');
 
     // 4. Astro
@@ -245,18 +393,46 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     _cityOfBirthController = TextEditingController(text: c['city_of_birth']?.toString() ?? '');
 
     // 5. Education & Career
-    _qualificationController = TextEditingController(text: c['highest_qualification']?.toString() ?? '');
+    _qualification = _findMatch(_qualificationOptions, c['highest_qualification']) ?? c['highest_qualification']?.toString().trim();
+    if (_qualification != null && _qualification!.isNotEmpty && !_qualificationOptions.contains(_qualification)) {
+      _qualificationOptions.insert(0, _qualification!);
+    }
     _collegeController = TextEditingController(text: c['college_name']?.toString() ?? '');
-    _workingWith = _findMatch(_workingSectors, c['working_with']);
+    _workingWith = _findMatch(_workingSectorOptions, c['working_with']);
     _professionController = TextEditingController(text: c['profession']?.toString() ?? '');
     _designationController = TextEditingController(text: c['designation']?.toString() ?? '');
     _companyController = TextEditingController(text: c['company_name']?.toString() ?? '');
-    _annualIncome = _findMatch(_incomes, c['annual_income']);
+    _annualIncome = _findMatch(_incomeOptions, c['annual_income']);
 
-    // 6. Location
-    _countryController = TextEditingController(text: c['country']?.toString() ?? 'India');
-    _stateController = TextEditingController(text: c['state']?.toString() ?? '');
-    _cityController = TextEditingController(text: c['city']?.toString() ?? '');
+    // 6. Location (Country -> State -> City dependent hierarchy)
+    _country = _findMatch(_countryOptions, c['country']) ?? c['country']?.toString().trim() ?? 'India';
+    if (_country != null && !_countryOptions.contains(_country)) {
+      _countryOptions.insert(0, _country!);
+    }
+
+    final initialStates = _availableStates;
+    _state = _findMatch(initialStates, c['state']) ?? c['state']?.toString().trim();
+    if (_state != null && _state!.isNotEmpty && !initialStates.contains(_state)) {
+      if (_country != null) {
+        _countryToStates[_country!] ??= [];
+        _countryToStates[_country!]!.insert(0, _state!);
+      }
+    }
+
+    final initialCities = _availableCities;
+    _city = _findMatch(initialCities, c['city']) ?? c['city']?.toString().trim();
+    if (_city != null && _city!.isNotEmpty && !initialCities.contains(_city)) {
+      if (_country != null && _state != null) {
+        _countryStateToCities[_country!] ??= {};
+        _countryStateToCities[_country!]![_state!] ??= [];
+        _countryStateToCities[_country!]![_state!]!.insert(0, _city!);
+      }
+    }
+    _cityTextController = TextEditingController(text: _city ?? '');
+    _cityTextController.addListener(() {
+      _city = _cityTextController.text.trim();
+    });
+
     _residencyStatus = _findMatch(_residencyTypes, c['residency_status']) ?? 'Citizen';
     _pincodeController = TextEditingController(text: c['pincode']?.toString() ?? c['zip_code']?.toString() ?? '');
     _policeStController = TextEditingController(text: c['police_st']?.toString() ?? '');
@@ -272,6 +448,25 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
 
     // 8. Contact
     _contactDisplayOption = _findMatch(_contactDisplayOptions, c['contact_display_option']) ?? _contactDisplayOptions[0];
+
+    // Load dynamic DB Master data from API
+    _loadMasterOptionsFromDb();
+  }
+
+  // Dependent Options Getters
+  List<String> get _availableStates {
+    if (_country == null) return const [];
+    return _countryToStates[_country] ?? const [];
+  }
+
+  List<String> get _availableCities {
+    if (_country == null || _state == null) return const [];
+    return _countryStateToCities[_country]?[_state] ?? const [];
+  }
+
+  List<String> get _availableCommunities {
+    if (_religion == null) return const [];
+    return _religionToCommunities[_religion] ?? const [];
   }
 
   String? _findMatch(List<String> list, dynamic val) {
@@ -290,23 +485,19 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
   @override
   void dispose() {
     _aboutController.dispose();
-    _hobbiesController.dispose();
+    _customHobbyController.dispose();
     _healthInfoController.dispose();
     _grewUpInController.dispose();
     _disabilityController.dispose();
-    _communityController.dispose();
     _subCommunityController.dispose();
     _gothraController.dispose();
     _timeOfBirthController.dispose();
     _cityOfBirthController.dispose();
-    _qualificationController.dispose();
     _collegeController.dispose();
     _professionController.dispose();
     _designationController.dispose();
     _companyController.dispose();
-    _countryController.dispose();
-    _stateController.dispose();
-    _cityController.dispose();
+    _cityTextController.dispose();
     _pincodeController.dispose();
     _policeStController.dispose();
     _fullAddressController.dispose();
@@ -314,6 +505,222 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     _motherProfessionController.dispose();
     _familyLocationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMasterOptionsFromDb() async {
+    try {
+      final res = await ApiService.instance.getRegistrationOptions();
+      if (!mounted) return;
+      if (res['success'] == true && res['data'] != null && res['data'] is Map) {
+        final data = res['data'] as Map<String, dynamic>;
+
+        // 1. Countries -> States -> Cities
+        if (data['countries'] is List) {
+          final List<String> loadedCountries = [];
+          final Map<String, List<String>> loadedStates = {};
+          final Map<String, Map<String, List<String>>> loadedCities = {};
+
+          for (var cItem in data['countries']) {
+            final cName = cItem['name']?.toString().trim() ?? '';
+            if (cName.isNotEmpty) {
+              loadedCountries.add(cName);
+              final List<String> statesList = [];
+              final Map<String, List<String>> stateCitiesMap = {};
+
+              if (cItem['states'] is List) {
+                for (var sItem in cItem['states']) {
+                  final sName = sItem['name']?.toString().trim() ?? '';
+                  if (sName.isNotEmpty) {
+                    statesList.add(sName);
+                    final List<String> citiesList = [];
+                    if (sItem['cities'] is List) {
+                      for (var ctItem in sItem['cities']) {
+                        final ctName = ctItem['name']?.toString().trim() ?? '';
+                        if (ctName.isNotEmpty) citiesList.add(ctName);
+                      }
+                    }
+                    stateCitiesMap[sName] = citiesList;
+                  }
+                }
+              }
+              loadedStates[cName] = statesList;
+              loadedCities[cName] = stateCitiesMap;
+            }
+          }
+
+          if (loadedCountries.isNotEmpty) {
+            _countryOptions = loadedCountries;
+            _countryToStates = loadedStates;
+            _countryStateToCities = loadedCities;
+          }
+        }
+
+        // 2. Religions -> Communities
+        if (data['religions'] is List) {
+          final List<String> loadedReligions = [];
+          final Map<String, List<String>> loadedCommunities = {};
+
+          for (var rItem in data['religions']) {
+            final rName = rItem['name']?.toString().trim() ?? '';
+            if (rName.isNotEmpty) {
+              loadedReligions.add(rName);
+              final List<String> comms = [];
+              if (rItem['communities'] is List) {
+                for (var comm in rItem['communities']) {
+                  final commName = comm['name']?.toString().trim() ?? '';
+                  if (commName.isNotEmpty) comms.add(commName);
+                }
+              }
+              loadedCommunities[rName] = comms;
+            }
+          }
+          if (loadedReligions.isNotEmpty) {
+            _religionOptions = loadedReligions;
+            _religionToCommunities = loadedCommunities;
+          }
+        }
+
+        // 3. Qualifications
+        if (data['qualifications'] is List) {
+          final qList = <String>[];
+          for (var item in data['qualifications']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) qList.add(name);
+          }
+          if (qList.isNotEmpty) {
+            _qualificationOptions = qList;
+          }
+        }
+
+        // 4. Working Sectors
+        if (data['working_withs'] is List) {
+          final wList = <String>[];
+          for (var item in data['working_withs']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) wList.add(name);
+          }
+          if (wList.isNotEmpty) {
+            _workingSectorOptions = wList;
+          }
+        }
+
+        // 5. Incomes
+        if (data['incomes'] is List) {
+          final iList = <String>[];
+          for (var item in data['incomes']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) iList.add(name);
+          }
+          if (iList.isNotEmpty) {
+            _incomeOptions = iList;
+          }
+        }
+
+        // 6. Marital Statuses
+        if (data['marital_statuses'] is List) {
+          final mList = <String>[];
+          for (var item in data['marital_statuses']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) mList.add(name);
+          }
+          if (mList.isNotEmpty) {
+            _maritalStatusOptions = mList;
+          }
+        }
+
+        // 7. Diets
+        if (data['diets'] is List) {
+          final dList = <String>[];
+          for (var item in data['diets']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) dList.add(name);
+          }
+          if (dList.isNotEmpty) {
+            _dietOptions = dList;
+          }
+        }
+
+        // 8. Heights
+        if (data['heights'] is List) {
+          final hList = <String>[];
+          for (var item in data['heights']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) hList.add(name);
+          }
+          if (hList.isNotEmpty) {
+            _heightOptions = hList;
+          }
+        }
+
+        // 9. Hobbies
+        if (data['hobbies'] is List) {
+          final dbList = <String>[];
+          for (var item in data['hobbies']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) dbList.add(name);
+          }
+          if (dbList.isNotEmpty) {
+            final merged = <String>{...dbList, ..._selectedHobbies};
+            _allHobbies = merged.toList();
+          }
+        }
+
+        // Ensure candidate values exist in lists so they remain pre-selected
+        _reSyncCandidateSelections();
+        setState(() {});
+      }
+    } catch (_) {}
+  }
+
+  void _reSyncCandidateSelections() {
+    // 1. Location
+    if (_country != null && !_countryOptions.contains(_country)) {
+      _countryOptions.insert(0, _country!);
+    }
+    final availableStates = _availableStates;
+    if (_state != null && !availableStates.contains(_state)) {
+      if (_country != null) {
+        _countryToStates[_country!] ??= [];
+        _countryToStates[_country!]!.insert(0, _state!);
+      }
+    }
+    final availableCities = _availableCities;
+    if (_city != null && !availableCities.contains(_city)) {
+      if (_country != null && _state != null) {
+        _countryStateToCities[_country!] ??= {};
+        _countryStateToCities[_country!]![_state!] ??= [];
+        _countryStateToCities[_country!]![_state!]!.insert(0, _city!);
+      }
+    }
+
+    // 2. Religious
+    if (_religion != null && !_religionOptions.contains(_religion)) {
+      _religionOptions.insert(0, _religion!);
+    }
+    final availableComms = _availableCommunities;
+    if (_community != null && !availableComms.contains(_community)) {
+      if (_religion != null) {
+        _religionToCommunities[_religion!] ??= [];
+        _religionToCommunities[_religion!]!.insert(0, _community!);
+      }
+    }
+
+    // 3. Qualifications
+    if (_qualification != null && !_qualificationOptions.contains(_qualification)) {
+      _qualificationOptions.insert(0, _qualification!);
+    }
+  }
+
+  void _addCustomHobby() {
+    final text = _customHobbyController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      if (!_allHobbies.any((h) => h.toLowerCase() == text.toLowerCase())) {
+        _allHobbies.add(text);
+      }
+      _selectedHobbies.add(text);
+      _customHobbyController.clear();
+    });
   }
 
   String get _sectionTitle {
@@ -384,7 +791,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
       case ProfileSection.about:
         return {
           'about_yourself': _aboutController.text.trim(),
-          'hobbies_interests': _hobbiesController.text.trim(),
+          'hobbies_interests': _selectedHobbies.toList(),
         };
 
       case ProfileSection.basics:
@@ -401,7 +808,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
       case ProfileSection.religious:
         return {
           if (_religion != null) 'religion': _religion,
-          'community': _communityController.text.trim(),
+          if (_community != null) 'community': _community,
           'sub_community': _subCommunityController.text.trim(),
           if (_motherTongue != null) 'mother_tongue': _motherTongue,
           'gothra': _gothraController.text.trim(),
@@ -416,7 +823,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
 
       case ProfileSection.educationCareer:
         return {
-          'highest_qualification': _qualificationController.text.trim(),
+          if (_qualification != null) 'highest_qualification': _qualification,
           'college_name': _collegeController.text.trim(),
           if (_workingWith != null) 'working_with': _workingWith,
           'profession': _professionController.text.trim(),
@@ -427,9 +834,9 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
 
       case ProfileSection.location:
         return {
-          'country': _countryController.text.trim(),
-          'state': _stateController.text.trim(),
-          'city': _cityController.text.trim(),
+          if (_country != null) 'country': _country,
+          if (_state != null) 'state': _state,
+          if (_city != null) 'city': _city,
           if (_residencyStatus != null) 'residency_status': _residencyStatus,
           'pincode': _pincodeController.text.trim(),
           'police_st': _policeStController.text.trim(),
@@ -590,11 +997,176 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
               maxLines: 5,
               minLines: 3,
             ),
-            const SizedBox(height: 16),
-            _buildFieldLabel('Hobbies & Interests (comma-separated)'),
-            _buildTextField(
-              controller: _hobbiesController,
-              hint: 'e.g. Reading, Traveling, Cooking, Music',
+            const SizedBox(height: 20),
+
+            // Header for Hobbies & Interests with selected count pill
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(CupertinoIcons.sparkles, size: 16, color: Color(0xFF750000)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Hobbies & Interests',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF750000).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF750000).withValues(alpha: 0.15)),
+                  ),
+                  child: Text(
+                    '${_selectedHobbies.length} Selected',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF750000),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Select activities and passions from database to help matches connect with you:',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: const Color(0xFF6E6E6E),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Choosable Hobbies Chips Container
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF7F2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFEFE8DE)),
+              ),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _allHobbies.map((hobby) {
+                  final isSelected = _selectedHobbies.contains(hobby);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedHobbies.remove(hobby);
+                        } else {
+                          _selectedHobbies.add(hobby);
+                        }
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width - 64,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF750000) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFFE5B842) : const Color(0xFFD6CBC3),
+                          width: isSelected ? 1.5 : 1.0,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF750000).withValues(alpha: 0.22),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isSelected) ...[
+                            const Icon(Icons.check_rounded, size: 14, color: Color(0xFFE5B842)),
+                            const SizedBox(width: 5),
+                          ] else ...[
+                            const Icon(Icons.add_rounded, size: 14, color: Color(0xFF8E8E93)),
+                            const SizedBox(width: 4),
+                          ],
+                          Flexible(
+                            child: Text(
+                              hobby,
+                              style: GoogleFonts.outfit(
+                                fontSize: 12.5,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                color: isSelected ? Colors.white : const Color(0xFF2C2C2C),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Add Custom Hobby Input Row
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAF7F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEFE8DE)),
+                    ),
+                    child: TextField(
+                      controller: _customHobbyController,
+                      style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF1E1E1E)),
+                      decoration: InputDecoration(
+                        hintText: 'Add another hobby or interest...',
+                        hintStyle: GoogleFonts.outfit(fontSize: 12.5, color: const Color(0xFF9E9E9E)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: (val) => _addCustomHobby(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF750000),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: _addCustomHobby,
+                  child: Text(
+                    '+ Add',
+                    style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -606,7 +1178,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
             _buildFieldLabel('Marital Status'),
             _buildDropdownField(
               value: _maritalStatus,
-              items: _maritalStatuses,
+              items: _maritalStatusOptions,
               hint: 'Select marital status',
               onChanged: (val) => setState(() => _maritalStatus = val),
             ),
@@ -614,7 +1186,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
             _buildFieldLabel('Height'),
             _buildDropdownField(
               value: _height,
-              items: _heights,
+              items: _heightOptions,
               hint: 'Select height',
               onChanged: (val) => setState(() => _height = val),
             ),
@@ -622,7 +1194,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
             _buildFieldLabel('Diet'),
             _buildDropdownField(
               value: _diet,
-              items: _diets,
+              items: _dietOptions,
               hint: 'Select diet',
               onChanged: (val) => setState(() => _diet = val),
             ),
@@ -662,15 +1234,22 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
             _buildFieldLabel('Religion'),
             _buildDropdownField(
               value: _religion,
-              items: _religions,
+              items: _religionOptions,
               hint: 'Select religion',
-              onChanged: (val) => setState(() => _religion = val),
+              onChanged: (val) {
+                setState(() {
+                  _religion = val;
+                  _community = null; // Reset community when religion changes
+                });
+              },
             ),
             const SizedBox(height: 14),
             _buildFieldLabel('Community (Caste)'),
-            _buildTextField(
-              controller: _communityController,
-              hint: 'e.g. Brahmin, Kayastha, Sunri, etc.',
+            _buildDropdownField(
+              value: _community,
+              items: _availableCommunities,
+              hint: _religion == null ? 'Select religion first' : 'Select community',
+              onChanged: _religion == null ? null : (val) => setState(() => _community = val),
             ),
             const SizedBox(height: 14),
             _buildFieldLabel('Sub-Community'),
@@ -726,9 +1305,11 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildFieldLabel('Highest Qualification'),
-            _buildTextField(
-              controller: _qualificationController,
-              hint: 'e.g. B.Tech, M.Tech, MBA, MBBS, B.Com',
+            _buildDropdownField(
+              value: _qualification,
+              items: _qualificationOptions,
+              hint: 'Select qualification',
+              onChanged: (val) => setState(() => _qualification = val),
             ),
             const SizedBox(height: 14),
             _buildFieldLabel('College / University'),
@@ -740,12 +1321,12 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
             _buildFieldLabel('Working Sector'),
             _buildDropdownField(
               value: _workingWith,
-              items: _workingSectors,
+              items: _workingSectorOptions,
               hint: 'Select working sector',
               onChanged: (val) => setState(() => _workingWith = val),
             ),
             const SizedBox(height: 14),
-            _buildFieldLabel('Profession'),
+            _buildFieldLabel('Profession / Job Role'),
             _buildTextField(
               controller: _professionController,
               hint: 'e.g. Software Engineer, Doctor, Banking',
@@ -766,7 +1347,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
             _buildFieldLabel('Annual Income'),
             _buildDropdownField(
               value: _annualIncome,
-              items: _incomes,
+              items: _incomeOptions,
               hint: 'Select annual income',
               onChanged: (val) => setState(() => _annualIncome = val),
             ),
@@ -774,26 +1355,60 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
         );
 
       case ProfileSection.location:
+        final currentStates = _availableStates;
+        final currentCities = _availableCities;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildFieldLabel('Country'),
-            _buildTextField(
-              controller: _countryController,
-              hint: 'e.g. India',
+            _buildDropdownField(
+              value: _country,
+              items: _countryOptions,
+              hint: 'Select country',
+              onChanged: (val) {
+                setState(() {
+                  _country = val;
+                  _state = null; // Reset state when country changes
+                  _city = null;  // Reset city when country changes
+                  _cityTextController.clear();
+                });
+              },
             ),
             const SizedBox(height: 14),
             _buildFieldLabel('State'),
-            _buildTextField(
-              controller: _stateController,
-              hint: 'e.g. West Bengal',
+            _buildDropdownField(
+              value: _state,
+              items: currentStates,
+              hint: _country == null ? 'Select country first' : 'Select state',
+              onChanged: _country == null ? null : (val) {
+                setState(() {
+                  _state = val;
+                  _city = null; // Reset city when state changes
+                  _cityTextController.clear();
+                });
+              },
             ),
             const SizedBox(height: 14),
             _buildFieldLabel('City'),
-            _buildTextField(
-              controller: _cityController,
-              hint: 'e.g. Kolkata',
-            ),
+            if (currentCities.isNotEmpty)
+              _buildDropdownField(
+                value: _city,
+                items: currentCities,
+                hint: _state == null ? 'Select state first' : 'Select city',
+                onChanged: _state == null ? null : (val) {
+                  setState(() {
+                    _city = val;
+                    if (val != null) _cityTextController.text = val;
+                  });
+                },
+              )
+            else
+              // Fallback to text input if no cities list in DB for this state yet
+              _buildTextField(
+                controller: _cityTextController,
+                hint: _state == null ? 'Select state first' : 'Enter city name',
+              ),
             const SizedBox(height: 14),
             _buildFieldLabel('Residency Status'),
             _buildDropdownField(
@@ -965,24 +1580,31 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     required String? value,
     required List<String> items,
     required String hint,
-    required ValueChanged<String?> onChanged,
+    required ValueChanged<String?>? onChanged,
   }) {
+    final effectiveValue = items.contains(value) ? value : null;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAF7F2),
+        color: onChanged == null ? const Color(0xFFF5F0E8) : const Color(0xFFFAF7F2),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFEFE8DE)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: items.contains(value) ? value : null,
+          value: effectiveValue,
           isExpanded: true,
           hint: Text(
             hint,
             style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF9E9E9E)),
+            overflow: TextOverflow.ellipsis,
           ),
-          icon: const Icon(CupertinoIcons.chevron_down, size: 16, color: Color(0xFF750000)),
+          icon: Icon(
+            CupertinoIcons.chevron_down,
+            size: 16,
+            color: onChanged == null ? Colors.grey : const Color(0xFF750000),
+          ),
           items: items.map((opt) {
             return DropdownMenuItem<String>(
               value: opt,
@@ -993,6 +1615,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFF1E1E1E),
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             );
           }).toList(),
@@ -1037,4 +1660,3 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     );
   }
 }
-

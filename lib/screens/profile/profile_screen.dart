@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -858,9 +859,18 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
   Widget _buildAboutWindowCard(String? about, dynamic rawHobbies) {
     List<String> hobbiesList = [];
     if (rawHobbies is List) {
-      hobbiesList = rawHobbies.map((e) => e.toString()).toList();
+      hobbiesList = rawHobbies.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
     } else if (rawHobbies is String && rawHobbies.trim().isNotEmpty) {
-      hobbiesList = rawHobbies.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      try {
+        final decoded = jsonDecode(rawHobbies);
+        if (decoded is List) {
+          hobbiesList = decoded.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+        } else {
+          hobbiesList = rawHobbies.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        }
+      } catch (_) {
+        hobbiesList = rawHobbies.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
     }
 
     return _buildSectionWindow(
