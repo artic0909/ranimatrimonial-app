@@ -16,6 +16,8 @@ import 'package:ranimatrimonial_app/screens/connections/accepted_screen.dart';
 import 'package:ranimatrimonial_app/screens/connections/declined_screen.dart';
 import 'package:ranimatrimonial_app/screens/connections/rejected_screen.dart';
 import 'package:ranimatrimonial_app/screens/wallet/wallet_screen.dart';
+import 'package:ranimatrimonial_app/screens/profile/profile_screen.dart';
+import 'package:ranimatrimonial_app/screens/home/photos.dart';
 import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
 import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
@@ -506,6 +508,36 @@ void main() {
         await tester.pump();
 
         expect(tester.takeException(), isNull, reason: 'Royal Wallet screen overflow on size $size');
+      }
+    });
+
+    testWidgets('My Profile screen fits all phone sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          const RaniProfileScreen(showAppBar: true),
+          size: size,
+        ));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull, reason: 'My Profile screen overflow on size $size');
+      }
+    });
+
+    testWidgets('Photo Gallery screen fits all phone sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          const RaniPhotosScreen(),
+          size: size,
+        ));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull, reason: 'Photo Gallery screen overflow on size $size');
       }
     });
   });

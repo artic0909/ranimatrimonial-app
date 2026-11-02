@@ -359,6 +359,7 @@ class ApiService {
 
   /// Fetch full candidate profile
   Future<Map<String, dynamic>> getMyProfile() async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/my-profile');
     final response = await http.get(uri, headers: _headers);
     final data = _processResponse(response);
@@ -370,6 +371,7 @@ class ApiService {
 
   /// Update Profile Section or fields
   Future<Map<String, dynamic>> updateProfile(String? section, Map<String, dynamic> fields) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/update-profile');
     final Map<String, dynamic> body = Map.from(fields);
     if (section != null && section.isNotEmpty) {

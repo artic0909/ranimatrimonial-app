@@ -60,7 +60,7 @@ class RaniTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: RaniColors.primary,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(42),
+          minimumSize: const Size(0, 42),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           shape: const RoundedRectangleBorder(
             borderRadius: RaniSpacing.roundedXs,
@@ -72,7 +72,7 @@ class RaniTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: RaniColors.ink,
-          minimumSize: const Size.fromHeight(42),
+          minimumSize: const Size(0, 42),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           side: const BorderSide(
             color: RaniColors.gold,

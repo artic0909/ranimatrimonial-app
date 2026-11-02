@@ -196,43 +196,65 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                 style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
-              ListTile(
-                leading: const Icon(CupertinoIcons.camera_fill, color: Color(0xFF750000)),
-                title: Text('Take Photo with Camera', style: GoogleFonts.outfit(fontSize: 14)),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final perm = await Permission.camera.request();
-                  if (perm.isGranted) {
-                    final picker = ImagePicker();
-                    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-                    if (picked != null) {
-                      _uploadPhotosDirectly([File(picked.path)]);
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final perm = await Permission.camera.request();
+                    if (perm.isGranted) {
+                      final picker = ImagePicker();
+                      final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+                      if (picked != null) {
+                        _uploadPhotosDirectly([File(picked.path)]);
+                      }
+                    } else {
+                      if (mounted) {
+                        RaniAlert.warning(context, 'Camera permission is required.');
+                      }
                     }
-                  } else {
-                    if (mounted) {
-                      RaniAlert.warning(context, 'Camera permission is required.');
-                    }
-                  }
-                },
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Row(
+                      children: [
+                        const Icon(CupertinoIcons.camera_fill, color: Color(0xFF750000)),
+                        const SizedBox(width: 14),
+                        Text('Take Photo with Camera', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              ListTile(
-                leading: const Icon(CupertinoIcons.photo_fill, color: Color(0xFF750000)),
-                title: Text('Choose from Gallery', style: GoogleFonts.outfit(fontSize: 14)),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final picker = ImagePicker();
-                  try {
-                    final pickedList = await picker.pickMultiImage(imageQuality: 85);
-                    if (pickedList.isNotEmpty) {
-                      _uploadPhotosDirectly(pickedList.map((x) => File(x.path)).toList());
-                      return;
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final picker = ImagePicker();
+                    try {
+                      final pickedList = await picker.pickMultiImage(imageQuality: 85);
+                      if (pickedList.isNotEmpty) {
+                        _uploadPhotosDirectly(pickedList.map((x) => File(x.path)).toList());
+                        return;
+                      }
+                    } catch (_) {}
+                    final single = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                    if (single != null) {
+                      _uploadPhotosDirectly([File(single.path)]);
                     }
-                  } catch (_) {}
-                  final single = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-                  if (single != null) {
-                    _uploadPhotosDirectly([File(single.path)]);
-                  }
-                },
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Row(
+                      children: [
+                        const Icon(CupertinoIcons.photo_fill, color: Color(0xFF750000)),
+                        const SizedBox(width: 14),
+                        Text('Choose from Gallery', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -399,24 +421,30 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                         ]
                       : null,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.photo_on_rectangle,
-                      size: 16,
-                      color: _activeTab == 'photo' ? Colors.white : const Color(0xFF6E6E6E),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          CupertinoIcons.photo_on_rectangle,
+                          size: 16,
+                          color: _activeTab == 'photo' ? Colors.white : const Color(0xFF6E6E6E),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Photos',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: _activeTab == 'photo' ? Colors.white : const Color(0xFF4A4A4A),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Photos',
-                      style: GoogleFonts.outfit(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: _activeTab == 'photo' ? Colors.white : const Color(0xFF4A4A4A),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -440,24 +468,30 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                         ]
                       : null,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.lock_shield,
-                      size: 16,
-                      color: _activeTab == 'settings' ? Colors.white : const Color(0xFF6E6E6E),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          CupertinoIcons.lock_shield,
+                          size: 16,
+                          color: _activeTab == 'settings' ? Colors.white : const Color(0xFF6E6E6E),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Privacy Settings',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: _activeTab == 'settings' ? Colors.white : const Color(0xFF4A4A4A),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Privacy Settings',
-                      style: GoogleFonts.outfit(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: _activeTab == 'settings' ? Colors.white : const Color(0xFF4A4A4A),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -516,6 +550,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF750000),
               foregroundColor: Colors.white,
+              minimumSize: const Size(0, 36),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             ),
@@ -696,6 +731,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.95),
                       foregroundColor: const Color(0xFF750000),
+                      minimumSize: const Size(0, 30),
                       elevation: 2,
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -940,12 +976,15 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'My Photos (${_photos.length} / 20)',
-                style: GoogleFonts.outfit(
-                  fontSize: 16.5,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E1E1E),
+              Expanded(
+                child: Text(
+                  'My Photos (${_photos.length} / 20)',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E1E1E),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (_photos.isNotEmpty)

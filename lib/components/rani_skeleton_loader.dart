@@ -366,6 +366,154 @@ class RaniSkeletonProfile extends StatelessWidget {
   }
 }
 
+/// Skeleton for My Profile Screen with Windows card design
+class RaniSkeletonProfileWindows extends StatelessWidget {
+  const RaniSkeletonProfileWindows({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return RaniSkeletonShimmer(
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        child: Column(
+          children: [
+            // 1. Profile Hero Window Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFEFE8DE)),
+              ),
+              child: const Column(
+                children: [
+                  RaniSkeletonBox(width: 96, height: 96, borderRadius: 48),
+                  SizedBox(height: 14),
+                  RaniSkeletonBox(width: 170, height: 20, borderRadius: 6),
+                  SizedBox(height: 8),
+                  RaniSkeletonBox(width: 100, height: 16, borderRadius: 12),
+                  SizedBox(height: 12),
+                  RaniSkeletonBox(width: 220, height: 8, borderRadius: 4),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 2. Wallet Window Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE5B842)),
+              ),
+              child: const Row(
+                children: [
+                  RaniSkeletonBox(width: 44, height: 44, borderRadius: 22),
+                  SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RaniSkeletonBox(width: 120, height: 12, borderRadius: 4),
+                        SizedBox(height: 6),
+                        RaniSkeletonBox(width: 100, height: 20, borderRadius: 5),
+                      ],
+                    ),
+                  ),
+                  RaniSkeletonBox(width: 80, height: 34, borderRadius: 10),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 3. Information Windows Cards (4 cards)
+            ...List.generate(4, (i) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFEFE8DE)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        RaniSkeletonBox(width: 140, height: 16, borderRadius: 4),
+                        RaniSkeletonBox(width: 20, height: 20, borderRadius: 10),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RaniSkeletonBox(width: 70, height: 11, borderRadius: 3),
+                              SizedBox(height: 4),
+                              RaniSkeletonBox(width: 110, height: 14, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RaniSkeletonBox(width: 70, height: 11, borderRadius: 3),
+                              SizedBox(height: 4),
+                              RaniSkeletonBox(width: 110, height: 14, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RaniSkeletonBox(width: 70, height: 11, borderRadius: 3),
+                              SizedBox(height: 4),
+                              RaniSkeletonBox(width: 110, height: 14, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RaniSkeletonBox(width: 70, height: 11, borderRadius: 3),
+                              SizedBox(height: 4),
+                              RaniSkeletonBox(width: 110, height: 14, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Skeleton for Wallet Screen
 class RaniSkeletonWallet extends StatelessWidget {
   const RaniSkeletonWallet({super.key});
