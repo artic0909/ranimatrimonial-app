@@ -13,6 +13,7 @@ import '../help_support_screen.dart';
 import '../home/photos.dart';
 import '../home/profile_edit.dart';
 import '../auth/aadhaar_verification_screen.dart';
+import 'edit_section_modal.dart';
 
 /// Screen: Candidate Profile & Account Dashboard
 /// Features Windows Card Design, All Profile Information & Live Wallet Balance
@@ -174,6 +175,43 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
         _loadProfileData();
       }
     });
+  }
+
+  Future<void> _openSectionEdit(ProfileSection section) async {
+    if (_candidate == null) return;
+
+    await RaniSectionEditModal.show(
+      context: context,
+      section: section,
+      candidate: _candidate!,
+      onSave: (sectionKey, data) async {
+        try {
+          final res = await ApiService.instance.updateProfile(sectionKey, data);
+          if (!mounted) return false;
+
+          if (res['success'] == true) {
+            setState(() {
+              if (res['candidate'] != null && res['candidate'] is Map<String, dynamic>) {
+                _candidate = res['candidate'] as Map<String, dynamic>;
+              } else {
+                _candidate = {...?_candidate, ...data};
+              }
+            });
+            RaniAlert.success(context, 'Section updated successfully!');
+            _loadProfileData();
+            return true;
+          } else {
+            RaniAlert.error(context, res['message'] ?? 'Failed to update section.');
+            return false;
+          }
+        } catch (e) {
+          if (mounted) {
+            RaniAlert.error(context, 'Error updating section: $e');
+          }
+          return false;
+        }
+      },
+    );
   }
 
   void _showLogoutDialog() {
@@ -828,7 +866,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Personality & About',
       icon: CupertinoIcons.person_crop_circle,
-      onEdit: _openEditProfile,
+      onEdit: () => _openSectionEdit(ProfileSection.about),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -886,7 +924,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Basics & Lifestyle',
       icon: CupertinoIcons.heart_circle,
-      onEdit: _openEditProfile,
+      onEdit: () => _openSectionEdit(ProfileSection.basics),
       child: Column(
         children: [
           _buildInfoRowPair(
@@ -923,7 +961,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Religious Background',
       icon: CupertinoIcons.book_circle,
-      onEdit: _openEditProfile,
+      onEdit: () => _openSectionEdit(ProfileSection.religious),
       child: Column(
         children: [
           _buildInfoRowPair(
@@ -954,7 +992,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Astro Details',
       icon: CupertinoIcons.sparkles,
-      onEdit: _openEditProfile,
+      onEdit: () => _openSectionEdit(ProfileSection.astro),
       child: Column(
         children: [
           _buildInfoRowPair(
@@ -979,7 +1017,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Education & Career',
       icon: CupertinoIcons.briefcase,
-      onEdit: _openEditProfile,
+      onEdit: () => _openSectionEdit(ProfileSection.educationCareer),
       child: Column(
         children: [
           _buildInfoRowPair(
@@ -1016,7 +1054,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Location Details',
       icon: CupertinoIcons.location_circle,
-      onEdit: _openEditProfile,
+      onEdit: () => _openSectionEdit(ProfileSection.location),
       child: Column(
         children: [
           _buildInfoRowPair(
@@ -1047,7 +1085,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Family Details',
       icon: CupertinoIcons.person_3_fill,
-      onEdit: _openEditProfile,
+      onEdit: () => _openSectionEdit(ProfileSection.family),
       child: Column(
         children: [
           _buildInfoRowPair(
@@ -1078,6 +1116,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     return _buildSectionWindow(
       title: 'Contact Details',
       icon: CupertinoIcons.phone_circle,
+      onEdit: () => _openSectionEdit(ProfileSection.contact),
       child: Column(
         children: [
           _buildInfoRowPair(

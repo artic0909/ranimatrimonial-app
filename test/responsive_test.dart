@@ -17,6 +17,7 @@ import 'package:ranimatrimonial_app/screens/connections/declined_screen.dart';
 import 'package:ranimatrimonial_app/screens/connections/rejected_screen.dart';
 import 'package:ranimatrimonial_app/screens/wallet/wallet_screen.dart';
 import 'package:ranimatrimonial_app/screens/profile/profile_screen.dart';
+import 'package:ranimatrimonial_app/screens/profile/edit_section_modal.dart';
 import 'package:ranimatrimonial_app/screens/home/photos.dart';
 import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
 import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
@@ -538,6 +539,50 @@ void main() {
         await tester.pump();
 
         expect(tester.takeException(), isNull, reason: 'Photo Gallery screen overflow on size $size');
+      }
+    });
+
+    testWidgets('Section Edit Modal fits all phone sizes without overflow', (tester) async {
+      final sampleCandidate = {
+        'id': 39,
+        'about_yourself': 'Educated and compassionate.',
+        'hobbies_interests': 'Reading, Traveling',
+        'marital_status': 'Never Married',
+        'height': "5' 6\"",
+        'diet': 'Vegetarian',
+        'blood_group': 'B+',
+        'religion': 'Hindu',
+        'community': 'Brahmin',
+        'highest_qualification': 'B.Tech',
+        'profession': 'Engineer',
+        'country': 'India',
+        'state': 'West Bengal',
+        'city': 'Kolkata',
+      };
+
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        for (final section in ProfileSection.values) {
+          await tester.pumpWidget(wrapScreen(
+            Scaffold(
+              body: RaniSectionEditModal(
+                section: section,
+                candidate: sampleCandidate,
+                onSave: (sec, data) async => true,
+              ),
+            ),
+            size: size,
+          ));
+          await tester.pump();
+
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'Section edit modal ($section) overflow on size $size',
+          );
+        }
       }
     });
   });
