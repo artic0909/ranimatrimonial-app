@@ -5,7 +5,9 @@ import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 
-/// Screen: Candidate Profile Edit Screen (matching website my_profile.blade.php)
+/// Screen: Candidate Profile Edit Screen
+/// Aligned 100% with DB master models & website profile edit structure
+/// (Dependent dropdowns for Country->State->City, Religion->Community, DB Qualifications, Incomes, etc. Weight field removed)
 class RaniProfileEditScreen extends StatefulWidget {
   final Map<String, dynamic>? initialCandidate;
 
@@ -22,87 +24,192 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
 
+  // ==========================================
+  // Master Lists (Seeded defaults & updated via ApiService.getRegistrationOptions)
+  // ==========================================
+  List<String> _countryOptions = ['India', 'Bangladesh', 'United States', 'United Kingdom', 'Canada', 'Australia', 'United Arab Emirates'];
+  Map<String, List<String>> _countryToStates = {
+    'India': [
+      'West Bengal', 'Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu',
+      'Uttar Pradesh', 'Gujarat', 'Telangana', 'Kerala', 'Rajasthan',
+      'Punjab', 'Haryana', 'Bihar', 'Odisha', 'Assam', 'Madhya Pradesh',
+      'Jharkhand', 'Andhra Pradesh',
+    ],
+  };
+
+  Map<String, Map<String, List<String>>> _countryStateToCities = {
+    'India': {
+      'West Bengal': [
+        'Kolkata', 'Howrah', 'Siliguri', 'Durgapur', 'Asansol',
+        'Bardhaman', 'Kharagpur', 'Malda', 'Berhampore', 'Habra',
+      ],
+      'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Thane', 'Nashik'],
+      'Delhi': ['New Delhi', 'North Delhi', 'South Delhi', 'East Delhi', 'West Delhi'],
+      'Karnataka': ['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi'],
+    },
+  };
+
+  List<String> _religionOptions = [
+    'Hindu', 'Muslim', 'Christian', 'Sikh', 'Jain', 'Buddhist', 'Parsi', 'Jewish', 'Other',
+  ];
+
+  Map<String, List<String>> _religionToCommunities = {
+    'Hindu': ['Brahmin', 'Kayastha', 'Baishya', 'Kshatriya', 'Sunri', 'Mahisya', 'Sadgope', 'Agarwal', 'Marwari', 'Baniya', 'Khatri', 'Other'],
+    'Muslim': ['Sunni', 'Shia', 'Ansari', 'Qureshi', 'Sayyid', 'Shaikh', 'Pathan', 'Other'],
+    'Christian': ['Roman Catholic', 'Protestant', 'Orthodox', 'Born Again', 'Evangelical', 'Other'],
+    'Sikh': ['Jat', 'Khatri', 'Ramgarhia', 'Arora', 'Other'],
+    'Jain': ['Digambar', 'Shwetambar', 'Other'],
+    'Buddhist': ['Neo-Buddhist', 'Theravada', 'Other'],
+    'Other': ['Other'],
+  };
+
+  List<String> _qualificationOptions = [
+    'B.Tech / B.E. (Engineering)',
+    'B-Tech',
+    'B.Sc. (Bachelor of Science)',
+    'B.Com. (Bachelor of Commerce)',
+    'B.A. (Bachelor of Arts)',
+    'BBA / BMS (Management)',
+    'BCA / B.Sc. IT',
+    'MBBS / BDS (Medical)',
+    'MD / MS (Medical)',
+    'MBA / PGDM (Management)',
+    'M.Tech / M.E. (Engineering)',
+    'M.Sc. (Master of Science)',
+    'M.Com. (Master of Commerce)',
+    'M.A. (Master of Arts)',
+    'MCA / M.Sc. IT',
+    'CA / CS / ICWA',
+    'LLB / LLM (Law)',
+    'Diploma / Polytechnic',
+    'High School (10th / 12th)',
+    'Ph.D. / Doctorate',
+    'Other Professional Degree',
+  ];
+
+  List<String> _workingSectorOptions = [
+    'Private Company',
+    'Government / PSU',
+    'Business / Self-Employed',
+    'Defense / Civil Services',
+    'Not Working',
+  ];
+
+  List<String> _incomeOptions = [
+    'No Income',
+    'Under ₹ 3 Lakh',
+    '₹ 3 - 5 Lakh',
+    '₹ 5 - 10 Lakh',
+    '₹ 10 - 15 Lakh',
+    '₹ 15 - 20 Lakh',
+    '₹ 20 - 30 Lakh',
+    '₹ 30 - 50 Lakh',
+    '₹ 50 Lakh+',
+  ];
+
+  List<String> _maritalStatusOptions = [
+    'Never Married',
+    'Divorced',
+    'Widowed',
+    'Awaiting Divorce',
+    'Annulled',
+  ];
+
+  List<String> _heightOptions = [
+    "4' 8\"", "4' 9\"", "4' 10\"", "4' 11\"", "5' 0\"", "5' 1\"", "5' 2\"", "5' 3\"",
+    "5' 4\"", "5' 5\"", "5' 6\"", "5' 7\"", "5' 8\"", "5' 9\"", "5' 10\"", "5' 11\"",
+    "6' 0\"", "6' 1\"", "6' 2\"", "6' 3\"", "6' 4\""
+  ];
+
+  List<String> _dietOptions = ['Vegetarian', 'Non-Vegetarian', 'Eggetarian', 'Jain', 'Vegan'];
+  final List<String> _genders = ['Male', 'Female'];
+  final List<String> _motherTongues = ['Bengali', 'Hindi', 'English', 'Urdu', 'Odia', 'Assamese', 'Telugu', 'Tamil', 'Marathi', 'Gujarati', 'Punjabi', 'Malayalam', 'Kannada'];
+  final List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  final List<String> _manglikOptions = ['No', 'Yes', 'Partial / Anshik Manglik', 'Don\'t Know'];
+  final List<String> _financialStatuses = ['Middle Class', 'Upper Middle Class', 'Rich / Affluent'];
+  final List<String> _familyTypes = ['Nuclear Family', 'Joint Family'];
+  final List<String> _residencyTypes = ['Citizen', 'Permanent Resident', 'Work Visa', 'Student Visa', 'Temporary'];
+
+  // Form Controllers & State Values
   // 1. Basic Details
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
   String _gender = 'Female';
-  String _maritalStatus = 'Never Married';
-  String _religion = 'Hindu';
-  String _community = 'General';
-  String _motherTongue = 'Bengali';
-  String _height = "5' 4\"";
+  String? _maritalStatus;
+  String? _height;
 
-  // 2. About Me
+  // 2. Religious & Cultural Background
+  String? _religion;
+  String? _community;
+  final TextEditingController _subCommunityController = TextEditingController();
+  String? _motherTongue;
+  final TextEditingController _gothraController = TextEditingController();
+
+  // 3. About Myself
   final TextEditingController _aboutMeController = TextEditingController();
 
-  // 3. Family Details
+  // 4. Education & Career
+  String? _highestQualification;
+  final TextEditingController _collegeNameController = TextEditingController();
+  String? _workingWith;
+  final TextEditingController _professionController = TextEditingController();
+  final TextEditingController _designationController = TextEditingController();
+  final TextEditingController _companyNameController = TextEditingController();
+  String? _annualIncome;
+
+  // 5. Location Details (Country -> State -> City dependent dropdowns)
+  String? _country;
+  String? _state;
+  String? _city;
+  final TextEditingController _cityTextController = TextEditingController();
+  String? _residencyStatus;
+  final TextEditingController _fullAddressController = TextEditingController();
+  final TextEditingController _policeStController = TextEditingController();
+  final TextEditingController _pincodeController = TextEditingController();
+
+  // 6. Family Details
   final TextEditingController _fatherProfessionController = TextEditingController();
   final TextEditingController _motherProfessionController = TextEditingController();
   final TextEditingController _familyLocationController = TextEditingController();
   int _brothersCount = 0;
   int _sistersCount = 0;
-  String _familyFinancialStatus = 'Middle Class';
-  String _familyType = 'Nuclear Family';
-  String _familyValues = 'Moderate';
+  String? _familyFinancialStatus;
+  String? _familyType;
 
-  // 4. Astro Details
-  String _manglik = 'Non-Manglik';
-  final TextEditingController _gothraController = TextEditingController();
+  // 7. Horoscope & Astro Details
+  String? _manglik;
   final TextEditingController _timeOfBirthController = TextEditingController();
   final TextEditingController _cityOfBirthController = TextEditingController();
 
-  // 5. Lifestyle
-  String _diet = 'Vegetarian';
-  String _bloodGroup = 'B+';
-  final TextEditingController _weightController = TextEditingController();
+  // 8. Lifestyle & Health (No Weight field)
+  String? _diet;
+  String? _bloodGroup;
   final TextEditingController _healthInfoController = TextEditingController();
   final TextEditingController _grewUpInController = TextEditingController();
 
-  // 6. Education & Career
-  String _highestQualification = 'Bachelor of Technology';
-  final TextEditingController _collegeNameController = TextEditingController();
-  String _workingWith = 'Private Company';
-  final TextEditingController _professionController = TextEditingController();
-  final TextEditingController _designationController = TextEditingController();
-  final TextEditingController _companyNameController = TextEditingController();
-  String _annualIncome = '₹ 5 - 10 Lakh';
+  // Dependent Options Getters
+  List<String> get _availableStates {
+    if (_country == null) return const [];
+    return _countryToStates[_country] ?? const [];
+  }
 
-  // 7. Location & Address
-  final TextEditingController _cityController = TextEditingController();
-  final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _countryController = TextEditingController();
-  final TextEditingController _fullAddressController = TextEditingController();
-  final TextEditingController _policeStController = TextEditingController();
-  final TextEditingController _pincodeController = TextEditingController();
-  String _residencyStatus = 'Citizen';
+  List<String> get _availableCities {
+    if (_country == null || _state == null) return const [];
+    return _countryStateToCities[_country]?[_state] ?? const [];
+  }
 
-  // Master Options
-  final List<String> _genders = ['Male', 'Female'];
-  final List<String> _maritalStatuses = ['Never Married', 'Divorced', 'Widowed', 'Awaiting Divorce'];
-  final List<String> _religions = ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Jain', 'Buddhist', 'Parsi', 'Jewish', 'Other'];
-  final List<String> _motherTongues = ['Bengali', 'Hindi', 'English', 'Urdu', 'Odia', 'Assamese', 'Telugu', 'Tamil', 'Marathi', 'Gujarati', 'Punjabi', 'Malayalam', 'Kannada'];
-  final List<String> _heights = [
-    "4' 8\"", "4' 9\"", "4' 10\"", "4' 11\"", "5' 0\"", "5' 1\"", "5' 2\"", "5' 3\"",
-    "5' 4\"", "5' 5\"", "5' 6\"", "5' 7\"", "5' 8\"", "5' 9\"", "5' 10\"", "5' 11\"",
-    "6' 0\"", "6' 1\"", "6' 2\"", "6' 3\"", "6' 4\""
-  ];
-  final List<String> _diets = ['Vegetarian', 'Non-Vegetarian', 'Eggetarian', 'Jain', 'Vegan'];
-  final List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-  final List<String> _manglikOptions = ['Non-Manglik', 'Manglik', 'Angshik Manglik', 'Don\'t Know'];
-  final List<String> _financialStatuses = ['Middle Class', 'Upper Middle Class', 'Affluent', 'High Class'];
-  final List<String> _familyTypes = ['Nuclear Family', 'Joint Family'];
-  final List<String> _familyValuesList = ['Traditional', 'Moderate', 'Liberal'];
-  final List<String> _workingSectors = ['Private Company', 'Government / PSU', 'Business / Self-Employed', 'Defense / Civil Services', 'Not Working'];
-  final List<String> _incomes = [
-    'No Income', 'Under ₹ 3 Lakh', '₹ 3 - 5 Lakh', '₹ 5 - 10 Lakh',
-    '₹ 10 - 15 Lakh', '₹ 15 - 20 Lakh', '₹ 20 - 30 Lakh', '₹ 30 - 50 Lakh', '₹ 50 Lakh+'
-  ];
-  final List<String> _residencyTypes = ['Citizen', 'Permanent Resident', 'Work Permit', 'Student Visa'];
+  List<String> get _availableCommunities {
+    if (_religion == null) return const [];
+    return _religionToCommunities[_religion] ?? const [];
+  }
 
   @override
   void initState() {
     super.initState();
+    _cityTextController.addListener(() {
+      _city = _cityTextController.text.trim();
+    });
     _initData();
   }
 
@@ -112,6 +219,8 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
       _populateFromMap(candidate);
       setState(() => _isLoading = false);
     }
+
+    await _loadMasterOptionsFromDb();
 
     try {
       final res = await ApiService.instance.getMyProfile();
@@ -124,6 +233,209 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
     }
   }
 
+  Future<void> _loadMasterOptionsFromDb() async {
+    try {
+      final res = await ApiService.instance.getRegistrationOptions();
+      if (!mounted) return;
+      if (res['success'] == true && res['data'] != null && res['data'] is Map) {
+        final data = res['data'] as Map<String, dynamic>;
+
+        // 1. Countries -> States -> Cities
+        if (data['countries'] is List) {
+          final List<String> loadedCountries = [];
+          final Map<String, List<String>> loadedStates = {};
+          final Map<String, Map<String, List<String>>> loadedCities = {};
+
+          for (var cItem in data['countries']) {
+            final cName = cItem['name']?.toString().trim() ?? '';
+            if (cName.isNotEmpty) {
+              loadedCountries.add(cName);
+              final List<String> statesList = [];
+              final Map<String, List<String>> stateCitiesMap = {};
+
+              if (cItem['states'] is List) {
+                for (var sItem in cItem['states']) {
+                  final sName = sItem['name']?.toString().trim() ?? '';
+                  if (sName.isNotEmpty) {
+                    statesList.add(sName);
+                    final List<String> citiesList = [];
+                    if (sItem['cities'] is List) {
+                      for (var ctItem in sItem['cities']) {
+                        final ctName = ctItem['name']?.toString().trim() ?? '';
+                        if (ctName.isNotEmpty) citiesList.add(ctName);
+                      }
+                    }
+                    stateCitiesMap[sName] = citiesList;
+                  }
+                }
+              }
+              loadedStates[cName] = statesList;
+              loadedCities[cName] = stateCitiesMap;
+            }
+          }
+
+          if (loadedCountries.isNotEmpty) {
+            _countryOptions = loadedCountries;
+            _countryToStates = loadedStates;
+            _countryStateToCities = loadedCities;
+          }
+        }
+
+        // 2. Religions -> Communities
+        if (data['religions'] is List) {
+          final List<String> loadedReligions = [];
+          final Map<String, List<String>> loadedCommunities = {};
+
+          for (var rItem in data['religions']) {
+            final rName = rItem['name']?.toString().trim() ?? '';
+            if (rName.isNotEmpty) {
+              loadedReligions.add(rName);
+              final List<String> comms = [];
+              if (rItem['communities'] is List) {
+                for (var comm in rItem['communities']) {
+                  final commName = comm['name']?.toString().trim() ?? '';
+                  if (commName.isNotEmpty) comms.add(commName);
+                }
+              }
+              loadedCommunities[rName] = comms;
+            }
+          }
+          if (loadedReligions.isNotEmpty) {
+            _religionOptions = loadedReligions;
+            _religionToCommunities = loadedCommunities;
+          }
+        }
+
+        // 3. Qualifications
+        if (data['qualifications'] is List) {
+          final qList = <String>[];
+          for (var item in data['qualifications']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) qList.add(name);
+          }
+          if (qList.isNotEmpty) {
+            _qualificationOptions = qList;
+          }
+        }
+
+        // 4. Working Sectors
+        if (data['working_withs'] is List) {
+          final wList = <String>[];
+          for (var item in data['working_withs']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) wList.add(name);
+          }
+          if (wList.isNotEmpty) {
+            _workingSectorOptions = wList;
+          }
+        }
+
+        // 5. Incomes
+        if (data['incomes'] is List) {
+          final iList = <String>[];
+          for (var item in data['incomes']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) iList.add(name);
+          }
+          if (iList.isNotEmpty) {
+            _incomeOptions = iList;
+          }
+        }
+
+        // 6. Marital Statuses
+        if (data['marital_statuses'] is List) {
+          final mList = <String>[];
+          for (var item in data['marital_statuses']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) mList.add(name);
+          }
+          if (mList.isNotEmpty) {
+            _maritalStatusOptions = mList;
+          }
+        }
+
+        // 7. Heights
+        if (data['heights'] is List) {
+          final hList = <String>[];
+          for (var item in data['heights']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) hList.add(name);
+          }
+          if (hList.isNotEmpty) {
+            _heightOptions = hList;
+          }
+        }
+
+        // 8. Diets
+        if (data['diets'] is List) {
+          final dList = <String>[];
+          for (var item in data['diets']) {
+            final name = item is Map ? item['name']?.toString().trim() : item?.toString().trim();
+            if (name != null && name.isNotEmpty) dList.add(name);
+          }
+          if (dList.isNotEmpty) {
+            _dietOptions = dList;
+          }
+        }
+
+        // Resync candidate's existing data into options
+        _reSyncCandidateSelections();
+        setState(() {});
+      }
+    } catch (_) {}
+  }
+
+  void _reSyncCandidateSelections() {
+    // 1. Location
+    if (_country != null && !_countryOptions.contains(_country)) {
+      _countryOptions.insert(0, _country!);
+    }
+    final availableStates = _availableStates;
+    if (_state != null && !availableStates.contains(_state)) {
+      if (_country != null) {
+        _countryToStates[_country!] ??= [];
+        _countryToStates[_country!]!.insert(0, _state!);
+      }
+    }
+    final availableCities = _availableCities;
+    if (_city != null && !availableCities.contains(_city)) {
+      if (_country != null && _state != null) {
+        _countryStateToCities[_country!] ??= {};
+        _countryStateToCities[_country!]![_state!] ??= [];
+        _countryStateToCities[_country!]![_state!]!.insert(0, _city!);
+      }
+    }
+
+    // 2. Religious
+    if (_religion != null && !_religionOptions.contains(_religion)) {
+      _religionOptions.insert(0, _religion!);
+    }
+    final availableComms = _availableCommunities;
+    if (_community != null && !availableComms.contains(_community)) {
+      if (_religion != null) {
+        _religionToCommunities[_religion!] ??= [];
+        _religionToCommunities[_religion!]!.insert(0, _community!);
+      }
+    }
+
+    // 3. Qualifications
+    if (_highestQualification != null && !_qualificationOptions.contains(_highestQualification)) {
+      _qualificationOptions.insert(0, _highestQualification!);
+    }
+  }
+
+  String? _findMatch(List<String> items, dynamic raw) {
+    if (raw == null) return null;
+    final str = raw.toString().trim();
+    if (str.isEmpty || str == '-' || str == 'null') return null;
+    final exact = items.firstWhere(
+      (it) => it.toLowerCase() == str.toLowerCase(),
+      orElse: () => '',
+    );
+    if (exact.isNotEmpty) return exact;
+    return str;
+  }
+
   void _populateFromMap(Map<String, dynamic> c) {
     _firstNameController.text = c['first_name']?.toString() ?? '';
     _lastNameController.text = c['last_name']?.toString() ?? '';
@@ -134,76 +446,86 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
       _gender = _genders.firstWhere((x) => x.toLowerCase() == g.toLowerCase());
     }
 
-    final m = c['marital_status']?.toString();
-    if (m != null && _maritalStatuses.contains(m)) _maritalStatus = m;
+    _maritalStatus = _findMatch(_maritalStatusOptions, c['marital_status']);
+    _religion = _findMatch(_religionOptions, c['religion']);
 
-    final r = c['religion']?.toString();
-    if (r != null && _religions.contains(r)) _religion = r;
+    final initialComms = _availableCommunities;
+    _community = _findMatch(initialComms, c['community']) ?? c['community']?.toString().trim();
+    if (_community != null && _community!.isNotEmpty && !initialComms.contains(_community)) {
+      if (_religion != null) {
+        _religionToCommunities[_religion!] ??= [];
+        _religionToCommunities[_religion!]!.insert(0, _community!);
+      }
+    }
 
-    _community = c['community']?.toString() ?? 'General';
-
-    final mt = c['mother_tongue']?.toString();
-    if (mt != null && _motherTongues.contains(mt)) _motherTongue = mt;
-
-    final h = c['height']?.toString();
-    if (h != null && _heights.contains(h)) _height = h;
-
+    _subCommunityController.text = c['sub_community']?.toString() ?? '';
+    _motherTongue = _findMatch(_motherTongues, c['mother_tongue']);
+    _height = _findMatch(_heightOptions, c['height']);
     _aboutMeController.text = c['about_yourself']?.toString() ?? '';
 
+    // Education & Career
+    _highestQualification = _findMatch(_qualificationOptions, c['highest_qualification']) ?? c['highest_qualification']?.toString().trim();
+    if (_highestQualification != null && _highestQualification!.isNotEmpty && !_qualificationOptions.contains(_highestQualification)) {
+      _qualificationOptions.insert(0, _highestQualification!);
+    }
+    _collegeNameController.text = c['college_name']?.toString() ?? '';
+    _workingWith = _findMatch(_workingSectorOptions, c['working_with']);
+    _professionController.text = c['profession']?.toString() ?? '';
+    _designationController.text = c['designation']?.toString() ?? '';
+    _companyNameController.text = c['company_name']?.toString() ?? '';
+    _annualIncome = _findMatch(_incomeOptions, c['annual_income']);
+
+    // Family
     _fatherProfessionController.text = c['father_profession']?.toString() ?? '';
     _motherProfessionController.text = c['mother_profession']?.toString() ?? '';
     _familyLocationController.text = c['family_location']?.toString() ?? '';
     _brothersCount = int.tryParse(c['brothers_count']?.toString() ?? '0') ?? 0;
     _sistersCount = int.tryParse(c['sisters_count']?.toString() ?? '0') ?? 0;
+    _familyFinancialStatus = _findMatch(_financialStatuses, c['family_financial_status']);
+    _familyType = _findMatch(_familyTypes, c['family_type']);
 
-    final fin = c['family_financial_status']?.toString();
-    if (fin != null && _financialStatuses.contains(fin)) _familyFinancialStatus = fin;
-
-    final ft = c['family_type']?.toString();
-    if (ft != null && _familyTypes.contains(ft)) _familyType = ft;
-
-    final fv = c['family_values']?.toString();
-    if (fv != null && _familyValuesList.contains(fv)) _familyValues = fv;
-
-    final mg = c['manglik']?.toString();
-    if (mg != null && _manglikOptions.contains(mg)) _manglik = mg;
-
+    // Astro
+    _manglik = _findMatch(_manglikOptions, c['manglik']);
     _gothraController.text = c['gothra']?.toString() ?? '';
     _timeOfBirthController.text = c['time_of_birth']?.toString() ?? '';
     _cityOfBirthController.text = c['city_of_birth']?.toString() ?? '';
 
-    final d = c['diet']?.toString();
-    if (d != null && _diets.contains(d)) _diet = d;
-
-    final bg = c['blood_group']?.toString();
-    if (bg != null && _bloodGroups.contains(bg)) _bloodGroup = bg;
-
-    _weightController.text = c['weight']?.toString() ?? '';
+    // Lifestyle & Health (No Weight field)
+    _diet = _findMatch(_dietOptions, c['diet']);
+    _bloodGroup = _findMatch(_bloodGroups, c['blood_group']);
     _healthInfoController.text = c['health_info']?.toString() ?? '';
     _grewUpInController.text = c['grew_up_in']?.toString() ?? '';
 
-    _highestQualification = c['highest_qualification']?.toString() ?? 'Bachelor of Technology';
-    _collegeNameController.text = c['college_name']?.toString() ?? '';
+    // Location
+    _country = _findMatch(_countryOptions, c['country']) ?? 'India';
+    if (_country != null && !_countryOptions.contains(_country)) {
+      _countryOptions.insert(0, _country!);
+    }
 
-    final ww = c['working_with']?.toString();
-    if (ww != null && _workingSectors.contains(ww)) _workingWith = ww;
+    final initialStates = _availableStates;
+    _state = _findMatch(initialStates, c['state']) ?? c['state']?.toString().trim();
+    if (_state != null && _state!.isNotEmpty && !initialStates.contains(_state)) {
+      if (_country != null) {
+        _countryToStates[_country!] ??= [];
+        _countryToStates[_country!]!.insert(0, _state!);
+      }
+    }
 
-    _professionController.text = c['profession']?.toString() ?? '';
-    _designationController.text = c['designation']?.toString() ?? '';
-    _companyNameController.text = c['company_name']?.toString() ?? '';
+    final initialCities = _availableCities;
+    _city = _findMatch(initialCities, c['city']) ?? c['city']?.toString().trim();
+    if (_city != null && _city!.isNotEmpty && !initialCities.contains(_city)) {
+      if (_country != null && _state != null) {
+        _countryStateToCities[_country!] ??= {};
+        _countryStateToCities[_country!]![_state!] ??= [];
+        _countryStateToCities[_country!]![_state!]!.insert(0, _city!);
+      }
+    }
+    _cityTextController.text = _city ?? '';
 
-    final inc = c['annual_income']?.toString();
-    if (inc != null && _incomes.contains(inc)) _annualIncome = inc;
-
-    _cityController.text = c['city']?.toString() ?? '';
-    _stateController.text = c['state']?.toString() ?? '';
-    _countryController.text = c['country']?.toString() ?? 'India';
     _fullAddressController.text = c['full_address']?.toString() ?? '';
     _policeStController.text = c['police_st']?.toString() ?? '';
-    _pincodeController.text = c['pincode']?.toString() ?? '';
-
-    final res = c['residency_status']?.toString();
-    if (res != null && _residencyTypes.contains(res)) _residencyStatus = res;
+    _pincodeController.text = c['pincode']?.toString() ?? c['zip_code']?.toString() ?? '';
+    _residencyStatus = _findMatch(_residencyTypes, c['residency_status']) ?? 'Citizen';
   }
 
   @override
@@ -211,6 +533,7 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _dobController.dispose();
+    _subCommunityController.dispose();
     _aboutMeController.dispose();
     _fatherProfessionController.dispose();
     _motherProfessionController.dispose();
@@ -218,16 +541,13 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
     _gothraController.dispose();
     _timeOfBirthController.dispose();
     _cityOfBirthController.dispose();
-    _weightController.dispose();
     _healthInfoController.dispose();
     _grewUpInController.dispose();
     _collegeNameController.dispose();
     _professionController.dispose();
     _designationController.dispose();
     _companyNameController.dispose();
-    _cityController.dispose();
-    _stateController.dispose();
-    _countryController.dispose();
+    _cityTextController.dispose();
     _fullAddressController.dispose();
     _policeStController.dispose();
     _pincodeController.dispose();
@@ -244,62 +564,89 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
     setState(() => _isSaving = true);
     RaniMatrimonialLoader.show(context, message: 'Saving profile updates...');
 
-    final payload = {
-      'first_name': fn,
-      'last_name': _lastNameController.text.trim(),
-      'dob': _dobController.text.trim(),
-      'gender': _gender,
-      'marital_status': _maritalStatus,
-      'religion': _religion,
-      'community': _community,
-      'mother_tongue': _motherTongue,
-      'height': _height,
-      'about_yourself': _aboutMeController.text.trim(),
-      'father_profession': _fatherProfessionController.text.trim(),
-      'mother_profession': _motherProfessionController.text.trim(),
-      'family_location': _familyLocationController.text.trim(),
-      'brothers_count': _brothersCount.toString(),
-      'sisters_count': _sistersCount.toString(),
-      'family_financial_status': _familyFinancialStatus,
-      'family_type': _familyType,
-      'family_values': _familyValues,
-      'manglik': _manglik,
-      'gothra': _gothraController.text.trim(),
-      'time_of_birth': _timeOfBirthController.text.trim(),
-      'city_of_birth': _cityOfBirthController.text.trim(),
-      'diet': _diet,
-      'blood_group': _bloodGroup,
-      'weight': _weightController.text.trim(),
-      'health_info': _healthInfoController.text.trim(),
-      'grew_up_in': _grewUpInController.text.trim(),
-      'highest_qualification': _highestQualification,
-      'college_name': _collegeNameController.text.trim(),
-      'working_with': _workingWith,
-      'profession': _professionController.text.trim(),
-      'designation': _designationController.text.trim(),
-      'company_name': _companyNameController.text.trim(),
-      'annual_income': _annualIncome,
-      'city': _cityController.text.trim(),
-      'state': _stateController.text.trim(),
-      'country': _countryController.text.trim(),
-      'full_address': _fullAddressController.text.trim(),
-      'police_st': _policeStController.text.trim(),
-      'pincode': _pincodeController.text.trim(),
-      'residency_status': _residencyStatus,
+    final sectionsToUpdate = <String, Map<String, dynamic>>{
+      'basic': {
+        'first_name': fn,
+        'last_name': _lastNameController.text.trim(),
+        'dob': _dobController.text.trim(),
+        'gender': _gender,
+        if (_maritalStatus != null) 'marital_status': _maritalStatus,
+        if (_height != null) 'height': _height,
+        if (_diet != null) 'diet': _diet,
+        if (_bloodGroup != null) 'blood_group': _bloodGroup,
+        'health_info': _healthInfoController.text.trim(),
+        'grew_up_in': _grewUpInController.text.trim(),
+      },
+      'religious': {
+        if (_religion != null) 'religion': _religion,
+        if (_community != null) 'community': _community,
+        'sub_community': _subCommunityController.text.trim(),
+        if (_motherTongue != null) 'mother_tongue': _motherTongue,
+        'gothra': _gothraController.text.trim(),
+      },
+      'about': {
+        'about_yourself': _aboutMeController.text.trim(),
+      },
+      'education_career': {
+        if (_highestQualification != null) 'highest_qualification': _highestQualification,
+        'college_name': _collegeNameController.text.trim(),
+        if (_workingWith != null) 'working_with': _workingWith,
+        'profession': _professionController.text.trim(),
+        'designation': _designationController.text.trim(),
+        'company_name': _companyNameController.text.trim(),
+        if (_annualIncome != null) 'annual_income': _annualIncome,
+      },
+      'location': {
+        if (_country != null) 'country': _country,
+        if (_state != null) 'state': _state,
+        if (_city != null) 'city': _city,
+        'full_address': _fullAddressController.text.trim(),
+        'police_st': _policeStController.text.trim(),
+        'pincode': _pincodeController.text.trim(),
+        if (_residencyStatus != null) 'residency_status': _residencyStatus,
+      },
+      'family': {
+        'father_profession': _fatherProfessionController.text.trim(),
+        'mother_profession': _motherProfessionController.text.trim(),
+        'family_location': _familyLocationController.text.trim(),
+        'brothers_count': _brothersCount,
+        'sisters_count': _sistersCount,
+        if (_familyFinancialStatus != null) 'family_financial_status': _familyFinancialStatus,
+        if (_familyType != null) 'family_type': _familyType,
+      },
+      'astro': {
+        if (_manglik != null) 'manglik': _manglik,
+        'time_of_birth': _timeOfBirthController.text.trim(),
+        'city_of_birth': _cityOfBirthController.text.trim(),
+      },
     };
 
     try {
-      final res = await ApiService.instance.updateProfile('all', payload);
+      bool anySuccess = false;
+      String? firstError;
+
+      final results = await Future.wait(
+        sectionsToUpdate.entries.map((e) => ApiService.instance.updateProfile(e.key, e.value)),
+      );
+
+      for (final res in results) {
+        if (res['success'] == true) {
+          anySuccess = true;
+        } else if (firstError == null && res['message'] != null) {
+          firstError = res['message'].toString();
+        }
+      }
+
       if (!mounted) return;
       RaniMatrimonialLoader.hide(context);
       setState(() => _isSaving = false);
 
       if (mounted) {
-        if (res['success'] == true) {
+        if (anySuccess) {
           RaniAlert.success(context, 'Profile updated successfully!');
           Navigator.pop(context, true);
         } else {
-          RaniAlert.error(context, res['message'] ?? 'Failed to update profile.');
+          RaniAlert.error(context, firstError ?? 'Failed to update profile.');
         }
       }
     } catch (e) {
@@ -312,6 +659,10 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentStates = _availableStates;
+    final currentCities = _availableCities;
+    final currentCommunities = _availableCommunities;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
@@ -369,42 +720,76 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
                       label: 'Gender',
                       value: _gender,
                       items: _genders,
-                      onChanged: (v) => setState(() => _gender = v!),
+                      onChanged: (v) => setState(() => _gender = v ?? 'Female'),
                     ),
                     const SizedBox(height: 12),
                     _buildDropdown(
                       label: 'Marital Status',
                       value: _maritalStatus,
-                      items: _maritalStatuses,
-                      onChanged: (v) => setState(() => _maritalStatus = v!),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildDropdown(
-                      label: 'Religion',
-                      value: _religion,
-                      items: _religions,
-                      onChanged: (v) => setState(() => _religion = v!),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildDropdown(
-                      label: 'Mother Tongue',
-                      value: _motherTongue,
-                      items: _motherTongues,
-                      onChanged: (v) => setState(() => _motherTongue = v!),
+                      items: _maritalStatusOptions,
+                      hint: 'Select marital status',
+                      onChanged: (v) => setState(() => _maritalStatus = v),
                     ),
                     const SizedBox(height: 12),
                     _buildDropdown(
                       label: 'Height',
                       value: _height,
-                      items: _heights,
-                      onChanged: (v) => setState(() => _height = v!),
+                      items: _heightOptions,
+                      hint: 'Select height',
+                      onChanged: (v) => setState(() => _height = v),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 16),
 
-                // 2. About Myself
+                // 2. Religious & Cultural Background (Dependent Dropdown)
+                _buildCardSection(
+                  title: 'Religious & Cultural Background',
+                  icon: CupertinoIcons.book_fill,
+                  children: [
+                    _buildDropdown(
+                      label: 'Religion',
+                      value: _religion,
+                      items: _religionOptions,
+                      hint: 'Select religion',
+                      onChanged: (v) {
+                        setState(() {
+                          _religion = v;
+                          _community = null; // Reset community when religion changes
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDropdown(
+                      label: 'Community (Caste)',
+                      value: _community,
+                      items: currentCommunities,
+                      hint: _religion == null ? 'Select religion first' : 'Select community',
+                      onChanged: _religion == null ? null : (v) => setState(() => _community = v),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField(
+                      label: 'Sub-Community',
+                      controller: _subCommunityController,
+                      hint: 'e.g. Kulin, Rarhi, etc.',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDropdown(
+                      label: 'Mother Tongue',
+                      value: _motherTongue,
+                      items: _motherTongues,
+                      hint: 'Select mother tongue',
+                      onChanged: (v) => setState(() => _motherTongue = v),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField(label: 'Gothra', controller: _gothraController, hint: 'e.g. Sandilya, Kashyap, etc.'),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // 3. About Myself
                 _buildCardSection(
                   title: 'About Myself',
                   icon: CupertinoIcons.doc_text_fill,
@@ -413,47 +798,131 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
                       label: 'Express yourself in a few words',
                       controller: _aboutMeController,
                       maxLines: 4,
-                      hint: 'Describe your personality, hobbies, background and what partner you are seeking...',
+                      hint: 'Describe your personality, passions, family background and partner expectations...',
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 16),
 
-                // 3. Education & Career
+                // 4. Education & Career (Dropdowns from DB)
                 _buildCardSection(
                   title: 'Education & Career',
                   icon: CupertinoIcons.briefcase_fill,
                   children: [
-                    _buildTextField(label: 'Highest Qualification', controller: TextEditingController(text: _highestQualification)),
+                    _buildDropdown(
+                      label: 'Highest Qualification',
+                      value: _highestQualification,
+                      items: _qualificationOptions,
+                      hint: 'Select qualification',
+                      onChanged: (v) => setState(() => _highestQualification = v),
+                    ),
                     const SizedBox(height: 12),
                     _buildTextField(label: 'College / Institute Name', controller: _collegeNameController),
                     const SizedBox(height: 12),
                     _buildDropdown(
-                      label: 'Working With',
+                      label: 'Working Sector',
                       value: _workingWith,
-                      items: _workingSectors,
-                      onChanged: (v) => setState(() => _workingWith = v!),
+                      items: _workingSectorOptions,
+                      hint: 'Select working sector',
+                      onChanged: (v) => setState(() => _workingWith = v),
                     ),
                     const SizedBox(height: 12),
                     _buildTextField(label: 'Profession', controller: _professionController, hint: 'Software Engineer, Doctor, etc.'),
                     const SizedBox(height: 12),
-                    _buildTextField(label: 'Designation', controller: _designationController),
+                    _buildTextField(label: 'Designation / Role', controller: _designationController),
                     const SizedBox(height: 12),
                     _buildTextField(label: 'Company Name', controller: _companyNameController),
                     const SizedBox(height: 12),
                     _buildDropdown(
                       label: 'Annual Income',
                       value: _annualIncome,
-                      items: _incomes,
-                      onChanged: (v) => setState(() => _annualIncome = v!),
+                      items: _incomeOptions,
+                      hint: 'Select annual income',
+                      onChanged: (v) => setState(() => _annualIncome = v),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 16),
 
-                // 4. Family Background
+                // 5. Location & Address (Dependent Dropdowns: Country -> State -> City)
+                _buildCardSection(
+                  title: 'Location & Address',
+                  icon: CupertinoIcons.location_solid,
+                  children: [
+                    _buildDropdown(
+                      label: 'Country',
+                      value: _country,
+                      items: _countryOptions,
+                      hint: 'Select country',
+                      onChanged: (v) {
+                        setState(() {
+                          _country = v;
+                          _state = null;
+                          _city = null;
+                          _cityTextController.clear();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDropdown(
+                      label: 'State',
+                      value: _state,
+                      items: currentStates,
+                      hint: _country == null ? 'Select country first' : 'Select state',
+                      onChanged: _country == null
+                          ? null
+                          : (v) {
+                              setState(() {
+                                _state = v;
+                                _city = null;
+                                _cityTextController.clear();
+                              });
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    if (currentCities.isNotEmpty)
+                      _buildDropdown(
+                        label: 'City',
+                        value: _city,
+                        items: currentCities,
+                        hint: _state == null ? 'Select state first' : 'Select city',
+                        onChanged: _state == null
+                            ? null
+                            : (v) {
+                                setState(() {
+                                  _city = v;
+                                  if (v != null) _cityTextController.text = v;
+                                });
+                              },
+                      )
+                    else
+                      _buildTextField(
+                        label: 'City',
+                        controller: _cityTextController,
+                        hint: _state == null ? 'Select state first' : 'Enter city name',
+                      ),
+                    const SizedBox(height: 12),
+                    _buildDropdown(
+                      label: 'Residency Status',
+                      value: _residencyStatus,
+                      items: _residencyTypes,
+                      hint: 'Select residency status',
+                      onChanged: (v) => setState(() => _residencyStatus = v),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField(label: 'Pincode / Zip Code', controller: _pincodeController, keyboardType: TextInputType.number),
+                    const SizedBox(height: 12),
+                    _buildTextField(label: 'Police Station', controller: _policeStController),
+                    const SizedBox(height: 12),
+                    _buildTextField(label: 'Full Residential Address', controller: _fullAddressController, maxLines: 2),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // 6. Family Background
                 _buildCardSection(
                   title: 'Family Background',
                   icon: CupertinoIcons.person_3_fill,
@@ -488,33 +957,34 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
                       label: 'Financial Status',
                       value: _familyFinancialStatus,
                       items: _financialStatuses,
-                      onChanged: (v) => setState(() => _familyFinancialStatus = v!),
+                      hint: 'Select financial status',
+                      onChanged: (v) => setState(() => _familyFinancialStatus = v),
                     ),
                     const SizedBox(height: 12),
                     _buildDropdown(
                       label: 'Family Type',
                       value: _familyType,
                       items: _familyTypes,
-                      onChanged: (v) => setState(() => _familyType = v!),
+                      hint: 'Select family type',
+                      onChanged: (v) => setState(() => _familyType = v),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 16),
 
-                // 5. Horoscope & Astro
+                // 7. Horoscope & Astro Details
                 _buildCardSection(
-                  title: 'Horoscope & Astro',
+                  title: 'Horoscope & Astro Details',
                   icon: CupertinoIcons.sparkles,
                   children: [
                     _buildDropdown(
                       label: 'Manglik Status',
                       value: _manglik,
                       items: _manglikOptions,
-                      onChanged: (v) => setState(() => _manglik = v!),
+                      hint: 'Select manglik status',
+                      onChanged: (v) => setState(() => _manglik = v),
                     ),
-                    const SizedBox(height: 12),
-                    _buildTextField(label: 'Gothra', controller: _gothraController),
                     const SizedBox(height: 12),
                     _buildTextField(label: 'Time of Birth', controller: _timeOfBirthController, hint: '10:30 AM'),
                     const SizedBox(height: 12),
@@ -524,7 +994,7 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
 
                 const SizedBox(height: 16),
 
-                // 6. Lifestyle & Health
+                // 8. Lifestyle & Health (Weight removed per DB structure)
                 _buildCardSection(
                   title: 'Lifestyle & Health',
                   icon: CupertinoIcons.heart_fill,
@@ -532,41 +1002,26 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
                     _buildDropdown(
                       label: 'Diet Preference',
                       value: _diet,
-                      items: _diets,
-                      onChanged: (v) => setState(() => _diet = v!),
+                      items: _dietOptions,
+                      hint: 'Select diet',
+                      onChanged: (v) => setState(() => _diet = v),
                     ),
                     const SizedBox(height: 12),
                     _buildDropdown(
                       label: 'Blood Group',
                       value: _bloodGroup,
                       items: _bloodGroups,
-                      onChanged: (v) => setState(() => _bloodGroup = v!),
+                      hint: 'Select blood group',
+                      onChanged: (v) => setState(() => _bloodGroup = v),
                     ),
                     const SizedBox(height: 12),
-                    _buildTextField(label: 'Weight (kg)', controller: _weightController, keyboardType: TextInputType.number),
+                    _buildTextField(
+                      label: 'Health Info',
+                      controller: _healthInfoController,
+                      hint: 'Normal / Any health conditions',
+                    ),
                     const SizedBox(height: 12),
                     _buildTextField(label: 'Grew Up In', controller: _grewUpInController, hint: 'Kolkata, Mumbai, etc.'),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // 7. Location & Address
-                _buildCardSection(
-                  title: 'Location & Address',
-                  icon: CupertinoIcons.location_solid,
-                  children: [
-                    _buildTextField(label: 'City', controller: _cityController),
-                    const SizedBox(height: 12),
-                    _buildTextField(label: 'State', controller: _stateController),
-                    const SizedBox(height: 12),
-                    _buildTextField(label: 'Country', controller: _countryController),
-                    const SizedBox(height: 12),
-                    _buildTextField(label: 'Full Residential Address', controller: _fullAddressController, maxLines: 2),
-                    const SizedBox(height: 12),
-                    _buildTextField(label: 'Police Station', controller: _policeStController),
-                    const SizedBox(height: 12),
-                    _buildTextField(label: 'Pincode', controller: _pincodeController, keyboardType: TextInputType.number),
                   ],
                 ),
 
@@ -695,10 +1150,13 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
 
   Widget _buildDropdown({
     required String label,
-    required String value,
+    required String? value,
     required List<String> items,
-    required ValueChanged<String?> onChanged,
+    String hint = 'Select',
+    required ValueChanged<String?>? onChanged,
   }) {
+    final effectiveValue = items.contains(value) ? value : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -714,21 +1172,33 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFAF7F2),
+            color: onChanged == null ? const Color(0xFFF5F0E8) : const Color(0xFFFAF7F2),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFFE8DFD5)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: items.contains(value) ? value : items.first,
+              value: effectiveValue,
               isExpanded: true,
-              icon: const Icon(CupertinoIcons.chevron_down, size: 16, color: Color(0xFF750000)),
+              hint: Text(
+                hint,
+                style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF9E9E9E)),
+                overflow: TextOverflow.ellipsis,
+              ),
+              icon: Icon(
+                CupertinoIcons.chevron_down,
+                size: 16,
+                color: onChanged == null ? Colors.grey : const Color(0xFF750000),
+              ),
               style: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFF1E1E1E)),
               onChanged: onChanged,
               items: items.map((item) {
                 return DropdownMenuItem<String>(
                   value: item,
-                  child: Text(item),
+                  child: Text(
+                    item,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 );
               }).toList(),
             ),

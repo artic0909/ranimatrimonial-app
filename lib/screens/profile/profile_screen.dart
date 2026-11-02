@@ -273,29 +273,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
   }
 
   int _calculateCompleteness(Map<String, dynamic> c) {
-    final fields = [
-      c['first_name'],
-      c['last_name'],
-      c['dob'],
-      c['gender'],
-      c['religion'],
-      c['community'],
-      c['mother_tongue'],
-      c['city'],
-      c['state'],
-      c['highest_qualification'],
-      c['profession'],
-      c['annual_income'],
-      c['height'],
-      c['marital_status'],
-      c['diet'],
-      c['about_yourself'],
-      c['profile_picture'],
-    ];
-
-    final filled = fields.where((f) => f != null && f.toString().trim().isNotEmpty).length;
-    final pct = ((filled / fields.length) * 100).round();
-    return pct.clamp(40, 100);
+    return ApiService.calculateProfileCompleteness(c);
   }
 
   @override
@@ -476,11 +454,6 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
             icon: const Icon(CupertinoIcons.square_pencil, color: Color(0xFF750000)),
             tooltip: 'Edit Profile',
             onPressed: _openEditProfile,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.grey),
-            tooltip: 'Log Out',
-            onPressed: _showLogoutDialog,
           ),
         ],
       ),

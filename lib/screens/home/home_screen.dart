@@ -54,7 +54,6 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
   // Cached candidate profile data & bluetick verification
   Map<String, dynamic>? _candidate;
   Map<String, dynamic>? _bluetick;
-  int? _profileCompleteness;
 
   @override
   void initState() {
@@ -100,9 +99,6 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
           if (_bluetick == null && data['bluetick'] != null) {
             _bluetick = data['bluetick'] as Map<String, dynamic>?;
           }
-          if (data['metrics']?['profile_completeness'] != null) {
-            _profileCompleteness = (data['metrics']['profile_completeness'] as num).toInt();
-          }
         }
       } catch (_) {}
 
@@ -132,24 +128,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
   }
 
   int _calculateCompletionPercentage(Map<String, dynamic>? candidate) {
-    if (candidate == null) return 60;
-    if (candidate['profile_completed'] != null) {
-      final val = candidate['profile_completed'];
-      if (val is num) return val.toInt();
-    }
-    if (candidate['completion_percentage'] != null) {
-      final val = candidate['completion_percentage'];
-      if (val is num) return val.toInt();
-    }
-
-    int score = 40; // Base from initial registration
-    if ((candidate['profile_picture'] ?? '').toString().isNotEmpty) score += 15;
-    if ((candidate['about_me'] ?? candidate['about'] ?? '').toString().isNotEmpty) score += 10;
-    if ((candidate['highest_qualification'] ?? candidate['education'] ?? '').toString().isNotEmpty) score += 10;
-    if ((candidate['profession'] ?? candidate['designation'] ?? '').toString().isNotEmpty) score += 10;
-    if ((candidate['father_profession'] ?? '').toString().isNotEmpty) score += 5;
-    if (candidate['verified'] == true || candidate['aadhaar_verified'] == true) score += 10;
-    return score.clamp(0, 100);
+    return ApiService.calculateProfileCompleteness(candidate);
   }
 
   String _getShortCandidateName(Map<String, dynamic>? candidate) {
@@ -340,8 +319,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
   Widget build(BuildContext context) {
     final candidate = _candidate ?? ApiService.instance.candidate;
     final shortName = _getShortCandidateName(candidate);
-    final calculatedPercent = _calculateCompletionPercentage(candidate);
-    final completionPercent = _profileCompleteness ?? calculatedPercent;
+    final completionPercent = _calculateCompletionPercentage(candidate);
     final isBluetickVerified = candidate?['is_bluetick_verified'] == true ||
         candidate?['verified'] == true ||
         candidate?['aadhaar_verified'] == true ||

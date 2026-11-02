@@ -22,6 +22,42 @@ class ApiService {
   Map<String, dynamic>? get candidate => _candidate;
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
 
+  /// Accurate profile completeness percentage calculation (shared across Home & Profile screens)
+  static int calculateProfileCompleteness(Map<String, dynamic>? candidate) {
+    if (candidate == null) return 40;
+
+    final criticalFields = [
+      candidate['first_name'],
+      candidate['last_name'],
+      candidate['dob'],
+      candidate['gender'],
+      candidate['religion'],
+      candidate['community'],
+      candidate['city'],
+      candidate['state'],
+      candidate['highest_qualification'],
+      candidate['profession'],
+      candidate['annual_income'],
+      candidate['about_yourself'] ?? candidate['about_me'] ?? candidate['about'],
+      candidate['profile_picture'] ?? candidate['profile_picture_url'] ?? candidate['photo'],
+      candidate['marital_status'],
+      candidate['height'],
+      candidate['diet'],
+    ];
+
+    int filledCount = 0;
+    for (final f in criticalFields) {
+      if (f == null) continue;
+      final str = f.toString().trim();
+      if (str.isNotEmpty && str != '-' && str != 'null') {
+        filledCount++;
+      }
+    }
+
+    final pct = ((filledCount / criticalFields.length) * 100).round();
+    return pct.clamp(20, 100);
+  }
+
   /// Initialize and load saved session from local SharedPreferences
   Future<void> init() async {
     try {

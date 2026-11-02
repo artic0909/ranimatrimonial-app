@@ -413,13 +413,6 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _scaffoldKey.currentState?.openDrawer();
           },
           onNotificationPressed: _openNotificationsSheet,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Color(0xFF750000), size: 22),
-              tooltip: 'Log Out',
-              onPressed: _showLogoutConfirmDialog,
-            ),
-          ],
         );
 
       default:
