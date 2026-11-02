@@ -8,7 +8,6 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
-import '../../components/rani_image_cropper_modal.dart';
 
 /// Screen: Candidate Gallery Photos & Profile Picture Management
 /// Matches website's my_photos.blade.php
@@ -121,6 +120,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     }
   }
 
+  /// Directly upload without cropping
   Future<void> _pickAndUploadPhoto() async {
     showModalBottomSheet(
       context: context,
@@ -147,9 +147,9 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                   final perm = await Permission.camera.request();
                   if (perm.isGranted) {
                     final picker = ImagePicker();
-                    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 90);
+                    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
                     if (picked != null) {
-                      _processNewPhoto(File(picked.path));
+                      _uploadPhotosDirectly([File(picked.path)]);
                     }
                   } else {
                     if (mounted) {
@@ -164,9 +164,16 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                 onTap: () async {
                   Navigator.pop(ctx);
                   final picker = ImagePicker();
-                  final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-                  if (picked != null) {
-                    _processNewPhoto(File(picked.path));
+                  try {
+                    final pickedList = await picker.pickMultiImage(imageQuality: 85);
+                    if (pickedList.isNotEmpty) {
+                      _uploadPhotosDirectly(pickedList.map((x) => File(x.path)).toList());
+                      return;
+                    }
+                  } catch (_) {}
+                  final single = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                  if (single != null) {
+                    _uploadPhotosDirectly([File(single.path)]);
                   }
                 },
               ),
@@ -177,29 +184,26 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     );
   }
 
-  Future<void> _processNewPhoto(File file) async {
-    final cropped = await RaniImageCropperModal.show(
-      context,
-      imageFile: file,
-      title: 'Adjust Gallery Photo',
-      isCircle: false,
-    );
-
-    if (cropped == null) return;
+  /// Direct upload to backend API (No photo cropping needed)
+  Future<void> _uploadPhotosDirectly(List<File> files) async {
+    if (files.isEmpty) return;
     if (!mounted) return;
 
-    RaniMatrimonialLoader.show(context, message: 'Uploading photo...');
+    RaniMatrimonialLoader.show(
+      context,
+      message: files.length > 1 ? 'Uploading ${files.length} photos...' : 'Uploading photo...',
+    );
 
     try {
-      final res = await ApiService.instance.uploadGalleryPhotos([cropped]);
+      final res = await ApiService.instance.uploadGalleryPhotos(files);
       if (!mounted) return;
       RaniMatrimonialLoader.hide(context);
 
       if (res['success'] == true) {
-        RaniAlert.success(context, 'Photo added to gallery successfully!');
+        RaniAlert.success(context, res['message'] ?? 'Photo(s) added to gallery successfully!');
         _loadPhotos();
       } else {
-        RaniAlert.error(context, res['message'] ?? 'Failed to upload photo.');
+        RaniAlert.error(context, res['message'] ?? 'Failed to upload photo(s).');
       }
     } catch (e) {
       if (!mounted) return;
@@ -310,11 +314,13 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Add Photos to Profile',
                   style: GoogleFonts.outfit(fontSize: 15.5, fontWeight: FontWeight.w700),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   'Profiles with 3+ photos get 80% more interest and matches.',
                   style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF6E6E6E)),
@@ -385,9 +391,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     );
   }
 
-  Widget _buildPhotoCard(int index) {
-    if (index >= _photos.length) return const SizedBox.shrink();
-    final item = _photos[index];
+  Widget _buildPhotoCard(dynamic item, int index) {
     dynamic photoId;
     bool isProfile = false;
     String rawUrl = '';
@@ -407,118 +411,121 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
 
     final url = _formatPhotoUrl(rawUrl);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isProfile ? const Color(0xFFE5B842) : const Color(0xFFEFE8DE),
-          width: isProfile ? 2.2 : 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+    return AspectRatio(
+      aspectRatio: 0.78,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isProfile ? const Color(0xFFE5B842) : const Color(0xFFEFE8DE),
+            width: isProfile ? 2.2 : 1.0,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (url.isNotEmpty)
-              Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (url.isNotEmpty)
+                Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: const Color(0xFFF5EFEB),
+                    child: const Center(
+                      child: Icon(Icons.broken_image, color: Colors.grey, size: 32),
+                    ),
+                  ),
+                )
+              else
+                Container(
                   color: const Color(0xFFF5EFEB),
                   child: const Center(
-                    child: Icon(Icons.broken_image, color: Colors.grey, size: 32),
+                    child: Icon(Icons.photo_outlined, color: Colors.grey, size: 32),
                   ),
                 ),
-              )
-            else
-              Container(
-                color: const Color(0xFFF5EFEB),
-                child: const Center(
-                  child: Icon(Icons.photo_outlined, color: Colors.grey, size: 32),
-                ),
-              ),
 
-            // Profile Badge
-            if (isProfile)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF750000),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.star, size: 12, color: Color(0xFFE5B842)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Profile',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            // Delete Button
-            if (photoId != 'profile_main')
-              Positioned(
-                top: 8,
-                right: 8,
-                child: GestureDetector(
-                  onTap: () => _deletePhoto(photoId),
+              // Profile Badge
+              if (isProfile)
+                Positioned(
+                  top: 8,
+                  left: 8,
                   child: Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      shape: BoxShape.circle,
+                      color: const Color(0xFF750000),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
+                      ],
                     ),
-                    child: const Icon(CupertinoIcons.trash, size: 14, color: Colors.white),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, size: 12, color: Color(0xFFE5B842)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Profile',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-            // Bottom "Set as Profile" Button
-            if (!isProfile)
-              Positioned(
-                bottom: 8,
-                left: 8,
-                right: 8,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withValues(alpha: 0.95),
-                    foregroundColor: const Color(0xFF750000),
-                    elevation: 2,
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => _setAsProfile(photoId),
-                  child: Text(
-                    'Set as Profile',
-                    style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+              // Delete Button
+              if (photoId != 'profile_main')
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () => _deletePhoto(photoId),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(CupertinoIcons.trash, size: 14, color: Colors.white),
+                    ),
                   ),
                 ),
-              ),
-          ],
+
+              // Bottom "Set as Profile" Button
+              if (!isProfile)
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.95),
+                      foregroundColor: const Color(0xFF750000),
+                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => _setAsProfile(photoId),
+                    child: Text(
+                      'Set as Profile',
+                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -550,6 +557,12 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Group photos into pairs for 2-column layout in ListView
+    final photoRows = <List<dynamic>>[];
+    for (var i = 0; i < _photos.length; i += 2) {
+      photoRows.add(_photos.sublist(i, (i + 2 > _photos.length) ? _photos.length : i + 2));
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
@@ -576,74 +589,73 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
           : RefreshIndicator(
               color: const Color(0xFF750000),
               onRefresh: _loadPhotos,
-              child: CustomScrollView(
+              child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    sliver: SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 1. Add Photo Banner
-                          _buildAddPhotoBanner(),
-                          const SizedBox(height: 22),
-                          // 2. Section Header
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'My Photos (${_photos.length})',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF1E1E1E),
-                                ),
-                              ),
-                              if (_photos.isNotEmpty)
-                                TextButton.icon(
-                                  onPressed: _pickAndUploadPhoto,
-                                  icon: const Icon(Icons.add, size: 16, color: Color(0xFF750000)),
-                                  label: Text(
-                                    'Add More',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF750000),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: [
+                  // 1. Add Photo Banner
+                  _buildAddPhotoBanner(),
+                  const SizedBox(height: 22),
+
+                  // 2. Section Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'My Photos (${_photos.length})',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1E1E1E),
+                        ),
+                      ),
+                      if (_photos.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: _pickAndUploadPhoto,
+                          icon: const Icon(Icons.add, size: 16, color: Color(0xFF750000)),
+                          label: Text(
+                            'Add More',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF750000),
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          if (_photos.isEmpty)
-                            _buildEmptyState(),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_photos.isNotEmpty)
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.78,
                         ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => _buildPhotoCard(index),
-                          childCount: _photos.length,
-                        ),
-                      ),
-                    ),
-                  SliverPadding(
-                    padding: const EdgeInsets.all(16),
-                    sliver: SliverToBoxAdapter(
-                      child: _buildPhotoTipsBox(),
-                    ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+
+                  // 3. Photo Content or Empty State
+                  if (_photos.isEmpty)
+                    _buildEmptyState()
+                  else
+                    ...photoRows.asMap().entries.map((entry) {
+                      final rowIndex = entry.key;
+                      final rowItems = entry.value;
+                      final item1 = rowItems[0];
+                      final item2 = rowItems.length > 1 ? rowItems[1] : null;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            Expanded(child: _buildPhotoCard(item1, rowIndex * 2)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: item2 != null
+                                  ? _buildPhotoCard(item2, rowIndex * 2 + 1)
+                                  : const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                  const SizedBox(height: 14),
+
+                  // 4. Photo Tips Box
+                  _buildPhotoTipsBox(),
                 ],
               ),
             ),
