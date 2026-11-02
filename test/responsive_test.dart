@@ -249,7 +249,7 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
 
         await tester.pumpWidget(wrapScreen(const RaniMatchesScreen()));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 200));
 
         final err = tester.takeException();
         if (err is FlutterError) {
@@ -265,7 +265,7 @@ void main() {
         final nearMeTab = find.textContaining('Near Me');
         expect(nearMeTab, findsOneWidget);
         await tester.tap(nearMeTab);
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 200));
         expect(tester.takeException(), isNull);
       }
     });

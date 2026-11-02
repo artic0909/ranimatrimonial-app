@@ -590,6 +590,7 @@ class ApiService {
 
   /// Fetch candidate matches by tab ('all', 'new', 'shortlisted', 'connected', etc.)
   Future<Map<String, dynamic>> getMatches({String tab = 'all', int page = 1}) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches?tab=$tab&page=$page');
     final response = await http.get(uri, headers: _headers);
     return _processResponse(response);

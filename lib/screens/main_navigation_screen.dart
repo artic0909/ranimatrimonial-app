@@ -146,11 +146,10 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         final unreadCount = validNotifs.where((n) => n['is_new'] == true || n['is_read'] == false).length;
 
         final matchesLen = _toInt(
-          data['metrics']?['new_matches_count'] ??
-              data['metrics']?['total_matches_count'] ??
-              data['newMatchesCount'] ??
+          data['metrics']?['total_matches_count'] ??
+              data['metrics']?['new_matches_count'] ??
               data['totalMatchesCount'] ??
-              (data['matches'] as List?)?.length,
+              data['newMatchesCount'],
         );
 
         final pendingInvitations = _toInt(
@@ -178,7 +177,8 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           int count = 0;
           if (matchesRes['counts'] is Map) {
             final c = matchesRes['counts'] as Map;
-            count = _toInt(c['todays'] ?? c['my_matches'] ?? c['new']);
+            // Prefer total new / my_matches count over subset today's picks
+            count = _toInt(c['new'] ?? c['my_matches'] ?? c['all'] ?? c['todays']);
           }
           if (count == 0 && matchesRes['matches'] is List) {
             count = (matchesRes['matches'] as List).length;

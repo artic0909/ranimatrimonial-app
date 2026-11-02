@@ -123,6 +123,9 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
       if (rawList == null && res['data'] is List) {
         rawList = res['data'];
       }
+      if (rawList is Map && rawList['data'] is List) {
+        rawList = rawList['data'];
+      }
 
       List<dynamic>? list;
       if (rawList is List) {
@@ -144,6 +147,8 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
         final cand = ApiService.instance.candidate;
         final profilePic = res['data']?['profile_picture_url'] ??
             res['data']?['profile_picture'] ??
+            res['profile_picture_url'] ??
+            res['profile_picture'] ??
             cand?['profile_picture_url'] ??
             cand?['profile_picture'] ??
             cand?['photo'];
@@ -960,8 +965,20 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 3. Photo Content or Empty State
-          if (_photos.isEmpty)
+          // 3. Photo Content or Empty State / Loading State
+          if (_isLoading && _photos.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              alignment: Alignment.center,
+              child: const Column(
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF750000)),
+                  SizedBox(height: 12),
+                  Text('Loading gallery photos...', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
+              ),
+            )
+          else if (_photos.isEmpty)
             _buildEmptyState()
           else
             ...photoRows.asMap().entries.map((entry) {
@@ -1021,13 +1038,9 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
           // Sub-tabs: Photos & Privacy Settings (matching website)
           _buildSubTabs(),
 
-          // Body Content
+          // Body Content (Always renders immediately - never leaves blank space)
           Expanded(
-            child: _isLoading && _photos.isEmpty
-                ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF750000)),
-                  )
-                : (_activeTab == 'photo' ? _buildPhotoTab() : _buildSettingsTab()),
+            child: _activeTab == 'photo' ? _buildPhotoTab() : _buildSettingsTab(),
           ),
         ],
       ),
