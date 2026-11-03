@@ -15,17 +15,18 @@ import '../search/search_screen.dart';
 /// - Top bar: Hamburger/Menu, "Matches", Notification Bell
 /// - Horizontal Filter Pills: Search, New (61), Daily (18), All Matches
 /// - Immersive vertical profile match card:
-///   - Candidate photo with photo counter badge (📷 1) & 3-dot options
+///   - Candidate photo with photo counter badge ( 1) & 3-dot options
 ///   - Name, Age, Blue Tick verified badge (e.g. Sumaiya K, 26 ✔)
 ///   - Height • Religion/Caste • Profession (e.g. 5' 1" • Sunni • Teacher)
 ///   - Location (e.g. Midnapore, West Bengal)
-///   - Activity badges: 🟢 20h ago, 👥 You & Her
+///   - Activity badges:  20h ago,  You & Her
 ///   - Bottom Royal Action Bar: "Like this Profile? Connect Now" + Large Circular Green Checkmark Button
 class RaniMatchesScreen extends StatefulWidget {
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenNotifications;
   final ValueChanged<int>? onMatchesCountChanged;
   final bool showAppBar;
+  final String initialTab;
 
   const RaniMatchesScreen({
     super.key,
@@ -33,6 +34,7 @@ class RaniMatchesScreen extends StatefulWidget {
     this.onOpenNotifications,
     this.onMatchesCountChanged,
     this.showAppBar = true,
+    this.initialTab = 'new',
   });
 
   @override
@@ -40,7 +42,7 @@ class RaniMatchesScreen extends StatefulWidget {
 }
 
 class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
-  String _selectedTab = 'new'; // 'new', 'near_me', 'accepted', 'shortlisted'
+  late String _selectedTab; // 'new', 'near_me', 'accepted', 'shortlisted'
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -61,6 +63,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialTab;
     _fetchMatches();
 
     // Listen to PageView vertical scroll to load next 10 items
