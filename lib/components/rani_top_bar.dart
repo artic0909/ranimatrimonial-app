@@ -20,6 +20,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final Color backgroundColor;
   final PreferredSizeWidget? bottom;
+  final double? leadingWidth;
 
   const RaniTopBar({
     super.key,
@@ -33,6 +34,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.backgroundColor = const Color(0xFFFAF7F2),
     this.bottom,
+    this.leadingWidth,
   });
 
   @override
@@ -47,6 +49,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
       surfaceTintColor: Colors.transparent,
       shape: const Border(), // Explicitly removes bottom border line
       centerTitle: true,
+      leadingWidth: leadingWidth,
       leading: showLeading
           ? (leading ??
               IconButton(

@@ -40,8 +40,21 @@ class ApiService {
       }
       return urlStr;
     }
+    if (urlStr.startsWith('data:image')) {
+      return urlStr;
+    }
     final serverBase = baseUrl.replaceAll('/api', '');
-    return '$serverBase/storage/${urlStr.replaceFirst(RegExp(r'^/?(storage/)?'), '')}';
+    final cleanPath = urlStr.replaceFirst(RegExp(r'^/+'), '');
+    if (cleanPath.startsWith('img/') ||
+        cleanPath.startsWith('assets/') ||
+        cleanPath.startsWith('static/') ||
+        cleanPath == 'logo.png') {
+      return '$serverBase/$cleanPath';
+    }
+    if (cleanPath.startsWith('storage/')) {
+      return '$serverBase/$cleanPath';
+    }
+    return '$serverBase/storage/$cleanPath';
   }
 
   /// Accurate profile completeness percentage calculation (shared across Home & Profile screens)

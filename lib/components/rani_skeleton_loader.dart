@@ -963,3 +963,97 @@ class RaniSkeletonCandidateList extends StatelessWidget {
   }
 }
 
+/// Dedicated Content-Wise Skeleton for the Search Screen Candidate List View
+class RaniSkeletonSearchList extends StatelessWidget {
+  final int itemCount;
+
+  const RaniSkeletonSearchList({
+    super.key,
+    this.itemCount = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RaniSkeletonShimmer(
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        itemCount: itemCount,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFEFE8DE)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.035),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Photo Placeholder (100x120)
+                    Container(
+                      width: 100,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE4DDD2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Right Content Placeholder
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: const [
+                              RaniSkeletonBox(width: 110, height: 16, borderRadius: 4),
+                              RaniSkeletonBox(width: 32, height: 32, borderRadius: 16),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const RaniSkeletonBox(width: 70, height: 12, borderRadius: 4),
+                          const SizedBox(height: 6),
+                          const RaniSkeletonBox(width: 130, height: 11, borderRadius: 4),
+                          const SizedBox(height: 5),
+                          const RaniSkeletonBox(width: 100, height: 11, borderRadius: 4),
+                          const SizedBox(height: 5),
+                          const RaniSkeletonBox(width: 120, height: 11, borderRadius: 4),
+                          const SizedBox(height: 5),
+                          const RaniSkeletonBox(width: 85, height: 11, borderRadius: 4),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Full-width Button Placeholder
+                Container(
+                  width: double.infinity,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF750000).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+

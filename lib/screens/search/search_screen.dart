@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_skeleton_loader.dart';
-import '../profile_detail_screen.dart';
+import '../../components/rani_top_bar.dart';
+import '../../components/rani_sidebar_drawer.dart';
+import 'details_screen.dart';
 
 /// Screen: Candidate Search & Dynamic Filter
 /// Complete 100% feature-parity with website search.blade.php
@@ -104,6 +106,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
   int _totalCount = 0;
   String? _errorMessage;
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _hasAutoOpenedFilter = false;
+
   @override
   void initState() {
     super.initState();
@@ -111,6 +116,14 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
       _applyInitialFilters(widget.initialFilters!);
     }
     _loadSearchOptions();
+
+    // Automatically open full screen filter modal on screen entry
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasAutoOpenedFilter) {
+        _hasAutoOpenedFilter = true;
+        _openFullScreenFilterModal();
+      }
+    });
   }
 
   void _applyInitialFilters(Map<String, dynamic> f) {
@@ -312,57 +325,51 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
     return count;
   }
 
-  void _onReligionSelected(String rel) {
-    setState(() {
-      _religion = rel;
-      _community = 'all';
-      _availableCommunities = [];
-      if (rel != 'all') {
-        final found = _religions.firstWhere(
-          (r) => r['name'] == rel,
-          orElse: () => null,
-        );
-        if (found != null && found['communities'] != null) {
-          _availableCommunities = found['communities'];
-        }
+  void _applyReligionSelection(String rel) {
+    _religion = rel;
+    _community = 'all';
+    _availableCommunities = [];
+    if (rel != 'all') {
+      final found = _religions.firstWhere(
+        (r) => r is Map && (r['name']?.toString() == rel || r['title']?.toString() == rel),
+        orElse: () => null,
+      );
+      if (found != null && found['communities'] is List) {
+        _availableCommunities = found['communities'];
       }
-    });
+    }
   }
 
-  void _onCountrySelected(String countryName) {
-    setState(() {
-      _country = countryName;
-      _state = 'all';
-      _city = 'all';
-      _availableStates = [];
-      _availableCities = [];
-      if (countryName != 'all') {
-        final found = _countries.firstWhere(
-          (c) => c['name'] == countryName,
-          orElse: () => null,
-        );
-        if (found != null && found['states'] != null) {
-          _availableStates = found['states'];
-        }
+  void _applyCountrySelection(String countryName) {
+    _country = countryName;
+    _state = 'all';
+    _city = 'all';
+    _availableStates = [];
+    _availableCities = [];
+    if (countryName != 'all') {
+      final found = _countries.firstWhere(
+        (c) => c is Map && (c['name']?.toString() == countryName || c['title']?.toString() == countryName),
+        orElse: () => null,
+      );
+      if (found != null && found['states'] is List) {
+        _availableStates = found['states'];
       }
-    });
+    }
   }
 
-  void _onStateSelected(String stateName) {
-    setState(() {
-      _state = stateName;
-      _city = 'all';
-      _availableCities = [];
-      if (stateName != 'all') {
-        final found = _availableStates.firstWhere(
-          (s) => s['name'] == stateName,
-          orElse: () => null,
-        );
-        if (found != null && found['cities'] != null) {
-          _availableCities = found['cities'];
-        }
+  void _applyStateSelection(String stateName) {
+    _state = stateName;
+    _city = 'all';
+    _availableCities = [];
+    if (stateName != 'all') {
+      final found = _availableStates.firstWhere(
+        (s) => s is Map && (s['name']?.toString() == stateName || s['title']?.toString() == stateName),
+        orElse: () => null,
+      );
+      if (found != null && found['cities'] is List) {
+        _availableCities = found['cities'];
       }
-    });
+    }
   }
 
   Future<void> _toggleShortlist(String profileId, String name, int index) async {
@@ -391,19 +398,18 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const RaniSidebarDrawer(),
       backgroundColor: const Color(0xFFFAF7F2),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFAF7F2),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          'Search Profiles',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF2B0A0D),
-          ),
+      appBar: RaniTopBar(
+        title: 'Search Profiles',
+        leading: IconButton(
+          icon: const Icon(CupertinoIcons.line_horizontal_3, size: 23, color: Color(0xFF1E1E1E)),
+          tooltip: 'Menu',
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
+        onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, 3),
         actions: [
           // Filter Button with Badge
           Stack(
@@ -412,7 +418,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
               IconButton(
                 icon: const Icon(CupertinoIcons.slider_horizontal_3, color: Color(0xFF750000), size: 22),
                 tooltip: 'Open Advanced Filters',
-                onPressed: _openFilterBottomSheet,
+                onPressed: _openFullScreenFilterModal,
               ),
               if (_activeFiltersCount > 0)
                 Positioned(
@@ -421,7 +427,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFD4A034),
+                      color: Color(0xFFE5B842),
                       shape: BoxShape.circle,
                     ),
                     constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
@@ -431,21 +437,29 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                       style: GoogleFonts.outfit(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: Colors.black,
+                        color: const Color(0xFF750000),
                       ),
                     ),
                   ),
                 ),
             ],
           ),
-          // Reset button
-          if (_activeFiltersCount > 0)
-            IconButton(
-              icon: const Icon(CupertinoIcons.arrow_counterclockwise, color: Color(0xFF750000), size: 20),
-              tooltip: 'Reset All',
-              onPressed: _resetAllFilters,
-            ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF750000),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        onPressed: _openFullScreenFilterModal,
+        icon: const Icon(CupertinoIcons.slider_horizontal_3, size: 18, color: Color(0xFFE5B842)),
+        label: Text(
+          _activeFiltersCount > 0 ? 'Filters ($_activeFiltersCount)' : 'Filters',
+          style: GoogleFonts.outfit(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Column(
@@ -491,173 +505,23 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
               ),
             ),
 
-            // 2. Quick Presets Bar (Brides, Grooms, Never Married, Vegetarian, Non-Manglik, Post Graduate, Govt/PSU)
-            SizedBox(
-              height: 38,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  _buildQuickPreset(
-                    label: 'Brides',
-                    icon: CupertinoIcons.person_crop_circle_fill_badge_checkmark,
-                    isActive: _gender == 'Female',
-                    onTap: () {
-                      setState(() => _gender = _gender == 'Female' ? 'all' : 'Female');
-                      _performSearch();
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _buildQuickPreset(
-                    label: 'Grooms',
-                    icon: CupertinoIcons.person_crop_circle,
-                    isActive: _gender == 'Male',
-                    onTap: () {
-                      setState(() => _gender = _gender == 'Male' ? 'all' : 'Male');
-                      _performSearch();
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _buildQuickPreset(
-                    label: 'Never Married',
-                    icon: CupertinoIcons.heart_fill,
-                    isActive: _maritalStatus == 'Never Married',
-                    onTap: () {
-                      setState(() => _maritalStatus = _maritalStatus == 'Never Married' ? 'all' : 'Never Married');
-                      _performSearch();
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _buildQuickPreset(
-                    label: 'Vegetarian',
-                    icon: CupertinoIcons.leaf_arrow_circlepath,
-                    isActive: _diet == 'Vegetarian',
-                    onTap: () {
-                      setState(() => _diet = _diet == 'Vegetarian' ? 'all' : 'Vegetarian');
-                      _performSearch();
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _buildQuickPreset(
-                    label: 'Non-Manglik',
-                    icon: CupertinoIcons.star_circle_fill,
-                    isActive: _manglik == 'Non-Manglik',
-                    onTap: () {
-                      setState(() => _manglik = _manglik == 'Non-Manglik' ? 'all' : 'Non-Manglik');
-                      _performSearch();
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _buildQuickPreset(
-                    label: 'Post Graduate',
-                    icon: CupertinoIcons.book_fill,
-                    isActive: _highestQualification == 'Masters',
-                    onTap: () {
-                      setState(() => _highestQualification = _highestQualification == 'Masters' ? 'all' : 'Masters');
-                      _performSearch();
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  _buildQuickPreset(
-                    label: 'Govt / PSU',
-                    icon: CupertinoIcons.building_2_fill,
-                    isActive: _workingWith == 'Government / Public Sector',
-                    onTap: () {
-                      setState(() => _workingWith = _workingWith == 'Government / Public Sector' ? 'all' : 'Government / Public Sector');
-                      _performSearch();
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // 3. Toolbar: Photo & Verified toggles + Total Count + Sort
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            // 2. Active Count, Sort & Clear Toolbar (Directly under search bar)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Row(
                 children: [
-                  // Photo Only toggle chip
-                  InkWell(
-                    onTap: () {
-                      setState(() => _hasPhoto = !_hasPhoto);
-                      _performSearch();
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: _hasPhoto ? const Color(0xFF750000) : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _hasPhoto ? const Color(0xFF750000) : const Color(0xFFE8DFD5),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            CupertinoIcons.camera_fill,
-                            size: 13,
-                            color: _hasPhoto ? Colors.white : const Color(0xFF555555),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'With Photo',
-                            style: GoogleFonts.outfit(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: _hasPhoto ? Colors.white : const Color(0xFF333333),
-                            ),
-                          ),
-                        ],
+                  Expanded(
+                    child: Text(
+                      _isSearching
+                          ? 'Searching candidate profiles...'
+                          : '$_totalCount Profiles Found',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E1E1E),
                       ),
                     ),
                   ),
-
-                  const SizedBox(width: 8),
-
-                  // Verified Only toggle chip
-                  InkWell(
-                    onTap: () {
-                      setState(() => _verifiedOnly = !_verifiedOnly);
-                      _performSearch();
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: _verifiedOnly ? const Color(0xFF1E88E5) : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _verifiedOnly ? const Color(0xFF1E88E5) : const Color(0xFFE8DFD5),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            CupertinoIcons.checkmark_seal_fill,
-                            size: 13,
-                            color: _verifiedOnly ? Colors.white : const Color(0xFF1E88E5),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Verified Only',
-                            style: GoogleFonts.outfit(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: _verifiedOnly ? Colors.white : const Color(0xFF333333),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
 
                   // Sort Dropdown
                   PopupMenuButton<String>(
@@ -672,7 +536,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFE8DFD5)),
                       ),
                       child: Row(
@@ -691,34 +555,16 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                         ],
                       ),
                     ),
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(value: 'newest', child: Text('Newest First')),
-                      const PopupMenuItem(value: 'match_score', child: Text('Best Match Score')),
-                      const PopupMenuItem(value: 'age_asc', child: Text('Age: Young to Old')),
-                      const PopupMenuItem(value: 'age_desc', child: Text('Age: Old to Young')),
+                    itemBuilder: (ctx) => const [
+                      PopupMenuItem(value: 'newest', child: Text('Newest First')),
+                      PopupMenuItem(value: 'match_score', child: Text('Best Match Score')),
+                      PopupMenuItem(value: 'age_asc', child: Text('Age: Young to Old')),
+                      PopupMenuItem(value: 'age_desc', child: Text('Age: Old to Young')),
                     ],
                   ),
-                ],
-              ),
-            ),
 
-            // Active count text
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _isSearching
-                        ? 'Searching candidate profiles...'
-                        : '$_totalCount Profiles Found',
-                    style: GoogleFonts.outfit(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF555555),
-                    ),
-                  ),
-                  if (_activeFiltersCount > 0)
+                  if (_activeFiltersCount > 0) ...[
+                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: _resetAllFilters,
                       child: Text(
@@ -730,6 +576,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -757,60 +604,11 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
     }
   }
 
-  Widget _buildQuickPreset({
-    required String label,
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF750000) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isActive ? const Color(0xFF750000) : const Color(0xFFE8DFD5),
-          ),
-          boxShadow: [
-            if (isActive)
-              BoxShadow(
-                color: const Color(0xFF750000).withValues(alpha: 0.2),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 13,
-              color: isActive ? const Color(0xFFD4A034) : const Color(0xFF666666),
-            ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                color: isActive ? Colors.white : const Color(0xFF333333),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildResultsSection() {
-    // Post-Login Skeleton Screen Loader
+    // Post-Login Skeleton Screen Loader matching List View design
     if (_isSearching || _isLoadingOptions) {
       return const SingleChildScrollView(
-        child: RaniSkeletonGrid(itemCount: 6),
+        child: RaniSkeletonSearchList(itemCount: 4),
       );
     }
 
@@ -873,332 +671,507 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
       );
     }
 
-    // 2-Column Grid (Row Two) matching Home Screen style
+    // Full-Width List View per User Request ("need list view")
     return RefreshIndicator(
       color: const Color(0xFF750000),
       onRefresh: _performSearch,
-      child: GridView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         itemCount: _results.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 14,
-          childAspectRatio: 0.62,
-        ),
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final c = _results[index];
-          return _buildCandidateCard(c, index);
+          return _buildCandidateListCard(c, index);
         },
       ),
     );
   }
 
-  Widget _buildCandidateCard(dynamic c, int index) {
-    final profileId = c['candidate_code'] ?? c['profile_id'] ?? c['id']?.toString() ?? 'RM-PROFILE';
+  Widget _buildCandidateListCard(dynamic c, int index) {
+    final profileId = (c['candidate_code'] ?? c['profile_id'] ?? c['id'])?.toString() ?? 'RM-PROFILE';
     final firstName = c['first_name'] ?? 'Candidate';
     final lastName = c['last_name'] ?? '';
     final displayName = lastName.isNotEmpty ? '$firstName ${lastName[0]}.' : firstName;
-    final age = c['age'] ?? '25';
+    final age = c['age']?.toString() ?? '26';
+    final height = c['height']?.toString() ?? "5' 5\"";
+    final maritalStatus = c['marital_status']?.toString() ?? 'Never Married';
+    final religion = c['religion']?.toString() ?? '';
+    final community = c['community']?.toString() ?? '';
     final profession = c['profession'] ?? c['designation'] ?? 'Professional';
-    final city = c['city'] ?? 'City';
+    final qualification = c['highest_qualification']?.toString() ?? '';
+    final city = c['city'] ?? '';
     final state = c['state'] ?? '';
-    final locationText = state.isNotEmpty ? '$city, $state' : city;
-    final photo = c['photo'] ?? c['profile_picture'] ?? '';
+    final locationText = (city.isNotEmpty && state.isNotEmpty)
+        ? '$city, $state'
+        : (city.isNotEmpty ? city : state);
+
+    final photo = ApiService.formatImageUrl(c['photo'] ?? c['profile_picture'] ?? '');
     final isVerified = c['verified'] == true || c['is_verified'] == 1 || (c['bluetick'] != null && c['bluetick']['is_accept'] == 1);
     final isShortlisted = c['is_shortlisted'] == true;
+    final matchScore = c['match_score'] ?? 85;
+
+    // Religion & Community string
+    final relComText = (religion.isNotEmpty && community.isNotEmpty && community != 'all' && community != 'All Communities')
+        ? '$religion • $community'
+        : (religion.isNotEmpty ? religion : (community.isNotEmpty ? community : ''));
+
+    // Profession & Qualification string
+    final careerText = qualification.isNotEmpty
+        ? (profession.isNotEmpty ? '$qualification, $profession' : qualification)
+        : profession;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEFE8DE), width: 1),
+        border: Border.all(color: const Color(0xFFEFE8DE), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: ClipRRect(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Photo with verified pill & heart button
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: photo.isNotEmpty
-                        ? Image.network(
-                            photo,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFFF3ECE4),
-                              child: const Icon(CupertinoIcons.person_fill, size: 48, color: Color(0xFFBCAAA4)),
-                            ),
-                          )
-                        : Container(
-                            color: const Color(0xFFF3ECE4),
-                            child: const Icon(CupertinoIcons.person_fill, size: 48, color: Color(0xFFBCAAA4)),
-                          ),
-                  ),
-
-                  // Verified pill badge (Bottom-Left)
-                  if (isVerified)
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.94),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RaniMatchDetailsScreen(
+                  profileId: profileId,
+                  initialProfileData: c,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left: Photo (100w x 120h) + Match Score Pill + Verified Seal
+                    Stack(
+                      children: [
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 4,
-                            ),
-                          ],
+                          child: Container(
+                            width: 100,
+                            height: 120,
+                            color: const Color(0xFFF7F3EC),
+                            child: photo.isNotEmpty
+                                ? Image.network(
+                                    photo,
+                                    width: 100,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: const Color(0xFFF3ECE4),
+                                      child: const Icon(CupertinoIcons.person_fill, size: 40, color: Color(0xFFBCAAA4)),
+                                    ),
+                                  )
+                                : Container(
+                                    color: const Color(0xFFF3ECE4),
+                                    child: const Icon(CupertinoIcons.person_fill, size: 40, color: Color(0xFFBCAAA4)),
+                                  ),
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              CupertinoIcons.checkmark_seal_fill,
-                              color: Color(0xFF2E7D32),
-                              size: 13,
+
+                        // Match Score Badge (Top-Left)
+                        Positioned(
+                          top: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5.5, vertical: 2),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF750000), Color(0xFF500000)],
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 3,
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 3.5),
-                            Text(
-                              'Verified profile',
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(CupertinoIcons.sparkles, size: 9, color: Color(0xFFE5B842)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '$matchScore%',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Verified Badge (Bottom-Right)
+                        if (isVerified)
+                          Positioned(
+                            bottom: 5,
+                            right: 5,
+                            child: Container(
+                              padding: const EdgeInsets.all(2.5),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.verified,
+                                size: 15,
+                                color: Color(0xFF2E7D32),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Right: Info Column
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Name, Age & Heart Shortlist
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        displayName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF1E1E1E),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '$age yrs',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF757575),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Shortlist Heart Button
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () => _toggleShortlist(profileId, displayName, index),
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: isShortlisted ? const Color(0xFFFFEBEE) : const Color(0xFFFAF7F2),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isShortlisted ? const Color(0xFFEF5350) : const Color(0xFFEFE8DE),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      isShortlisted ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                                      size: 16,
+                                      color: isShortlisted ? const Color(0xFFC62828) : const Color(0xFF757575),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 2),
+
+                          // Profile ID Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFAF7F2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFEFE8DE)),
+                            ),
+                            child: Text(
+                              profileId,
                               style: GoogleFonts.outfit(
-                                fontSize: 9.5,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2E7D32),
+                                color: const Color(0xFF750000),
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 5),
+
+                          // Height • Marital Status
+                          Text(
+                            '$height • $maritalStatus',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 11.5,
+                              color: const Color(0xFF555555),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+
+                          // Religion • Community
+                          if (relComText.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              relComText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                fontSize: 11.5,
+                                color: const Color(0xFF555555),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ),
 
-                  // Shortlist Heart Button (Top-Right)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () => _toggleShortlist(profileId, displayName, index),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 4,
+                          // Career
+                          if (careerText.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              careerText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                fontSize: 11.5,
+                                color: const Color(0xFF333333),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
-                        ),
-                        child: Icon(
-                          isShortlisted ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                          size: 17,
-                          color: isShortlisted ? const Color(0xFFD32F2F) : const Color(0xFF750000),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            // Info details & action button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Candidate Name & Age
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.outfit(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1F1F1F),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$age years',
-                        style: GoogleFonts.outfit(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF6B6B6B),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-
-                  // Profession
-                  Text(
-                    profession,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF4A4A4A),
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-
-                  // Location
-                  Text(
-                    locationText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      color: const Color(0xFF7A7A7A),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // View Profile Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 32,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF750000),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RaniProfileDetailScreen(
-                              profileId: profileId,
-                              initialProfileData: c,
+                          // Location
+                          if (locationText.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(CupertinoIcons.location, size: 11, color: Color(0xFF750000)),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    locationText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 11.5,
+                                      color: const Color(0xFF666666),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'View Profile',
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
+                          ],
+                        ],
                       ),
                     ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // Full-Width "View Profile" CTA Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF750000),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RaniMatchDetailsScreen(
+                            profileId: profileId,
+                            initialProfileData: c,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'View Profile',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(CupertinoIcons.chevron_right, size: 13, color: Colors.white),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // ================= 7-SECTION FILTER BOTTOM SHEET MODAL =================
-  void _openFilterBottomSheet() {
+  // ================= 7-SECTION FULL SCREEN FILTER MODAL =================
+  void _openFullScreenFilterModal() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: false,
+      useSafeArea: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
-            return DraggableScrollableSheet(
-              initialChildSize: 0.88,
-              maxChildSize: 0.95,
-              minChildSize: 0.5,
-              expand: false,
-              builder: (_, scrollController) {
-                return Column(
+            final bottomInset = MediaQuery.of(modalCtx).padding.bottom;
+            final topPadding = MediaQuery.of(modalCtx).padding.top;
+            return Container(
+              height: MediaQuery.of(modalCtx).size.height,
+              width: double.infinity,
+              color: const Color(0xFFFAF7F2),
+              child: SafeArea(
+                top: true,
+                bottom: false,
+                child: Column(
                   children: [
-                    // Handle Bar
+                    // Top Full-Screen Modal Header (properly padded below notch / camera / status bar)
                     Container(
-                      margin: const EdgeInsets.only(top: 10, bottom: 6),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+                      padding: EdgeInsets.fromLTRB(16, topPadding > 0 ? 8 : 14, 16, 14),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFEFE8DE), width: 1.0),
                       ),
                     ),
+                    child: Row(
+                      children: [
+                        // Close (X) circle button
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () => Navigator.pop(ctx),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF7F3EC),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFE8DFD5)),
+                              ),
+                              child: const Icon(CupertinoIcons.xmark, size: 18, color: Color(0xFF1E1E1E)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
 
-                    // Sheet Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
+                        // Title and Subtitle
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(CupertinoIcons.slider_horizontal_3, color: Color(0xFF750000), size: 20),
-                              const SizedBox(width: 8),
+                              Row(
+                                children: [
+                                  const Icon(CupertinoIcons.slider_horizontal_3, size: 18, color: Color(0xFF750000)),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      'Search Filters',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 16.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF1E1E1E),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 1),
                               Text(
-                                'Filter Profiles',
-                                style: GoogleFonts.playfairDisplay(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF2B0A0D),
+                                'Find matching profiles from all database fields',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  color: const Color(0xFF757575),
                                 ),
                               ),
                             ],
                           ),
-                          TextButton(
-                            onPressed: () {
-                              setModalState(() {
-                                _resetAllFilters();
-                              });
-                              Navigator.pop(ctx);
-                            },
-                            child: Text(
-                              'Reset All',
-                              style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF750000),
-                              ),
+                        ),
+
+                        // Reset All button
+                        TextButton(
+                          onPressed: () {
+                            setModalState(() {
+                              _resetAllFilters();
+                            });
+                          },
+                          child: Text(
+                            'Reset All',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF750000),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  ),
 
-                    const Divider(height: 1, color: Color(0xFFE8DFD5)),
-
-                    // Scrollable Sections
-                    Expanded(
-                      child: ListView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        children: [
+                  // Scrollable Sections matching DB Structure
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      children: [
                           // SECTION 1: Looking For & Basics
                           _buildSectionTitle('01', 'Looking For & Basics'),
                           const SizedBox(height: 10),
@@ -1214,6 +1187,18 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                               const SizedBox(width: 8),
                               _buildSegmentedTab('Grooms (Male)', _gender == 'Male', () => setModalState(() => _gender = 'Male')),
                             ],
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Profile Created For Dropdown
+                          _buildDropdownField(
+                            label: 'Profile Created For',
+                            value: _profileFor,
+                            items: [
+                              {'value': 'all', 'label': 'All Relations'},
+                              ..._profileFors.map((p) => {'value': p, 'label': p}),
+                            ],
+                            onChanged: (v) => setModalState(() => _profileFor = v ?? 'all'),
                           ),
                           const SizedBox(height: 14),
 
@@ -1296,18 +1281,6 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             ],
                             onChanged: (v) => setModalState(() => _maritalStatus = v ?? 'all'),
                           ),
-                          const SizedBox(height: 12),
-
-                          // Profile Created For Dropdown
-                          _buildDropdownField(
-                            label: 'Profile Created For',
-                            value: _profileFor,
-                            items: [
-                              {'value': 'all', 'label': 'All Relations'},
-                              ..._profileFors.map((p) => {'value': p, 'label': p}),
-                            ],
-                            onChanged: (v) => setModalState(() => _profileFor = v ?? 'all'),
-                          ),
 
                           const SizedBox(height: 20),
 
@@ -1325,8 +1298,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             ],
                             onChanged: (v) {
                               setModalState(() {
-                                _onReligionSelected(v ?? 'all');
+                                _applyReligionSelection(v ?? 'all');
                               });
+                              setState(() {});
                             },
                           ),
                           const SizedBox(height: 12),
@@ -1337,9 +1311,23 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _community,
                             items: [
                               {'value': 'all', 'label': 'All Communities'},
-                              ..._availableCommunities.map((c) => {'value': c['name'].toString(), 'label': c['name'].toString()}),
+                              ..._availableCommunities.map((c) => {
+                                'value': (c is Map ? (c['name'] ?? c['title']) : c).toString(),
+                                'label': (c is Map ? (c['name'] ?? c['title']) : c).toString(),
+                              }),
                             ],
-                            onChanged: (v) => setModalState(() => _community = v ?? 'all'),
+                            onChanged: (v) {
+                              setModalState(() => _community = v ?? 'all');
+                              setState(() {});
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Sub-Community text field
+                          _buildTextInputField(
+                            label: 'Sub-Community / Clan',
+                            controller: _subCommunityController,
+                            hint: 'e.g. Kulin, Saryupariya, Deshastha...',
                           ),
                           const SizedBox(height: 12),
 
@@ -1368,6 +1356,14 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             ],
                             onChanged: (v) => setModalState(() => _manglik = v ?? 'all'),
                           ),
+                          const SizedBox(height: 12),
+
+                          // Gothra text field
+                          _buildTextInputField(
+                            label: 'Gothra',
+                            controller: _gothraController,
+                            hint: 'e.g. Kashyap, Bharadwaj, Sandilya...',
+                          ),
 
                           const SizedBox(height: 20),
 
@@ -1383,7 +1379,12 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                               {'value': 'all', 'label': 'All Countries'},
                               ..._countries.map((c) => {'value': c['name'].toString(), 'label': c['name'].toString()}),
                             ],
-                            onChanged: (v) => setModalState(() => _onCountrySelected(v ?? 'all')),
+                            onChanged: (v) {
+                              setModalState(() {
+                                _applyCountrySelection(v ?? 'all');
+                              });
+                              setState(() {});
+                            },
                           ),
                           const SizedBox(height: 12),
 
@@ -1393,9 +1394,17 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _state,
                             items: [
                               {'value': 'all', 'label': 'All States'},
-                              ..._availableStates.map((s) => {'value': s['name'].toString(), 'label': s['name'].toString()}),
+                              ..._availableStates.map((s) => {
+                                'value': (s is Map ? (s['name'] ?? s['title']) : s).toString(),
+                                'label': (s is Map ? (s['name'] ?? s['title']) : s).toString(),
+                              }),
                             ],
-                            onChanged: (v) => setModalState(() => _onStateSelected(v ?? 'all')),
+                            onChanged: (v) {
+                              setModalState(() {
+                                _applyStateSelection(v ?? 'all');
+                              });
+                              setState(() {});
+                            },
                           ),
                           const SizedBox(height: 12),
 
@@ -1405,9 +1414,15 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _city,
                             items: [
                               {'value': 'all', 'label': 'All Cities'},
-                              ..._availableCities.map((ct) => {'value': ct['name'].toString(), 'label': ct['name'].toString()}),
+                              ..._availableCities.map((ct) => {
+                                'value': (ct is Map ? (ct['name'] ?? ct['title']) : ct).toString(),
+                                'label': (ct is Map ? (ct['name'] ?? ct['title']) : ct).toString(),
+                              }),
                             ],
-                            onChanged: (v) => setModalState(() => _city = v ?? 'all'),
+                            onChanged: (v) {
+                              setModalState(() => _city = v ?? 'all');
+                              setState(() {});
+                            },
                           ),
                           const SizedBox(height: 12),
 
@@ -1420,6 +1435,14 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                               ..._residencyStatuses.map((r) => {'value': r, 'label': r}),
                             ],
                             onChanged: (v) => setModalState(() => _residencyStatus = v ?? 'all'),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Grew Up In text field
+                          _buildTextInputField(
+                            label: 'Grew Up In (City / Region)',
+                            controller: _grewUpInController,
+                            hint: 'e.g. Kolkata, Mumbai, Delhi...',
                           ),
 
                           const SizedBox(height: 20),
@@ -1457,6 +1480,14 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                               ..._workingWiths.map((w) => {'value': w['name'].toString(), 'label': w['name'].toString()}),
                             ],
                             onChanged: (v) => setModalState(() => _workingWith = v ?? 'all'),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Profession / Role
+                          _buildTextInputField(
+                            label: 'Profession / Designation',
+                            controller: _professionController,
+                            hint: 'e.g. Software Engineer, Doctor, CA...',
                           ),
                           const SizedBox(height: 12),
 
@@ -1514,6 +1545,19 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                           ),
                           const SizedBox(height: 12),
 
+                          // Disability
+                          _buildDropdownField(
+                            label: 'Disability / Special Needs',
+                            value: _disability,
+                            items: const [
+                              {'value': 'all', 'label': "Doesn't Matter"},
+                              {'value': 'None', 'label': 'None'},
+                              {'value': 'Physical Disability', 'label': 'Physical Disability'},
+                            ],
+                            onChanged: (v) => setModalState(() => _disability = v ?? 'all'),
+                          ),
+                          const SizedBox(height: 12),
+
                           // Hobbies & Interests
                           _buildDropdownField(
                             label: 'Hobbies & Interests',
@@ -1530,7 +1574,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
                           const SizedBox(height: 20),
 
-                          // SECTION 6: Family Financial Status
+                          // SECTION 6: Family Background
                           _buildSectionTitle('06', 'Family Background'),
                           const SizedBox(height: 10),
 
@@ -1542,6 +1586,20 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                               ..._familyStatuses.map((fs) => {'value': fs, 'label': fs}),
                             ],
                             onChanged: (v) => setModalState(() => _familyFinancialStatus = v ?? 'all'),
+                          ),
+                          const SizedBox(height: 12),
+
+                          _buildTextInputField(
+                            label: "Father's Profession",
+                            controller: _fatherProfessionController,
+                            hint: 'e.g. Business, Retired, Govt Service...',
+                          ),
+                          const SizedBox(height: 12),
+
+                          _buildTextInputField(
+                            label: "Mother's Profession",
+                            controller: _motherProfessionController,
+                            hint: 'e.g. Homemaker, Teacher, Doctor...',
                           ),
 
                           const SizedBox(height: 20),
@@ -1564,6 +1622,19 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             activeTrackColor: const Color(0xFF1E88E5),
                             onChanged: (val) => setModalState(() => _verifiedOnly = val),
                           ),
+                          const SizedBox(height: 12),
+
+                          // Sort By
+                          _buildDropdownField(
+                            label: 'Sort Results By',
+                            value: _sortBy,
+                            items: const [
+                              {'value': 'newest', 'label': 'Newest Profiles First'},
+                              {'value': 'age_asc', 'label': 'Age: Youngest to Oldest'},
+                              {'value': 'age_desc', 'label': 'Age: Oldest to Youngest'},
+                            ],
+                            onChanged: (v) => setModalState(() => _sortBy = v ?? 'newest'),
+                          ),
 
                           const SizedBox(height: 32),
                         ],
@@ -1572,38 +1643,98 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
                     // Apply Button Sticky Footer
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.fromLTRB(16, 12, 16, bottomInset > 0 ? bottomInset + 8 : 16),
                       decoration: const BoxDecoration(
                         color: Colors.white,
-                        border: Border(top: BorderSide(color: Color(0xFFE8DFD5))),
+                        border: Border(top: BorderSide(color: Color(0xFFE8DFD5), width: 1.0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x0D000000),
+                            blurRadius: 10,
+                            offset: Offset(0, -3),
+                          ),
+                        ],
                       ),
                       child: SizedBox(
                         width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
+                        height: 50,
+                        child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF750000),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 0,
                           ),
                           onPressed: () {
                             Navigator.pop(ctx);
                             _performSearch();
                           },
-                          child: Text(
-                            'Apply Filters',
-                            style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
+                          icon: const Icon(CupertinoIcons.sparkles, size: 19, color: Color(0xFFE5B842)),
+                          label: Text(
+                            'Search Matches (${_activeFiltersCount > 0 ? "$_activeFiltersCount Filters" : "All Profiles"})',
+                            style: GoogleFonts.outfit(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ],
-                );
-              },
+                ),
+              ),
             );
-          },
-        );
-      },
+            },
+          );
+        },
+      );
+    }
+
+  Widget _buildTextInputField({
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF444444),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAF7),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFCBD5E1)),
+          ),
+          child: TextField(
+            controller: controller,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              color: const Color(0xFF1E293B),
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: GoogleFonts.outfit(
+                fontSize: 12.5,
+                color: const Color(0xFF94A3B8),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1626,13 +1757,17 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF1F1F1F),
-            letterSpacing: 0.2,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.outfit(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF1F1F1F),
+              letterSpacing: 0.2,
+            ),
           ),
         ),
       ],

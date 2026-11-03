@@ -51,7 +51,6 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
   // 4. Lifestyle / Physical
   String _diet = 'Vegetarian';
   String _bloodGroup = 'B+';
-  final TextEditingController _weightController = TextEditingController();
   final TextEditingController _healthInfoController = TextEditingController();
   final TextEditingController _grewUpInController = TextEditingController();
 
@@ -147,7 +146,6 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
 
     if (c['diet'] != null && _diets.contains(c['diet'])) _diet = c['diet'];
     if (c['blood_group'] != null && _bloodGroups.contains(c['blood_group'])) _bloodGroup = c['blood_group'];
-    if (c['weight'] != null) _weightController.text = c['weight'].toString();
     if (c['health_info'] != null) _healthInfoController.text = c['health_info'];
     if (c['grew_up_in'] != null) _grewUpInController.text = c['grew_up_in'];
 
@@ -172,7 +170,6 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
     _gothraController.dispose();
     _timeOfBirthController.dispose();
     _cityOfBirthController.dispose();
-    _weightController.dispose();
     _healthInfoController.dispose();
     _grewUpInController.dispose();
     _designationController.dispose();
@@ -219,7 +216,6 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
       // 4. Lifestyle & Health
       'diet': _diet,
       'blood_group': _bloodGroup,
-      'weight': _weightController.text.trim(),
       'health_info': _healthInfoController.text.trim(),
       'grew_up_in': _grewUpInController.text.trim(),
 
@@ -236,7 +232,56 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
     };
 
     try {
-      final res = await ApiService.instance.updateProfile('extended', payload);
+      // Try updating via 'all' or standard backend sections to ensure 100% backend compatibility
+      Map<String, dynamic> res = await ApiService.instance.updateProfile('all', payload);
+      if (res['success'] != true && (res['message']?.toString().contains('section') ?? false)) {
+        // Fallback for older backend versions that only accept section-by-section
+        final sections = <String, Map<String, dynamic>>{
+          'about': {'about_yourself': _aboutMeController.text.trim()},
+          'family': {
+            'father_profession': _fatherProfessionController.text.trim(),
+            'mother_profession': _motherProfessionController.text.trim(),
+            'family_location': _familyLocationController.text.trim(),
+            'brothers_count': _brothersCount,
+            'sisters_count': _sistersCount,
+            'family_financial_status': _familyFinancialStatus,
+            'family_type': _familyType,
+          },
+          'astro': {
+            'manglik': _manglik,
+            'time_of_birth': _timeOfBirthController.text.trim(),
+            'city_of_birth': _cityOfBirthController.text.trim(),
+          },
+          'religious': {
+            'mother_tongue': _motherTongue,
+            'gothra': _gothraController.text.trim(),
+          },
+          'basic': {
+            'diet': _diet,
+            'blood_group': _bloodGroup,
+            'health_info': _healthInfoController.text.trim(),
+            'grew_up_in': _grewUpInController.text.trim(),
+          },
+          'education_career': {
+            'working_with': _workingWith,
+            'designation': _designationController.text.trim(),
+            'company_name': _companyNameController.text.trim(),
+            'annual_income': _annualIncome,
+          },
+          'location': {
+            'residency_status': _residencyStatus,
+            'police_st': _policeStController.text.trim(),
+            'pincode': _pincodeController.text.trim(),
+          },
+        };
+
+        for (final entry in sections.entries) {
+          final sRes = await ApiService.instance.updateProfile(entry.key, entry.value);
+          if (sRes['success'] == true) {
+            res = sRes;
+          }
+        }
+      }
       if (!mounted) return;
       setState(() => _isSaving = false);
 
@@ -549,25 +594,10 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTextField(
-                                controller: _weightController,
-                                label: 'Weight (kg)',
-                                hint: 'e.g. 58',
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildTextField(
-                                controller: _grewUpInController,
-                                label: 'Grew Up In',
-                                hint: 'e.g. Durgapur',
-                              ),
-                            ),
-                          ],
+                        _buildTextField(
+                          controller: _grewUpInController,
+                          label: 'Grew Up In',
+                          hint: 'e.g. Durgapur',
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
