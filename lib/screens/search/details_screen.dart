@@ -93,7 +93,6 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     }
   }
 
-  /*
   Future<void> _toggleShortlist() async {
     if (_data == null) return;
     final isCurrentlyShortlisted = _data!['is_shortlisted'] == true;
@@ -132,7 +131,6 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
       }
     }
   }
-  */
 
   Future<void> _sendRoyalInterest() async {
     if (_data == null) return;
@@ -474,7 +472,7 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     final locationText = (city.isNotEmpty && state.isNotEmpty) ? '$city, $state' : (city.isNotEmpty ? city : state);
     final isVerified = d['verified'] == true || d['is_verified'] == 1 || (d['bluetick'] != null && d['bluetick']['is_accept'] == 1);
     final matchScore = int.tryParse(d['match_score']?.toString() ?? d['match_percentage']?.toString() ?? '95') ?? 95;
-    // final isShortlisted = d['is_shortlisted'] == true;
+    final isShortlisted = d['is_shortlisted'] == true || d['is_shortlisted'] == 1 || d['is_shortlisted'] == '1';
     final isConnected = d['request_type'] == 'sent' || d['request_type'] == 'accepted' || d['is_connected'] == true;
     final status = _status;
     final isAccepted = status['is_accepted'] == true ||
@@ -637,7 +635,10 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                         children: [
                           // Back Button
                           GestureDetector(
-                            onTap: () => Navigator.pop(context),
+                            onTap: () => Navigator.pop(context, {
+                              'profile_id': widget.profileId,
+                              'is_shortlisted': isShortlisted,
+                            }),
                             child: Container(
                               width: 38,
                               height: 38,
@@ -650,19 +651,49 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                             ),
                           ),
 
-                          // Full-screen zoom indicator
-                          GestureDetector(
-                            onTap: () => _openFullScreenViewer(photos, _activePhotoIndex),
-                            child: Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          Row(
+                            children: [
+                              // Shortlist Heart Button
+                              GestureDetector(
+                                onTap: _toggleShortlist,
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: isShortlisted
+                                        ? const Color(0xFFC62828).withValues(alpha: 0.85)
+                                        : Colors.black.withValues(alpha: 0.45),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isShortlisted
+                                          ? const Color(0xFFEF5350)
+                                          : Colors.white.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    isShortlisted ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                                    color: Colors.white,
+                                    size: 19,
+                                  ),
+                                ),
                               ),
-                              child: const Icon(CupertinoIcons.fullscreen, color: Colors.white, size: 18),
-                            ),
+                              const SizedBox(width: 8),
+
+                              // Full-screen zoom indicator
+                              GestureDetector(
+                                onTap: () => _openFullScreenViewer(photos, _activePhotoIndex),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.45),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Icon(CupertinoIcons.fullscreen, color: Colors.white, size: 18),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

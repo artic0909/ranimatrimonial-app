@@ -596,8 +596,10 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
           const SizedBox(height: 6),
 
           // Profile ID & Profile For Pills
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
@@ -614,7 +616,6 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                 decoration: BoxDecoration(
@@ -641,14 +642,19 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Profile Completeness',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF6E6E6E),
+              Flexible(
+                child: Text(
+                  'Profile Completeness',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF6E6E6E),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '$completeness%',
                 style: GoogleFonts.outfit(
@@ -1302,19 +1308,25 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(icon, size: 18, color: const Color(0xFF750000)),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: GoogleFonts.outfit(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E1E1E),
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(icon, size: 18, color: const Color(0xFF750000)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1E1E1E),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               if (onEdit != null)
                 GestureDetector(

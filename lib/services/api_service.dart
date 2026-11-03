@@ -20,10 +20,43 @@ class ApiService {
 
   final ValueNotifier<Map<String, dynamic>?> candidateNotifier = ValueNotifier<Map<String, dynamic>?>(null);
   final ValueNotifier<double> walletBalanceNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<Set<String>> shortlistedIdsNotifier = ValueNotifier<Set<String>>({});
 
   String? get token => _token;
   Map<String, dynamic>? get candidate => _candidate;
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
+
+  /// Check if a candidate or ID is shortlisted in the global reactive registry
+  bool isProfileShortlisted(dynamic candidateOrId) {
+    if (candidateOrId == null) return false;
+    final set = shortlistedIdsNotifier.value;
+    if (candidateOrId is String) {
+      return set.contains(candidateOrId);
+    }
+    if (candidateOrId is Map) {
+      final pid = (candidateOrId['candidate_code'] ?? candidateOrId['profile_id'] ?? candidateOrId['id'])?.toString();
+      final numId = candidateOrId['numeric_id']?.toString();
+      if (pid != null && set.contains(pid)) return true;
+      if (numId != null && set.contains(numId)) return true;
+      return candidateOrId['is_shortlisted'] == true ||
+          candidateOrId['is_shortlisted'] == 1 ||
+          candidateOrId['is_shortlisted'] == '1';
+    }
+    return set.contains(candidateOrId.toString());
+  }
+
+  /// Mark or unmark a profile in the global shortlisted registry
+  void markProfileShortlisted(String id, bool shortlisted, {String? secondaryId}) {
+    final current = Set<String>.from(shortlistedIdsNotifier.value);
+    if (shortlisted) {
+      current.add(id);
+      if (secondaryId != null && secondaryId.isNotEmpty) current.add(secondaryId);
+    } else {
+      current.remove(id);
+      if (secondaryId != null && secondaryId.isNotEmpty) current.remove(secondaryId);
+    }
+    shortlistedIdsNotifier.value = current;
+  }
 
   /// Safely format any photo/avatar URL (handles local dev domains, relative storage paths, and absolute URLs)
   static String formatImageUrl(dynamic raw) {
@@ -724,7 +757,33 @@ class ApiService {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches?tab=$tab&page=$page');
     final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    final data = _processResponse(response);
+    if (data['success'] == true) {
+      final rawMatches = data['matches'];
+      List<dynamic> list = [];
+      if (rawMatches is List) {
+        list = rawMatches;
+      } else if (rawMatches is Map && rawMatches['data'] is List) {
+        list = rawMatches['data'] as List;
+      }
+      final set = Set<String>.from(shortlistedIdsNotifier.value);
+      for (final m in list) {
+        if (m is Map) {
+          final pid = (m['candidate_code'] ?? m['profile_id'] ?? m['id'])?.toString();
+          final numId = m['numeric_id']?.toString();
+          final isShort = tab == 'shortlisted' ||
+              m['is_shortlisted'] == true ||
+              m['is_shortlisted'] == 1 ||
+              m['is_shortlisted'] == '1';
+          if (isShort) {
+            if (pid != null && pid.isNotEmpty) set.add(pid);
+            if (numId != null && numId.isNotEmpty) set.add(numId);
+          }
+        }
+      }
+      shortlistedIdsNotifier.value = set;
+    }
+    return data;
   }
 
   /// Get candidate profile details by token or ID
@@ -763,7 +822,7 @@ class ApiService {
   }
 
   /// Toggle candidate shortlist
-  Future<Map<String, dynamic>> toggleShortlist(String profileId) async {
+  Future<Map<String, dynamic>> toggleShortlist(String profileId, {String? secondaryId}) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/toggle-shortlist');
     final response = await http.post(
@@ -771,7 +830,12 @@ class ApiService {
       headers: _headers,
       body: jsonEncode({'profile_id': profileId}),
     );
-    return _processResponse(response);
+    final data = _processResponse(response);
+    if (data['success'] == true) {
+      final isShort = data['shortlisted'] == true || data['shortlisted'] == 1;
+      markProfileShortlisted(profileId, isShort, secondaryId: secondaryId);
+    }
+    return data;
   }
 
   /// Request WhatsApp Chat unlock
@@ -824,6 +888,7 @@ class ApiService {
 
   /// Get search filter master options
   Future<Map<String, dynamic>> getSearchOptions() async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/search/options');
     final response = await http.get(uri, headers: _headers);
     return _processResponse(response);
@@ -831,6 +896,7 @@ class ApiService {
 
   /// Search candidate profiles dynamically
   Future<Map<String, dynamic>> searchProfiles(Map<String, dynamic> filters) async {
+    await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/search/filter');
     final response = await http.post(
       uri,

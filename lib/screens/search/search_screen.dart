@@ -103,6 +103,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
   // Search results
   List<dynamic> _results = [];
+  final Set<String> _shortlistedIds = {};
   int _totalCount = 0;
   String? _errorMessage;
 
@@ -116,6 +117,8 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
       _applyInitialFilters(widget.initialFilters!);
     }
     _loadSearchOptions();
+    _loadShortlistedIds();
+    ApiService.instance.shortlistedIdsNotifier.addListener(_onGlobalShortlistChanged);
 
     // Automatically open full screen filter modal on screen entry
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -124,6 +127,40 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
         _openFullScreenFilterModal();
       }
     });
+  }
+
+  void _onGlobalShortlistChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _loadShortlistedIds() async {
+    try {
+      final res = await ApiService.instance.getMatches(tab: 'shortlisted', page: 1);
+      if (!mounted) return;
+      if (res['success'] == true) {
+        final rawMatches = res['matches'];
+        List<dynamic> list = [];
+        if (rawMatches is List) {
+          list = rawMatches;
+        } else if (rawMatches is Map && rawMatches['data'] is List) {
+          list = rawMatches['data'] as List;
+        }
+
+        for (final m in list) {
+          if (m is Map) {
+            final id = (m['candidate_code'] ?? m['profile_id'] ?? m['id'])?.toString();
+            final numId = m['numeric_id']?.toString();
+            if (id != null && id.isNotEmpty) _shortlistedIds.add(id);
+            if (numId != null && numId.isNotEmpty) _shortlistedIds.add(numId);
+          }
+        }
+        if (mounted && _results.isNotEmpty) {
+          setState(() {});
+        }
+      }
+    } catch (_) {}
   }
 
   void _applyInitialFilters(Map<String, dynamic> f) {
@@ -135,6 +172,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
   @override
   void dispose() {
+    ApiService.instance.shortlistedIdsNotifier.removeListener(_onGlobalShortlistChanged);
     _debounceTimer?.cancel();
     _keywordController.dispose();
     _subCommunityController.dispose();
@@ -240,9 +278,28 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
       if (!mounted) return;
 
       if (res['success'] == true) {
+        final rawList = (res['profiles'] ?? res['candidates'] ?? []) as List<dynamic>;
+        final processed = <Map<String, dynamic>>[];
+        for (final item in rawList) {
+          final map = Map<String, dynamic>.from(item as Map);
+          final pid = (map['candidate_code'] ?? map['profile_id'] ?? map['id'])?.toString() ?? '';
+          final numId = map['numeric_id']?.toString() ?? '';
+          final isServerShort = map['is_shortlisted'] == true ||
+              map['is_shortlisted'] == 1 ||
+              map['is_shortlisted'] == '1' ||
+              map['is_shortlisted'] == 'true';
+          if (isServerShort) {
+            if (pid.isNotEmpty) _shortlistedIds.add(pid);
+            if (numId.isNotEmpty) _shortlistedIds.add(numId);
+          }
+          if (_shortlistedIds.contains(pid) || (numId.isNotEmpty && _shortlistedIds.contains(numId))) {
+            map['is_shortlisted'] = true;
+          }
+          processed.add(map);
+        }
         setState(() {
-          _results = res['profiles'] ?? res['candidates'] ?? [];
-          _totalCount = res['total_count'] ?? _results.length;
+          _results = processed;
+          _totalCount = res['total_count'] ?? processed.length;
           _isSearching = false;
         });
       } else {
@@ -372,26 +429,111 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
     }
   }
 
-  Future<void> _toggleShortlist(String profileId, String name, int index) async {
+  void _syncDetailsShortlistResult(dynamic result) {
+    if (result is Map && result['profile_id'] != null && result['is_shortlisted'] != null) {
+      final pid = result['profile_id'].toString();
+      final isShort = result['is_shortlisted'] == true;
+      setState(() {
+        if (isShort) {
+          _shortlistedIds.add(pid);
+        } else {
+          _shortlistedIds.remove(pid);
+        }
+        for (int i = 0; i < _results.length; i++) {
+          final item = _results[i];
+          final itemId = (item['candidate_code'] ?? item['profile_id'] ?? item['id'])?.toString();
+          final numId = item['numeric_id']?.toString();
+          if (itemId == pid || numId == pid) {
+            final m = Map<String, dynamic>.from(item as Map);
+            m['is_shortlisted'] = isShort;
+            _results[i] = m;
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _toggleShortlist(String profileId, String name, int index, {String? numericId}) async {
+    if (index < 0 || index >= _results.length) return;
+
+    final currentItem = _results[index];
+    final bool currentStatus = _shortlistedIds.contains(profileId) ||
+        (numericId != null && numericId.isNotEmpty && _shortlistedIds.contains(numericId)) ||
+        currentItem['is_shortlisted'] == true ||
+        currentItem['is_shortlisted'] == 1 ||
+        currentItem['is_shortlisted'] == '1';
+    final bool nextStatus = !currentStatus;
+
+    // 1. Instant Optimistic UI Update: icon turns active immediately without waiting
+    setState(() {
+      if (nextStatus) {
+        _shortlistedIds.add(profileId);
+        if (numericId != null && numericId.isNotEmpty) _shortlistedIds.add(numericId);
+      } else {
+        _shortlistedIds.remove(profileId);
+        if (numericId != null && numericId.isNotEmpty) _shortlistedIds.remove(numericId);
+      }
+      final updated = Map<String, dynamic>.from(currentItem as Map);
+      updated['is_shortlisted'] = nextStatus;
+      _results[index] = updated;
+    });
+
     try {
       final res = await ApiService.instance.toggleShortlist(profileId);
       if (!mounted) return;
 
       if (res['success'] == true) {
-        final isShortlisted = res['shortlisted'] == true;
+        final serverShortlisted = res['shortlisted'] == true || res['shortlisted'] == 1;
         setState(() {
-          _results[index]['is_shortlisted'] = isShortlisted;
+          if (serverShortlisted) {
+            _shortlistedIds.add(profileId);
+            if (numericId != null && numericId.isNotEmpty) _shortlistedIds.add(numericId);
+          } else {
+            _shortlistedIds.remove(profileId);
+            if (numericId != null && numericId.isNotEmpty) _shortlistedIds.remove(numericId);
+          }
+          final updated = Map<String, dynamic>.from(_results[index] as Map);
+          updated['is_shortlisted'] = serverShortlisted;
+          _results[index] = updated;
         });
         RaniAlert.success(
           context,
-          isShortlisted ? '$name added to Shortlist!' : '$name removed from Shortlist.',
-          title: isShortlisted ? 'Shortlisted' : 'Removed',
+          serverShortlisted ? '$name added to Shortlist!' : '$name removed from Shortlist.',
+          title: serverShortlisted ? 'Shortlisted' : 'Removed',
         );
       } else {
+        // Rollback on failure
+        setState(() {
+          if (currentStatus) {
+            _shortlistedIds.add(profileId);
+            if (numericId != null && numericId.isNotEmpty) _shortlistedIds.add(numericId);
+          } else {
+            _shortlistedIds.remove(profileId);
+            if (numericId != null && numericId.isNotEmpty) _shortlistedIds.remove(numericId);
+          }
+          final updated = Map<String, dynamic>.from(_results[index] as Map);
+          updated['is_shortlisted'] = currentStatus;
+          _results[index] = updated;
+        });
         RaniAlert.error(context, res['message'] ?? 'Action failed.');
       }
     } catch (e) {
-      if (mounted) RaniAlert.error(context, 'Error: $e');
+      if (mounted) {
+        // Rollback on network error
+        setState(() {
+          if (currentStatus) {
+            _shortlistedIds.add(profileId);
+            if (numericId != null && numericId.isNotEmpty) _shortlistedIds.add(numericId);
+          } else {
+            _shortlistedIds.remove(profileId);
+            if (numericId != null && numericId.isNotEmpty) _shortlistedIds.remove(numericId);
+          }
+          final updated = Map<String, dynamic>.from(_results[index] as Map);
+          updated['is_shortlisted'] = currentStatus;
+          _results[index] = updated;
+        });
+        RaniAlert.error(context, 'Error: $e');
+      }
     }
   }
 
@@ -707,7 +849,15 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
     final photo = ApiService.formatImageUrl(c['photo'] ?? c['profile_picture'] ?? '');
     final isVerified = c['verified'] == true || c['is_verified'] == 1 || (c['bluetick'] != null && c['bluetick']['is_accept'] == 1);
-    final isShortlisted = c['is_shortlisted'] == true;
+    final numericId = c['numeric_id']?.toString() ?? '';
+    final isShortlisted = ApiService.instance.isProfileShortlisted(c) ||
+        ApiService.instance.isProfileShortlisted(profileId) ||
+        _shortlistedIds.contains(profileId) ||
+        (numericId.isNotEmpty && _shortlistedIds.contains(numericId)) ||
+        c['is_shortlisted'] == true ||
+        c['is_shortlisted'] == 1 ||
+        c['is_shortlisted'] == '1' ||
+        c['is_shortlisted'] == 'true';
     final matchScore = c['match_score'] ?? 85;
 
     // Religion & Community string
@@ -738,8 +888,8 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => RaniMatchDetailsScreen(
@@ -748,6 +898,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                 ),
               ),
             );
+            _syncDetailsShortlistResult(result);
           },
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -884,7 +1035,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(16),
-                                  onTap: () => _toggleShortlist(profileId, displayName, index),
+                                  onTap: () => _toggleShortlist(profileId, displayName, index, numericId: numericId),
                                   child: Container(
                                     width: 32,
                                     height: 32,
@@ -1015,8 +1166,8 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => RaniMatchDetailsScreen(
@@ -1025,6 +1176,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                           ),
                         ),
                       );
+                      _syncDetailsShortlistResult(result);
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
