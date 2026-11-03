@@ -156,24 +156,24 @@ class RaniSidebarDrawer extends StatelessWidget {
             // 1. Top Royal Burgundy Header
             _buildTopRoyalHeader(context),
 
-            // 2. Middle Scrollable Nav Items (Strictly the 11 Items)
+            // 2. Middle Scrollable Nav Items (Strictly the 11 Items - Clean Royal Theme)
             Expanded(
               child: ListView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
-                  // a. My Matches
+                  // a. My Matches (Highlighted with soft warm brand tint)
                   _buildSidebarItem(
                     icon: CupertinoIcons.sparkles,
                     title: 'My Matches',
+                    isHighlighted: true,
                     count: matchesCount > 0 ? matchesCount : null,
                     onTap: () => _handleTabNavigation(context, 1),
                   ),
 
                   // b. Accepted Connections
                   _buildSidebarItem(
-                    icon: CupertinoIcons.checkmark_seal_fill,
-                    iconColor: const Color(0xFF00796B),
+                    icon: CupertinoIcons.checkmark_seal,
                     title: 'Accepted Connections',
                     count: acceptedCount > 0 ? acceptedCount : null,
                     onTap: () {
@@ -192,8 +192,7 @@ class RaniSidebarDrawer extends StatelessWidget {
 
                   // c. Received Connections
                   _buildSidebarItem(
-                    icon: CupertinoIcons.arrow_down_left_circle_fill,
-                    iconColor: const Color(0xFF750000),
+                    icon: CupertinoIcons.arrow_down_left_circle,
                     title: 'Received Connections',
                     count: interestsCount > 0 ? interestsCount : null,
                     onTap: () {
@@ -212,8 +211,7 @@ class RaniSidebarDrawer extends StatelessWidget {
 
                   // d. Send Requests
                   _buildSidebarItem(
-                    icon: CupertinoIcons.paperplane_fill,
-                    iconColor: const Color(0xFF1976D2),
+                    icon: CupertinoIcons.paperplane,
                     title: 'Send Requests',
                     count: sentCount > 0 ? sentCount : null,
                     onTap: () {
@@ -230,10 +228,14 @@ class RaniSidebarDrawer extends StatelessWidget {
                     },
                   ),
 
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    child: Divider(height: 1, thickness: 0.6, color: Color(0xFFECE3D7)),
+                  ),
+
                   // e. My Wallet
                   _buildSidebarItem(
-                    icon: Icons.account_balance_wallet_rounded,
-                    iconColor: const Color(0xFFB78103),
+                    icon: Icons.account_balance_wallet_outlined,
                     title: 'My Wallet',
                     onTap: () => _handleTabNavigation(context, 3),
                   ),
@@ -241,7 +243,6 @@ class RaniSidebarDrawer extends StatelessWidget {
                   // f. Advance Serch
                   _buildSidebarItem(
                     icon: CupertinoIcons.search,
-                    iconColor: const Color(0xFF750000),
                     title: 'Advance Serch',
                     onTap: () {
                       Navigator.pop(context);
@@ -254,8 +255,7 @@ class RaniSidebarDrawer extends StatelessWidget {
 
                   // g. Shortlisted
                   _buildSidebarItem(
-                    icon: CupertinoIcons.bookmark_fill,
-                    iconColor: const Color(0xFFD81B60),
+                    icon: CupertinoIcons.bookmark,
                     title: 'Shortlisted',
                     onTap: () {
                       Navigator.pop(context);
@@ -282,29 +282,32 @@ class RaniSidebarDrawer extends StatelessWidget {
                           candidate?['verification_status'] == 'verified';
 
                       return _buildSidebarItem(
-                        icon: CupertinoIcons.shield_lefthalf_fill,
-                        iconColor: const Color(0xFF2E7D32),
+                        icon: CupertinoIcons.shield,
                         title: 'Aadhaar Verification',
                         trailingBadge: isVerified
                             ? Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF2E7D32),
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFF2E7D32).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFF2E7D32).withValues(alpha: 0.3),
+                                    width: 0.8,
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 12),
+                                    const SizedBox(width: 3.5),
                                     Text(
                                       'Verified',
                                       style: GoogleFonts.outfit(
-                                        color: Colors.white,
+                                        color: const Color(0xFF2E7D32),
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
-                                    const SizedBox(width: 3),
-                                    const Icon(Icons.check, color: Colors.white, size: 12),
                                   ],
                                 ),
                               )
@@ -320,10 +323,14 @@ class RaniSidebarDrawer extends StatelessWidget {
                     },
                   ),
 
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    child: Divider(height: 1, thickness: 0.6, color: Color(0xFFECE3D7)),
+                  ),
+
                   // i. Help & Support
                   _buildSidebarItem(
-                    icon: CupertinoIcons.question_circle_fill,
-                    iconColor: const Color(0xFF455A64),
+                    icon: CupertinoIcons.headphones,
                     title: 'Help & Support',
                     onTap: () {
                       Navigator.pop(context);
@@ -336,15 +343,14 @@ class RaniSidebarDrawer extends StatelessWidget {
 
                   // j. Account Settings
                   _buildSidebarItem(
-                    icon: CupertinoIcons.gear_alt_fill,
-                    iconColor: const Color(0xFF4E342E),
+                    icon: CupertinoIcons.gear_alt,
                     title: 'Account Settings',
                     onTap: () => _handleTabNavigation(context, 4),
                   ),
 
                   // k. Delete My Account
                   _buildSidebarItem(
-                    icon: CupertinoIcons.trash_fill,
+                    icon: CupertinoIcons.trash,
                     title: 'Delete My Account',
                     isDestructive: true,
                     onTap: () => _showDeleteAccountDialog(context),
@@ -795,67 +801,41 @@ class RaniSidebarDrawer extends StatelessWidget {
     int? count,
     Widget? trailingBadge,
     bool isDestructive = false,
+    bool isHighlighted = false,
   }) {
-    final primaryColor = isDestructive ? const Color(0xFFD32F2F) : (iconColor ?? const Color(0xFF750000));
+    final primaryColor = isDestructive
+        ? const Color(0xFFD32F2F)
+        : (iconColor ?? const Color(0xFF750000));
+
+    final textColor = isDestructive
+        ? const Color(0xFFD32F2F)
+        : (isHighlighted ? const Color(0xFF6B000B) : const Color(0xFF222222));
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.5),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       child: Material(
-        color: isDestructive
-            ? const Color(0xFFD32F2F).withValues(alpha: 0.04)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: isHighlighted
+            ? const Color(0xFFFBECE6)
+            : (isDestructive
+                ? const Color(0xFFD32F2F).withValues(alpha: 0.05)
+                : Colors.transparent),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          splashColor: primaryColor.withValues(alpha: 0.1),
-          highlightColor: primaryColor.withValues(alpha: 0.05),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10.5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDestructive
-                    ? const Color(0xFFD32F2F).withValues(alpha: 0.2)
-                    : const Color(0xFFEFE8DE),
-                width: 0.9,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
+          borderRadius: BorderRadius.circular(12),
+          splashColor: primaryColor.withValues(alpha: 0.12),
+          highlightColor: primaryColor.withValues(alpha: 0.06),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                // Theme colored squircle icon container with soft gradient
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        primaryColor.withValues(alpha: 0.14),
-                        primaryColor.withValues(alpha: 0.06),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(
-                      color: primaryColor.withValues(alpha: 0.22),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 19,
-                    color: primaryColor,
-                  ),
+                // Clean elegant icon directly inline (no bulky squircle card)
+                Icon(
+                  icon,
+                  size: 22,
+                  color: primaryColor,
                 ),
-                const SizedBox(width: 13),
+                const SizedBox(width: 15),
 
                 // Title
                 Expanded(
@@ -864,10 +844,12 @@ class RaniSidebarDrawer extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.outfit(
-                      fontSize: 14.5,
-                      fontWeight: isDestructive ? FontWeight.w700 : FontWeight.w600,
-                      color: isDestructive ? const Color(0xFFD32F2F) : const Color(0xFF1E1E1E),
-                      letterSpacing: 0.1,
+                      fontSize: 15,
+                      fontWeight: (isHighlighted || isDestructive)
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: textColor,
+                      letterSpacing: 0.15,
                     ),
                   ),
                 ),
@@ -875,19 +857,19 @@ class RaniSidebarDrawer extends StatelessWidget {
                 // Trailing Custom Badge (e.g. Verified) or Count Badge
                 if (trailingBadge != null) ...[
                   trailingBadge,
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                 ] else if (count != null && count > 0) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 2.5),
+                    margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF750000),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '$count',
                       style: GoogleFonts.outfit(
-                        fontSize: 11,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
@@ -898,10 +880,12 @@ class RaniSidebarDrawer extends StatelessWidget {
                 // Trailing Chevron
                 Icon(
                   CupertinoIcons.chevron_forward,
-                  size: 13.5,
+                  size: 14,
                   color: isDestructive
                       ? const Color(0xFFD32F2F).withValues(alpha: 0.45)
-                      : const Color(0xFFC7BCAE),
+                      : (isHighlighted
+                          ? const Color(0xFF750000).withValues(alpha: 0.75)
+                          : const Color(0xFFB5ABA0)),
                 ),
               ],
             ),
