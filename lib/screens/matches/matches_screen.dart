@@ -67,7 +67,8 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     _pageController.addListener(() {
       if (_pageController.hasClients && _pageController.page != null) {
         final currentPos = _pageController.page!.round();
-        if (currentPos >= _matches.length - 2 && !_isLoadingMore && _hasMore) {
+        // Trigger load only when user arrives at the loading placeholder page (index == _matches.length)
+        if (currentPos >= _matches.length && !_isLoadingMore && _hasMore) {
           _loadMoreMatches();
         }
       }
@@ -76,7 +77,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     // Listen to ListView scroll for Accepted & Shortlisted tabs
     _scrollController.addListener(() {
       if (_scrollController.hasClients) {
-        if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
+        if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 50) {
           if (!_isLoadingMore && _hasMore) {
             _loadMoreMatches();
           }
@@ -197,7 +198,13 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
         // Strictly show first 10 data items initially
         final initialBatch = list.take(_pageSize).toList();
-        _hasMore = list.length > _pageSize || (_hasMore && list.isNotEmpty);
+        final totalCount = res['total'] is int
+            ? res['total'] as int
+            : (counts is Map && (counts['new'] ?? counts['todays']) is int
+                ? (counts['new'] ?? counts['todays']) as int
+                : list.length);
+        final lastPage = res['last_page'] is int ? res['last_page'] as int : 1;
+        _hasMore = res['has_more'] == true || totalCount > initialBatch.length || lastPage > 1 || list.length > _pageSize;
 
         setState(() {
           _matches = initialBatch;
@@ -261,11 +268,12 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     });
 
     try {
+      // Visible delay so user clearly sees the animated indicator and skeleton shimmer before loading next 10 items
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;
+
       // 1. First check if we have more cached in _cachedPool
       if (_cachedPool.length > _matches.length) {
-        // Small delay so user sees the animated indicator and skeleton shimmer before showing next 10
-        await Future.delayed(const Duration(milliseconds: 650));
-        if (!mounted) return;
         final nextBatch = _cachedPool.skip(_matches.length).take(_pageSize).toList();
         if (nextBatch.isNotEmpty) {
           setState(() {
@@ -757,6 +765,11 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
           controller: _pageController,
           physics: const AlwaysScrollableScrollPhysics(),
           scrollDirection: Axis.vertical,
+          onPageChanged: (index) {
+            if (index >= _matches.length && !_isLoadingMore && _hasMore) {
+              _loadMoreMatches();
+            }
+          },
           itemCount: _matches.length + (_hasMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index < _matches.length) {
@@ -766,43 +779,14 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                 child: _buildFullImageMatchCard(candidate),
               );
             } else {
-              // Animated indicator + Shimmer Skeleton Card when reaching 10 items to fetch next 10 items
-              return Stack(
-                children: [
-                  const RaniSkeletonMatchScreen(),
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.78),
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const CupertinoActivityIndicator(radius: 12, color: Colors.white),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Loading next 10 matches...',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
+              // Trigger fetch if landing directly on the loading page
+              if (!_isLoadingMore && _hasMore) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _loadMoreMatches();
+                });
+              }
+              // Luxury Royal Match Discovery Card loader matching the exact card design
+              return _buildPagingDiscoveryLoaderCard();
             }
           },
         ),
@@ -836,7 +820,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       const CupertinoActivityIndicator(color: Color(0xFF750000)),
                       const SizedBox(width: 10),
                       Text(
-                        'Loading next 10 candidates...',
+                        'Discovering more profiles...',
                         style: GoogleFonts.outfit(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
@@ -854,6 +838,229 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             );
           }
         },
+      ),
+    );
+  }
+
+  /// Luxury Royal Match Discovery Card loader matching the exact card design
+  Widget _buildPagingDiscoveryLoaderCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFFBF8F3),
+              Color(0xFFF6EFE6),
+            ],
+          ),
+          border: Border.all(
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.4),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF750000).withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Top-left Match Badge Placeholder
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF750000).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(CupertinoIcons.sparkles, size: 12, color: Color(0xFFD4AF37)),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Curating Profiles',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF750000),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Top-right Heart Button Placeholder
+            Positioned(
+              top: 14,
+              right: 14,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE8DFD5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: const Icon(CupertinoIcons.heart, size: 18, color: Color(0xFFC7B8AA)),
+              ),
+            ),
+
+            // Center: Royal Animated Discovery Emblem & Uniform Title
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Royal Glowing Halo Emblem
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 78,
+                        height: 78,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF750000).withValues(alpha: 0.06),
+                          border: Border.all(
+                            color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF750000), Color(0xFF4E0000)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF750000).withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.sparkles,
+                          color: Color(0xFFE5B842),
+                          size: 26,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Uniform Title (No counts)
+                  Text(
+                    'Discovering Matches...',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 18.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2B0A0D),
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Subtitle
+                  Text(
+                    'Finding compatible profiles for you',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF7C6E65),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Elegant Indicator
+                  const CupertinoActivityIndicator(
+                    radius: 11,
+                    color: Color(0xFF750000),
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom Realistic Match Card Footer Skeleton
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 140,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEADBCE),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 190,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0E4D8),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF750000).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF750000).withValues(alpha: 0.15),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Connect Now',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF750000).withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
