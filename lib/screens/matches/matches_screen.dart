@@ -263,6 +263,9 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     try {
       // 1. First check if we have more cached in _cachedPool
       if (_cachedPool.length > _matches.length) {
+        // Small delay so user sees the animated indicator and skeleton shimmer before showing next 10
+        await Future.delayed(const Duration(milliseconds: 650));
+        if (!mounted) return;
         final nextBatch = _cachedPool.skip(_matches.length).take(_pageSize).toList();
         if (nextBatch.isNotEmpty) {
           setState(() {
@@ -763,33 +766,42 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                 child: _buildFullImageMatchCard(candidate),
               );
             } else {
-              // Loading placeholder when swiping to load the next 10 items
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFEFE8DE)),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CupertinoActivityIndicator(radius: 16, color: Color(0xFF750000)),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Loading more matches...',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF750000),
+              // Animated indicator + Shimmer Skeleton Card when reaching 10 items to fetch next 10 items
+              return Stack(
+                children: [
+                  const RaniSkeletonMatchScreen(),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.78),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CupertinoActivityIndicator(radius: 12, color: Colors.white),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Loading next 10 matches...',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               );
             }
           },
@@ -805,7 +817,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(top: 4, bottom: 24),
-        itemCount: _matches.length + (_isLoadingMore ? 1 : 0),
+        itemCount: _matches.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index < _matches.length) {
             final candidate = _matches[index];
@@ -814,25 +826,31 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               isAcceptedTab: _selectedTab == 'accepted',
             );
           } else {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CupertinoActivityIndicator(color: Color(0xFF750000)),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Loading more candidates...',
-                      style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF750000),
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CupertinoActivityIndicator(color: Color(0xFF750000)),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Loading next 10 candidates...',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF750000),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                RaniSkeletonCandidateList(
+                  itemCount: 2,
+                  isAcceptedTab: _selectedTab == 'accepted',
+                ),
+              ],
             );
           }
         },

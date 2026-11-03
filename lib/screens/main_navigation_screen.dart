@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../components/rani_top_bar.dart';
@@ -55,10 +56,18 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   int _walletRefreshKey = 0;
   int _profileRefreshKey = 0;
 
+  // Tab navigation history stack for back navigation:
+  // e.g. User starts at Matches (1) -> Interests (2) -> Profile (4)
+  // Back presses: Profile (4) -> Interests (2) -> Matches (1) -> Home (0) -> Close app
+  final List<int> _tabHistory = [0];
+
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    if (widget.initialIndex != 0) {
+      _tabHistory.add(widget.initialIndex);
+    }
     ApiService.instance.candidateNotifier.addListener(_onMainCandidateChanged);
     ApiService.instance.walletBalanceNotifier.addListener(_onMainWalletChanged);
     _loadDismissedNotifications();
@@ -320,7 +329,15 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   }
 
   /// Switch tab and trigger a clean refresh of the target screen
-  void _navigateToTab(int index) {
+  void _navigateToTab(int index, {bool addToHistory = true}) {
+    if (index == _currentIndex) return;
+
+    if (addToHistory) {
+      if (_tabHistory.isEmpty || _tabHistory.last != index) {
+        _tabHistory.add(index);
+      }
+    }
+
     setState(() {
       _currentIndex = index;
       if (index == 0) _homeRefreshKey++;
@@ -333,6 +350,38 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
       if (index == 4) _profileRefreshKey++;
     });
     _fetchLiveMetrics();
+  }
+
+  /// Handle system / Android back button:
+  /// 1. Close drawer if open
+  /// 2. Step back to previous tab in history
+  /// 3. If history exhausted, go to Home tab (0)
+  /// 4. Only if currently on Home tab (0) with empty history, exit the app
+  void _handleBackNavigation() {
+    // 1. If drawer is open, close drawer first
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+
+    // 2. If tab history has previous tabs, step back to the previous tab
+    if (_tabHistory.length > 1) {
+      _tabHistory.removeLast(); // remove current tab
+      final prevTab = _tabHistory.last;
+      _navigateToTab(prevTab, addToHistory: false);
+      return;
+    }
+
+    // 3. If not on Home tab (0), go to Home tab
+    if (_currentIndex != 0) {
+      _tabHistory.clear();
+      _tabHistory.add(0);
+      _navigateToTab(0, addToHistory: false);
+      return;
+    }
+
+    // 4. Currently on Home tab with exhausted history -> close app cleanly
+    SystemNavigator.pop();
   }
 
   /// Reusable TopBar changeable by active screen
@@ -1021,8 +1070,14 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: _buildTopBarForCurrentScreen(),
       drawer: _buildFullScreenSidebar(),
@@ -1155,6 +1210,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
