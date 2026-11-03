@@ -1404,24 +1404,58 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Connect CTA Button
+                      // Connect CTA Button with Golden Corner Ornament
                       Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isInterestSent ? const Color(0xFF2E7D32) : const Color(0xFF750000),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: isInterestSent ? null : () => _sendRoyalInterest(c),
-                          icon: Icon(
-                            isInterestSent ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
-                            size: 15,
-                          ),
-                          label: Text(
-                            isInterestSent ? 'Connected' : 'Connect Now',
-                            style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700),
+                        child: SizedBox(
+                          height: 42,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              children: [
+                                SizedBox.expand(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isInterestSent ? const Color(0xFF2E7D32) : const Color(0xFF750000),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: isInterestSent ? null : () => _sendRoyalInterest(c),
+                                    icon: Icon(
+                                      isInterestSent ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
+                                      size: 15,
+                                    ),
+                                    label: Text(
+                                      isInterestSent ? 'Connected' : 'Connect Now',
+                                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                ),
+
+                                // Golden Indian Royal Corner Ornament in Bottom-Right
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  width: 52,
+                                  height: 52,
+                                  child: IgnorePointer(
+                                    child: Opacity(
+                                      opacity: 0.75,
+                                      child: Transform.flip(
+                                        flipY: true,
+                                        child: Image.asset(
+                                          'assets/sidebar-top-right-corner.png',
+                                          fit: BoxFit.contain,
+                                          alignment: Alignment.bottomRight,
+                                          errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -1732,35 +1766,66 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
                     const SizedBox(height: 14),
 
-                    // Connect Button Just
+                    // Connect Button with Golden Royal Corner Ornament in Bottom-Right
                     SizedBox(
                       width: double.infinity,
                       height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isInterestSent ? const Color(0xFF2E7D32) : const Color(0xFF750000),
-                          foregroundColor: Colors.white,
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: isInterestSent ? null : () => _sendRoyalInterest(c),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Stack(
                           children: [
-                            Icon(
-                              isInterestSent ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
-                              size: 18,
-                              color: Colors.white,
+                            SizedBox.expand(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isInterestSent ? const Color(0xFF2E7D32) : const Color(0xFF750000),
+                                  foregroundColor: Colors.white,
+                                  elevation: 3,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                onPressed: isInterestSent ? null : () => _sendRoyalInterest(c),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      isInterestSent ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      isInterestSent ? 'Connected' : 'Connect',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              isInterestSent ? 'Connected' : 'Connect',
-                              style: GoogleFonts.outfit(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+
+                            // Golden Indian Royal Corner Ornament in Bottom-Right (Generous Luxury Size)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              width: 72,
+                              height: 72,
+                              child: IgnorePointer(
+                                child: Opacity(
+                                  opacity: 0.75,
+                                  child: Transform.flip(
+                                    flipY: true,
+                                    child: Image.asset(
+                                      'assets/sidebar-top-right-corner.png',
+                                      fit: BoxFit.contain,
+                                      alignment: Alignment.bottomRight,
+                                      errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
