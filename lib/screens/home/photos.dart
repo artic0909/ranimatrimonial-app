@@ -3,10 +3,13 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
+import '../../components/rani_image_cropper_modal.dart';
 import '../../components/rani_matrimonial_loader.dart';
 
 /// Screen: Candidate Gallery Photos & Profile Picture Management
@@ -215,9 +218,22 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                     final perm = await Permission.camera.request();
                     if (perm.isGranted) {
                       final picker = ImagePicker();
-                      final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-                      if (picked != null) {
-                        _uploadPhotosDirectly([File(picked.path)]);
+                      final picked = await picker.pickImage(
+                        source: ImageSource.camera,
+                        maxWidth: 1920,
+                        maxHeight: 1920,
+                        imageQuality: 92,
+                      );
+                      if (picked != null && mounted) {
+                        final cropped = await RaniImageCropperModal.show(
+                          context,
+                          imageFile: File(picked.path),
+                          title: 'Adjust Gallery Photo',
+                          isCircle: false,
+                        );
+                        if (cropped != null) {
+                          _uploadPhotosDirectly([cropped]);
+                        }
                       }
                     } else {
                       if (mounted) {
@@ -243,16 +259,22 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                   onTap: () async {
                     Navigator.pop(ctx);
                     final picker = ImagePicker();
-                    try {
-                      final pickedList = await picker.pickMultiImage(imageQuality: 85);
-                      if (pickedList.isNotEmpty) {
-                        _uploadPhotosDirectly(pickedList.map((x) => File(x.path)).toList());
-                        return;
+                    final single = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: 1920,
+                      maxHeight: 1920,
+                      imageQuality: 92,
+                    );
+                    if (single != null && mounted) {
+                      final cropped = await RaniImageCropperModal.show(
+                        context,
+                        imageFile: File(single.path),
+                        title: 'Adjust Gallery Photo',
+                        isCircle: false,
+                      );
+                      if (cropped != null) {
+                        _uploadPhotosDirectly([cropped]);
                       }
-                    } catch (_) {}
-                    final single = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-                    if (single != null) {
-                      _uploadPhotosDirectly([File(single.path)]);
                     }
                   },
                   child: Padding(
@@ -302,8 +324,62 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
     }
   }
 
-  /// [U - UPDATE]: Set a gallery photo as the primary profile picture
-  Future<void> _setAsProfile(dynamic photoId) async {
+  /// [U - UPDATE]: Set a gallery photo as the primary profile picture with interactive cropper
+  Future<void> _cropAndSetAsProfile(dynamic photoId, String photoUrl) async {
+    if (photoId == null) return;
+    try {
+      File? sourceFile;
+      if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+        RaniMatrimonialLoader.show(context, message: 'Opening photo cropper...');
+        final res = await http.get(Uri.parse(photoUrl));
+        if (!mounted) return;
+        RaniMatrimonialLoader.hide(context);
+        if (res.statusCode == 200) {
+          final tempDir = await getTemporaryDirectory();
+          final tempFile = File('${tempDir.path}/crop_prof_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          await tempFile.writeAsBytes(res.bodyBytes);
+          sourceFile = tempFile;
+        }
+      } else if (photoUrl.isNotEmpty) {
+        final f = File(photoUrl);
+        if (await f.exists()) sourceFile = f;
+      }
+
+      if (sourceFile == null) {
+        _setAsProfileDirect(photoId);
+        return;
+      }
+
+      if (!mounted) return;
+      final cropped = await RaniImageCropperModal.show(
+        context,
+        imageFile: sourceFile,
+        title: 'Adjust Profile Photo',
+        isCircle: true,
+      );
+
+      if (cropped == null || !mounted) return;
+
+      RaniMatrimonialLoader.show(context, message: 'Setting profile photo...');
+      final uploadRes = await ApiService.instance.uploadProfilePicture(cropped);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (uploadRes['success'] == true) {
+        RaniAlert.success(context, 'Profile picture updated successfully!');
+        _loadPhotos();
+      } else {
+        _setAsProfileDirect(photoId);
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        _setAsProfileDirect(photoId);
+      }
+    }
+  }
+
+  Future<void> _setAsProfileDirect(dynamic photoId) async {
     if (photoId == null || photoId == 'profile_main') return;
     RaniMatrimonialLoader.show(context, message: 'Updating profile picture...');
     try {
@@ -742,6 +818,23 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                   ),
                 ),
 
+              // Crop Button (Interactive Cropper)
+              Positioned(
+                top: 8,
+                right: photoId != 'profile_main' ? 44 : 8,
+                child: GestureDetector(
+                  onTap: () => _cropAndSetAsProfile(photoId, url),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(CupertinoIcons.crop, size: 14, color: Colors.white),
+                  ),
+                ),
+              ),
+
               // Delete Button
               if (photoId != 'profile_main')
                 Positioned(
@@ -775,7 +868,7 @@ class _RaniPhotosScreenState extends State<RaniPhotosScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () => _setAsProfile(photoId),
+                    onPressed: () => _cropAndSetAsProfile(photoId, url),
                     child: Text(
                       'Set as Profile',
                       style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),

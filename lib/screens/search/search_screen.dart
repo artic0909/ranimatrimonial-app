@@ -273,6 +273,12 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
       'sort_by': _sortBy,
     };
 
+    final myCand = ApiService.instance.candidate;
+    final myId = myCand?['id']?.toString();
+    final myCode = (myCand?['candidate_code'] ?? myCand?['profile_id'])?.toString();
+    if (myId != null && myId.isNotEmpty) payload['candidate_id'] = myId;
+    if (myCode != null && myCode.isNotEmpty) payload['candidate_code'] = myCode;
+
     try {
       final res = await ApiService.instance.searchProfiles(payload);
       if (!mounted) return;
@@ -284,6 +290,13 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
           final map = Map<String, dynamic>.from(item as Map);
           final pid = (map['candidate_code'] ?? map['profile_id'] ?? map['id'])?.toString() ?? '';
           final numId = map['numeric_id']?.toString() ?? '';
+          final itemId = map['id']?.toString() ?? '';
+
+          // Strictly exclude logged-in candidate's profile from search results
+          if ((myId != null && myId.isNotEmpty && (itemId == myId || numId == myId)) ||
+              (myCode != null && myCode.isNotEmpty && (pid == myCode || itemId == myCode))) {
+            continue;
+          }
           final isServerShort = map['is_shortlisted'] == true ||
               map['is_shortlisted'] == 1 ||
               map['is_shortlisted'] == '1' ||

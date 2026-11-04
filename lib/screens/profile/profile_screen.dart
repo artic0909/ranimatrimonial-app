@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
+import '../../components/rani_image_cropper_modal.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../wallet/wallet_screen.dart';
@@ -165,11 +166,28 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
   Future<void> _pickAndUploadPhoto(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, imageQuality: 85);
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 92,
+      );
       if (picked == null || !mounted) return;
 
+      final rawFile = File(picked.path);
+
+      // Open interactive cropping modal
+      final croppedFile = await RaniImageCropperModal.show(
+        context,
+        imageFile: rawFile,
+        title: 'Adjust Profile Photo',
+        isCircle: true,
+      );
+
+      if (croppedFile == null || !mounted) return;
+
       RaniMatrimonialLoader.show(context, message: 'Updating Profile Photo...');
-      final res = await ApiService.instance.uploadProfilePicture(File(picked.path));
+      final res = await ApiService.instance.uploadProfilePicture(croppedFile);
       if (!mounted) return;
       RaniMatrimonialLoader.hide(context);
 

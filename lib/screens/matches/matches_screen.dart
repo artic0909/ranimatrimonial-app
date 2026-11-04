@@ -199,14 +199,29 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         }
 
         final myCandidate = ApiService.instance.candidate;
+        final myId = myCandidate?['id']?.toString();
+        final myCode = (myCandidate?['candidate_code'] ?? myCandidate?['profile_id'])?.toString();
         final myCity = (myCandidate?['city'] ?? myCandidate?['district'] ?? myCandidate?['present_city'] ?? '').toString().trim().toLowerCase();
         final myState = (myCandidate?['state'] ?? myCandidate?['present_state'] ?? '').toString().trim().toLowerCase();
+
+        bool isMe(dynamic m) {
+          if (m is! Map) return false;
+          final mPid = (m['candidate_code'] ?? m['profile_id'])?.toString();
+          final mId = m['id']?.toString();
+          final mNumId = m['numeric_id']?.toString();
+          if (myId != null && myId.isNotEmpty && (mId == myId || mNumId == myId)) return true;
+          if (myCode != null && myCode.isNotEmpty && (mPid == myCode || mId == myCode)) return true;
+          return false;
+        }
+
+        // Strictly exclude logged-in candidate from appearing in matches
+        list = list.where((m) => !isMe(m)).toList();
 
         // Calculate Near Me count from full pool of matches
         final rawPool = res['matches'] is List
             ? List.from(res['matches'])
             : (res['matches'] is Map && res['matches']['data'] is List ? List.from(res['matches']['data']) : list);
-        final nearMePool = rawPool.where((m) => m['is_shortlisted'] != true && _isNearMe(m, myCity, myState)).toList();
+        final nearMePool = rawPool.where((m) => !isMe(m) && m['is_shortlisted'] != true && _isNearMe(m, myCity, myState)).toList();
         _nearMeCount = nearMePool.length;
 
         // Strictly guarantee shortlisted candidates do NOT appear in the NEW and NEAR ME tabs
@@ -344,6 +359,23 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
           final lastPage = res['matches']['last_page'] ?? nextPage;
           _hasMore = nextPage < lastPage;
         }
+
+        final myCandidate = ApiService.instance.candidate;
+        final myId = myCandidate?['id']?.toString();
+        final myCode = (myCandidate?['candidate_code'] ?? myCandidate?['profile_id'])?.toString();
+
+        bool isMe(dynamic m) {
+          if (m is! Map) return false;
+          final mPid = (m['candidate_code'] ?? m['profile_id'])?.toString();
+          final mId = m['id']?.toString();
+          final mNumId = m['numeric_id']?.toString();
+          if (myId != null && myId.isNotEmpty && (mId == myId || mNumId == myId)) return true;
+          if (myCode != null && myCode.isNotEmpty && (mPid == myCode || mId == myCode)) return true;
+          return false;
+        }
+
+        // Strictly exclude logged-in candidate
+        nextList = nextList.where((m) => !isMe(m)).toList();
 
         if (_selectedTab == 'new') {
           nextList = nextList.where((m) => m['is_shortlisted'] != true).toList();
