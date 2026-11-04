@@ -7,6 +7,7 @@ import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
+import '../../components/rani_sidebar_drawer.dart';
 import 'details_screen.dart';
 import '../search/search_screen.dart';
 
@@ -24,6 +25,7 @@ import '../search/search_screen.dart';
 class RaniMatchesScreen extends StatefulWidget {
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenMenu;
   final ValueChanged<int>? onMatchesCountChanged;
   final bool showAppBar;
   final String initialTab;
@@ -32,6 +34,7 @@ class RaniMatchesScreen extends StatefulWidget {
     super.key,
     this.onOpenSearch,
     this.onOpenNotifications,
+    this.onOpenMenu,
     this.onMatchesCountChanged,
     this.showAppBar = true,
     this.initialTab = 'new',
@@ -42,6 +45,7 @@ class RaniMatchesScreen extends StatefulWidget {
 }
 
 class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late String _selectedTab; // 'new', 'near_me', 'accepted', 'shortlisted'
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -87,6 +91,21 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         }
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant RaniMatchesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab) {
+      setState(() {
+        _selectedTab = widget.initialTab;
+        _currentPage = 1;
+        _matches.clear();
+        _cachedPool.clear();
+        _hasMore = true;
+      });
+      _fetchMatches();
+    }
   }
 
   @override
@@ -489,11 +508,14 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: widget.showAppBar ? const RaniSidebarDrawer() : null,
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: widget.showAppBar
           ? RaniTopBar(
               title: 'Matches',
               notificationCount: 3,
+              onMenuPressed: widget.onOpenMenu ?? () => _scaffoldKey.currentState?.openDrawer(),
               onNotificationPressed: widget.onOpenNotifications,
             )
           : null,

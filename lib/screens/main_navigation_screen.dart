@@ -26,10 +26,14 @@ import '../services/push_notification_service.dart';
 ///    - Fixed bottom area: Available Wallet Balance & "Recharge Wallet" CTA button
 class RaniMainNavigationScreen extends StatefulWidget {
   final int initialIndex;
+  final int? initialConnectionTabIndex;
+  final String? initialMatchesTab;
 
   const RaniMainNavigationScreen({
     super.key,
     this.initialIndex = 1, // Default directly to Matches screen ('new' tab) per user specification
+    this.initialConnectionTabIndex,
+    this.initialMatchesTab,
   });
 
   @override
@@ -39,9 +43,11 @@ class RaniMainNavigationScreen extends StatefulWidget {
 class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _currentIndex;
-  int _notificationCount = 3;
-  int _matchesCount = 16;
-  int _interestsCount = 5;
+  int? _connectionsTabIndex;
+  String? _matchesTab;
+  int _notificationCount = 0;
+  int _matchesCount = 0;
+  int _interestsCount = 0;
   int _acceptedCount = 0;
   int _sentCount = 0;
   double _walletBalance = 0.00;
@@ -64,6 +70,8 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _connectionsTabIndex = widget.initialConnectionTabIndex;
+    _matchesTab = widget.initialMatchesTab;
     if (widget.initialIndex != 0) {
       _tabHistory.add(widget.initialIndex);
     }
@@ -331,8 +339,23 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   }
 
   /// Switch tab and trigger a clean refresh of the target screen
-  void _navigateToTab(int index, {bool addToHistory = true}) {
-    if (index == _currentIndex) return;
+  void _navigateToTab(
+    int index, {
+    int? connectionTabIndex,
+    String? matchesTab,
+    bool addToHistory = true,
+  }) {
+    final bool subTabChanged = (connectionTabIndex != null && connectionTabIndex != _connectionsTabIndex) ||
+        (matchesTab != null && matchesTab != _matchesTab);
+
+    if (index == _currentIndex && !subTabChanged) return;
+
+    if (connectionTabIndex != null) {
+      _connectionsTabIndex = connectionTabIndex;
+    }
+    if (matchesTab != null) {
+      _matchesTab = matchesTab;
+    }
 
     if (addToHistory) {
       if (_tabHistory.isEmpty || _tabHistory.last != index) {
@@ -544,7 +567,9 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   /// Full-Screen Royal Matrimonial Sidebar Drawer
   Widget _buildFullScreenSidebar() {
     return RaniSidebarDrawer(
-      onNavigateToTab: _navigateToTab,
+      onNavigateToTab: (index, {connectionTabIndex, matchesTab}) {
+        _navigateToTab(index, connectionTabIndex: connectionTabIndex, matchesTab: matchesTab);
+      },
       interestsCount: _interestsCount,
       acceptedCount: _acceptedCount,
       sentCount: _sentCount,
@@ -591,8 +616,9 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
 
           // 1. Matches Screen
           RaniMatchesScreen(
-            key: ValueKey('matches_$_matchesRefreshKey'),
+            key: ValueKey('matches_${_matchesRefreshKey}_${_matchesTab ?? "new"}'),
             showAppBar: false,
+            initialTab: _matchesTab ?? 'new',
             onOpenSearch: () {
               Navigator.push(
                 context,
@@ -609,8 +635,9 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
 
           // 2. Interests / Connections Screen (Top 4 tabs: Received, Send, Accepted, Declined)
           RaniConnectionsScreen(
-            key: ValueKey('interests_$_interestsRefreshKey'),
+            key: ValueKey('interests_${_interestsRefreshKey}_${_connectionsTabIndex ?? 0}'),
             showAppBar: false,
+            initialTabIndex: _connectionsTabIndex ?? 0,
           ),
 
           // 3. Wallet Screen (Replaces Chat per user request)

@@ -21,6 +21,13 @@ class ApiService {
   final ValueNotifier<Map<String, dynamic>?> candidateNotifier = ValueNotifier<Map<String, dynamic>?>(null);
   final ValueNotifier<double> walletBalanceNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<Set<String>> shortlistedIdsNotifier = ValueNotifier<Set<String>>({});
+  final ValueNotifier<Map<String, int>> sidebarCountsNotifier = ValueNotifier<Map<String, int>>({
+    'matches': 0,
+    'accepted': 0,
+    'received': 0,
+    'sent': 0,
+    'shortlisted': 0,
+  });
 
   String? get token => _token;
   Map<String, dynamic>? get candidate => _candidate;
@@ -485,8 +492,31 @@ class ApiService {
       final uri = Uri.parse('$baseUrl/dashboard');
       final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
       final data = _processResponse(response);
-      if (data['success'] == true && data['data'] != null && data['data']['candidate'] != null) {
-        await updateCachedCandidate(data['data']['candidate'] as Map<String, dynamic>);
+      if (data['success'] == true && data['data'] != null) {
+        final d = data['data'];
+        if (d['candidate'] != null) {
+          await updateCachedCandidate(d['candidate'] as Map<String, dynamic>);
+        }
+        if (d['wallet'] != null && d['wallet']['avl_balance'] != null) {
+          final bal = double.tryParse(d['wallet']['avl_balance'].toString()) ?? 0.0;
+          walletBalanceNotifier.value = bal;
+        }
+        if (d['metrics'] != null) {
+          final m = d['metrics'];
+          final matches = int.tryParse(m['total_matches_count']?.toString() ?? m['new_matches_count']?.toString() ?? '0') ?? 0;
+          final accepted = int.tryParse(m['accepted_invitations_count']?.toString() ?? '0') ?? 0;
+          final received = int.tryParse(m['pending_invitations_count']?.toString() ?? '0') ?? 0;
+          final sent = int.tryParse(m['sent_invitations_count']?.toString() ?? '0') ?? 0;
+          final shortlisted = int.tryParse(m['shortlisted_count']?.toString() ?? '0') ?? 0;
+
+          sidebarCountsNotifier.value = {
+            'matches': matches,
+            'accepted': accepted,
+            'received': received,
+            'sent': sent,
+            'shortlisted': shortlisted,
+          };
+        }
       }
       return data;
     } catch (e) {
@@ -1074,6 +1104,26 @@ class ApiService {
   Future<Map<String, dynamic>> getSuccessStories({int page = 1}) async {
     final uri = Uri.parse('$baseUrl/success-stories?page=$page');
     final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Get candidate's account deletion request status
+  Future<Map<String, dynamic>> getDeleteAccountRequest() async {
+    await _ensureAuthLoaded();
+    final uri = Uri.parse('$baseUrl/account/delete-request');
+    final response = await http.get(uri, headers: _headers);
+    return _processResponse(response);
+  }
+
+  /// Submit candidate's account deletion request
+  Future<Map<String, dynamic>> submitDeleteAccountRequest(String reason) async {
+    await _ensureAuthLoaded();
+    final uri = Uri.parse('$baseUrl/account/delete-request');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'reason': reason}),
+    );
     return _processResponse(response);
   }
 

@@ -6,6 +6,7 @@ import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
+import '../../components/rani_sidebar_drawer.dart';
 import '../matches/details_screen.dart';
 import '../search/search_screen.dart';
 
@@ -37,6 +38,7 @@ class RaniConnectionsScreen extends StatefulWidget {
 }
 
 class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _selectedTabIndex; // 0: received, 1: sent, 2: accepted, 3: declined
   bool _isLoading = true;
   List<dynamic> _requests = [];
@@ -66,6 +68,17 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
       _isLoading = false;
       if (_selectedTabIndex == 1) _sentCount = _requests.length;
     } else {
+      _fetchRequestsForCurrentTab();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant RaniConnectionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTabIndex != widget.initialTabIndex) {
+      setState(() {
+        _selectedTabIndex = widget.initialTabIndex;
+      });
       _fetchRequestsForCurrentTab();
     }
   }
@@ -181,12 +194,14 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: widget.showAppBar ? const RaniSidebarDrawer() : null,
       backgroundColor: const Color(0xFFFAF7F2), // Matches theme ivory canvas
       appBar: widget.showAppBar
           ? RaniTopBar(
               title: 'Connections',
               notificationCount: _receivedCount,
-              onMenuPressed: widget.onOpenMenu,
+              onMenuPressed: widget.onOpenMenu ?? () => _scaffoldKey.currentState?.openDrawer(),
               onNotificationPressed: widget.onOpenNotifications,
             )
           : null,

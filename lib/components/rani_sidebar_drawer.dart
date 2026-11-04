@@ -3,13 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../screens/auth/aadhaar_verification_screen.dart';
-import '../screens/help_support_screen.dart';
-import '../screens/main_navigation_screen.dart';
+import '../screens/others/support.dart';
+import '../screens/others/contact.dart';
+import '../screens/others/delete_account_request.dart';
 import '../screens/search/search_screen.dart';
-import '../screens/splash_screen.dart';
-import '../screens/connections/connection_request.dart';
-import '../screens/matches/matches_screen.dart';
+import '../screens/main_navigation_screen.dart';
 import '../services/razorpay_service.dart';
+
+typedef SidebarTabNavigateCallback = void Function(
+  int tabIndex, {
+  int? connectionTabIndex,
+  String? matchesTab,
+});
 
 /// Royal Full-Screen Matrimonial Sliding Sidebar Drawer
 /// Matches the luxury Indian theme with:
@@ -18,7 +23,7 @@ import '../services/razorpay_service.dart';
 /// 3. Strictly the 11 user-specified navigation items
 /// 4. Fixed bottom Available Balance & "Recharge Wallet" CTA button
 class RaniSidebarDrawer extends StatelessWidget {
-  final Function(int tabIndex)? onNavigateToTab;
+  final SidebarTabNavigateCallback? onNavigateToTab;
   final int interestsCount;
   final int acceptedCount;
   final int sentCount;
@@ -33,113 +38,31 @@ class RaniSidebarDrawer extends StatelessWidget {
     this.matchesCount = 0,
   });
 
-  void _handleTabNavigation(BuildContext context, int index) {
-    Navigator.pop(context); // Close drawer
+  void _handleTabNavigation(
+    BuildContext context,
+    int tabIndex, {
+    int? connectionTabIndex,
+    String? matchesTab,
+  }) {
+    Navigator.pop(context);
     if (onNavigateToTab != null) {
-      onNavigateToTab!(index);
+      onNavigateToTab!(
+        tabIndex,
+        connectionTabIndex: connectionTabIndex,
+        matchesTab: matchesTab,
+      );
     } else {
-      Navigator.pushAndRemoveUntil(
-        context,
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => RaniMainNavigationScreen(initialIndex: index),
+          builder: (_) => RaniMainNavigationScreen(
+            initialIndex: tabIndex,
+            initialConnectionTabIndex: connectionTabIndex,
+            initialMatchesTab: matchesTab,
+          ),
         ),
         (route) => false,
       );
     }
-  }
-
-  void _showDeleteAccountDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD32F2F).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(CupertinoIcons.trash_fill, color: Color(0xFFD32F2F), size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Delete Account',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: const Color(0xFF1E1E1E),
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to permanently delete your Rani Matrimonial account?\n\nThis will remove your candidate profile, connections, messages, and uploaded photos. This action cannot be undone.',
-          style: GoogleFonts.outfit(
-            fontSize: 13.5,
-            color: const Color(0xFF555555),
-            height: 1.4,
-          ),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFE0E0E0)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.outfit(
-                      color: const Color(0xFF6B6B6B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD32F2F),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 0,
-                  ),
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    Navigator.pop(context); // Close drawer
-                    await ApiService.instance.logout();
-                    if (!context.mounted) return;
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RaniSplashScreen()),
-                      (route) => false,
-                    );
-                  },
-                  child: Text(
-                    'Delete',
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -156,206 +79,195 @@ class RaniSidebarDrawer extends StatelessWidget {
             // 1. Top Royal Burgundy Header
             _buildTopRoyalHeader(context),
 
-            // 2. Middle Scrollable Nav Items (Strictly the 11 Items - Clean Royal Theme)
+            // 2. Middle Scrollable Nav Items with Dynamic Counts
             Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: [
-                  // a. My Matches (Highlighted with soft warm brand tint)
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.sparkles,
-                    title: 'My Matches',
-                    isHighlighted: true,
-                    count: matchesCount > 0 ? matchesCount : null,
-                    onTap: () => _handleTabNavigation(context, 1),
-                  ),
+              child: ValueListenableBuilder<Map<String, int>>(
+                valueListenable: ApiService.instance.sidebarCountsNotifier,
+                builder: (context, dynCounts, _) {
+                  final liveMatches = matchesCount > 0 ? matchesCount : (dynCounts['matches'] ?? 0);
+                  final liveAccepted = acceptedCount > 0 ? acceptedCount : (dynCounts['accepted'] ?? 0);
+                  final liveReceived = interestsCount > 0 ? interestsCount : (dynCounts['received'] ?? 0);
+                  final liveSent = sentCount > 0 ? sentCount : (dynCounts['sent'] ?? 0);
+                  final liveShortlisted = (dynCounts['shortlisted'] ?? 0);
 
-                  // b. Accepted Connections
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.checkmark_seal,
-                    title: 'Accepted Connections',
-                    count: acceptedCount > 0 ? acceptedCount : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RaniConnectionsScreen(
-                            initialTabIndex: 2,
-                            showAppBar: true,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  return ListView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    children: [
+                      // a. My Matches (Highlighted with soft warm brand tint)
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.sparkles,
+                        title: 'My Matches',
+                        isHighlighted: true,
+                        count: liveMatches > 0 ? liveMatches : null,
+                        onTap: () => _handleTabNavigation(context, 1, matchesTab: 'new'),
+                      ),
 
-                  // c. Received Connections
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.arrow_down_left_circle,
-                    title: 'Received Connections',
-                    count: interestsCount > 0 ? interestsCount : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RaniConnectionsScreen(
-                            initialTabIndex: 0,
-                            showAppBar: true,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                      // b. Accepted Connections
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.checkmark_seal,
+                        title: 'Accepted Connections',
+                        count: liveAccepted > 0 ? liveAccepted : null,
+                        onTap: () => _handleTabNavigation(context, 2, connectionTabIndex: 2),
+                      ),
 
-                  // d. Send Requests
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.paperplane,
-                    title: 'Send Requests',
-                    count: sentCount > 0 ? sentCount : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RaniConnectionsScreen(
-                            initialTabIndex: 1,
-                            showAppBar: true,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                      // c. Received Connections
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.arrow_down_left_circle,
+                        title: 'Received Connections',
+                        count: liveReceived > 0 ? liveReceived : null,
+                        onTap: () => _handleTabNavigation(context, 2, connectionTabIndex: 0),
+                      ),
 
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    child: Divider(height: 1, thickness: 0.6, color: Color(0xFFECE3D7)),
-                  ),
+                      // d. Send Requests
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.paperplane,
+                        title: 'Send Requests',
+                        count: liveSent > 0 ? liveSent : null,
+                        onTap: () => _handleTabNavigation(context, 2, connectionTabIndex: 1),
+                      ),
 
-                  // e. My Wallet
-                  _buildSidebarItem(
-                    icon: Icons.account_balance_wallet_outlined,
-                    title: 'My Wallet',
-                    onTap: () => _handleTabNavigation(context, 3),
-                  ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        child: Divider(height: 1, thickness: 0.6, color: Color(0xFFECE3D7)),
+                      ),
 
-                  // f. Advance Serch
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.search,
-                    title: 'Advance Serch',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RaniSearchScreen()),
-                      );
-                    },
-                  ),
+                      // e. My Wallet
+                      _buildSidebarItem(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: 'My Wallet',
+                        onTap: () => _handleTabNavigation(context, 3),
+                      ),
 
-                  // g. Shortlisted
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.bookmark,
-                    title: 'Shortlisted',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RaniMatchesScreen(
-                            initialTab: 'shortlisted',
-                            showAppBar: true,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-
-                  // h. Aadhaar Verification
-                  ValueListenableBuilder<Map<String, dynamic>?>(
-                    valueListenable: ApiService.instance.candidateNotifier,
-                    builder: (context, candidate, _) {
-                      final isVerified = candidate?['aadhaar_verified'] == true ||
-                          candidate?['aadhaar_verified'] == 1 ||
-                          candidate?['is_verified'] == true ||
-                          candidate?['is_verified'] == 1 ||
-                          candidate?['verification_status'] == 'verified';
-
-                      return _buildSidebarItem(
-                        icon: CupertinoIcons.shield,
-                        title: 'Aadhaar Verification',
-                        trailingBadge: isVerified
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2E7D32).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(0xFF2E7D32).withValues(alpha: 0.3),
-                                    width: 0.8,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 12),
-                                    const SizedBox(width: 3.5),
-                                    Text(
-                                      'Verified',
-                                      style: GoogleFonts.outfit(
-                                        color: const Color(0xFF2E7D32),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : null,
+                      // f. Advance Serch
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.search,
+                        title: 'Advance Serch',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const RaniAadhaarVerificationScreen()),
+                            MaterialPageRoute(builder: (_) => const RaniSearchScreen()),
                           );
                         },
-                      );
-                    },
-                  ),
+                      ),
 
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    child: Divider(height: 1, thickness: 0.6, color: Color(0xFFECE3D7)),
-                  ),
+                      // g. Shortlisted
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.bookmark,
+                        title: 'Shortlisted',
+                        count: liveShortlisted > 0 ? liveShortlisted : null,
+                        onTap: () => _handleTabNavigation(context, 1, matchesTab: 'shortlisted'),
+                      ),
 
-                  // i. Help & Support
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.headphones,
-                    title: 'Help & Support',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RaniHelpSupportScreen()),
-                      );
-                    },
-                  ),
+                      // h. Aadhaar Verification
+                      ValueListenableBuilder<Map<String, dynamic>?>(
+                        valueListenable: ApiService.instance.candidateNotifier,
+                        builder: (context, candidate, _) {
+                          final isVerified = candidate?['aadhaar_verified'] == true ||
+                              candidate?['aadhaar_verified'] == 1 ||
+                              candidate?['is_verified'] == true ||
+                              candidate?['is_verified'] == 1 ||
+                              candidate?['verification_status'] == 'verified';
 
-                  // j. Account Settings
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.gear_alt,
-                    title: 'Account Settings',
-                    onTap: () => _handleTabNavigation(context, 4),
-                  ),
+                          return _buildSidebarItem(
+                            icon: CupertinoIcons.shield,
+                            title: 'Aadhaar Verification',
+                            trailingBadge: isVerified
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2E7D32).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFF2E7D32).withValues(alpha: 0.3),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 12),
+                                        const SizedBox(width: 3.5),
+                                        Text(
+                                          'Verified',
+                                          style: GoogleFonts.outfit(
+                                            color: const Color(0xFF2E7D32),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : null,
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const RaniAadhaarVerificationScreen()),
+                              );
+                            },
+                          );
+                        },
+                      ),
 
-                  // k. Delete My Account
-                  _buildSidebarItem(
-                    icon: CupertinoIcons.trash,
-                    title: 'Delete My Account',
-                    isDestructive: true,
-                    onTap: () => _showDeleteAccountDialog(context),
-                  ),
-                ],
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                        child: Divider(height: 1, thickness: 0.6, color: Color(0xFFECE3D7)),
+                      ),
+
+                      // i. Help & Support
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.headphones,
+                        title: 'Help & Support',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const RaniSupportScreen(showAppBar: true)),
+                          );
+                        },
+                      ),
+
+                      // j. Contact Us
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.phone,
+                        title: 'Contact Us',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const RaniContactUsScreen(showAppBar: true)),
+                          );
+                        },
+                      ),
+
+                      // k. Account Settings
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.gear_alt,
+                        title: 'Account Settings',
+                        onTap: () => _handleTabNavigation(context, 4),
+                      ),
+
+                      // l. Delete My Account
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.trash,
+                        title: 'Delete My Account',
+                        isDestructive: true,
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RaniDeleteAccountRequestScreen(showAppBar: true),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
 
