@@ -14,6 +14,7 @@ import 'wallet/wallet_screen.dart';
 import 'profile/profile_screen.dart';
 import 'search/search_screen.dart';
 import '../services/push_notification_service.dart';
+import '../services/security_service.dart';
 
 /// Main Application Navigation Shell
 /// Features:
@@ -69,6 +70,8 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   @override
   void initState() {
     super.initState();
+    // Enforce screenshot-proof protection across all post-login screens
+    SecurityService.enableSecureScreen();
     _currentIndex = widget.initialIndex;
     _connectionsTabIndex = widget.initialConnectionTabIndex;
     _matchesTab = widget.initialMatchesTab;

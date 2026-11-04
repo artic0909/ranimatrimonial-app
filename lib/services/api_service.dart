@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'security_service.dart';
 
 class ApiService {
   static final ApiService instance = ApiService._internal();
@@ -169,6 +170,8 @@ class ApiService {
     if (rawBal != null) {
       walletBalanceNotifier.value = _extractBalance(rawBal);
     }
+    // Enable screenshot & screen capture protection upon login
+    SecurityService.enableSecureScreen();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyToken, token);
@@ -200,6 +203,8 @@ class ApiService {
     _candidate = null;
     candidateNotifier.value = null;
     walletBalanceNotifier.value = 0.0;
+    // Disable screenshot protection upon logout
+    SecurityService.disableSecureScreen();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyToken);

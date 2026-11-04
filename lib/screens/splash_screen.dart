@@ -7,6 +7,7 @@ import '../theme/rani_typography.dart';
 import 'onboarding_screen.dart';
 import 'main_navigation_screen.dart';
 import '../services/api_service.dart';
+import '../services/security_service.dart';
 
 /// Cinematic Couple Photography Splash Screen
 /// Matches Screen 1 of the Rani Matrimonial design reference:
@@ -82,6 +83,11 @@ class _RaniSplashScreenState extends State<RaniSplashScreen>
 
   void _navigateToNext() {
     _navTimer?.cancel();
+    if (ApiService.instance.isAuthenticated) {
+      SecurityService.enableSecureScreen();
+    } else {
+      SecurityService.disableSecureScreen();
+    }
     final Widget targetScreen = ApiService.instance.isAuthenticated
         ? const RaniMainNavigationScreen()
         : const RaniOnboardingScreen();
