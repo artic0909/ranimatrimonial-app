@@ -541,7 +541,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const RaniSidebarDrawer(),
+      drawer: const RaniSidebarDrawer(activeItem: 'search'),
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: RaniTopBar(
         title: 'Search Profiles',

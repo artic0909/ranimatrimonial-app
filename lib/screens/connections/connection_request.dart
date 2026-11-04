@@ -22,6 +22,7 @@ class RaniConnectionsScreen extends StatefulWidget {
   final bool showAppBar;
   final VoidCallback? onOpenMenu;
   final VoidCallback? onOpenNotifications;
+  final ValueChanged<int>? onTabChanged;
   final List<dynamic>? initialRequests;
 
   const RaniConnectionsScreen({
@@ -30,6 +31,7 @@ class RaniConnectionsScreen extends StatefulWidget {
     this.showAppBar = false,
     this.onOpenMenu,
     this.onOpenNotifications,
+    this.onTabChanged,
     this.initialRequests,
   });
 
@@ -89,6 +91,7 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
         _selectedTabIndex = index;
       });
       _fetchRequestsForCurrentTab();
+      widget.onTabChanged?.call(index);
     }
   }
 
@@ -195,7 +198,13 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: widget.showAppBar ? const RaniSidebarDrawer() : null,
+      drawer: widget.showAppBar
+          ? RaniSidebarDrawer(
+              activeItem: _selectedTabIndex == 2
+                  ? 'accepted_connections'
+                  : (_selectedTabIndex == 1 ? 'sent_requests' : 'received_connections'),
+            )
+          : null,
       backgroundColor: const Color(0xFFFAF7F2), // Matches theme ivory canvas
       appBar: widget.showAppBar
           ? RaniTopBar(

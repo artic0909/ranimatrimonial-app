@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
-import '../screens/auth/aadhaar_verification_screen.dart';
+import '../screens/home/verify_profile.dart';
 import '../screens/others/support.dart';
 import '../screens/others/contact.dart';
 import '../screens/others/delete_account_request.dart';
@@ -28,6 +28,7 @@ class RaniSidebarDrawer extends StatelessWidget {
   final int acceptedCount;
   final int sentCount;
   final int matchesCount;
+  final String? activeItem;
 
   const RaniSidebarDrawer({
     super.key,
@@ -36,6 +37,7 @@ class RaniSidebarDrawer extends StatelessWidget {
     this.acceptedCount = 0,
     this.sentCount = 0,
     this.matchesCount = 0,
+    this.activeItem,
   });
 
   void _handleTabNavigation(
@@ -94,11 +96,11 @@ class RaniSidebarDrawer extends StatelessWidget {
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     children: [
-                      // a. My Matches (Highlighted with soft warm brand tint)
+                      // a. My Matches (Highlighted when active)
                       _buildSidebarItem(
                         icon: CupertinoIcons.sparkles,
                         title: 'My Matches',
-                        isHighlighted: true,
+                        isHighlighted: activeItem == 'matches',
                         count: liveMatches > 0 ? liveMatches : null,
                         onTap: () => _handleTabNavigation(context, 1, matchesTab: 'new'),
                       ),
@@ -107,6 +109,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.checkmark_seal,
                         title: 'Accepted Connections',
+                        isHighlighted: activeItem == 'accepted_connections',
                         count: liveAccepted > 0 ? liveAccepted : null,
                         onTap: () => _handleTabNavigation(context, 2, connectionTabIndex: 2),
                       ),
@@ -115,6 +118,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.arrow_down_left_circle,
                         title: 'Received Connections',
+                        isHighlighted: activeItem == 'received_connections',
                         count: liveReceived > 0 ? liveReceived : null,
                         onTap: () => _handleTabNavigation(context, 2, connectionTabIndex: 0),
                       ),
@@ -123,6 +127,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.paperplane,
                         title: 'Send Requests',
+                        isHighlighted: activeItem == 'sent_requests',
                         count: liveSent > 0 ? liveSent : null,
                         onTap: () => _handleTabNavigation(context, 2, connectionTabIndex: 1),
                       ),
@@ -136,6 +141,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: Icons.account_balance_wallet_outlined,
                         title: 'My Wallet',
+                        isHighlighted: activeItem == 'wallet',
                         onTap: () => _handleTabNavigation(context, 3),
                       ),
 
@@ -143,6 +149,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.search,
                         title: 'Advance Serch',
+                        isHighlighted: activeItem == 'search',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -156,6 +163,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.bookmark,
                         title: 'Shortlisted',
+                        isHighlighted: activeItem == 'shortlisted',
                         count: liveShortlisted > 0 ? liveShortlisted : null,
                         onTap: () => _handleTabNavigation(context, 1, matchesTab: 'shortlisted'),
                       ),
@@ -164,15 +172,26 @@ class RaniSidebarDrawer extends StatelessWidget {
                       ValueListenableBuilder<Map<String, dynamic>?>(
                         valueListenable: ApiService.instance.candidateNotifier,
                         builder: (context, candidate, _) {
-                          final isVerified = candidate?['aadhaar_verified'] == true ||
+                          final isVerified = candidate?['is_bluetick_verified'] == true ||
+                              candidate?['is_bluetick_verified'] == 1 ||
+                              candidate?['verified'] == true ||
+                              candidate?['verified'] == 1 ||
+                              candidate?['aadhaar_verified'] == true ||
                               candidate?['aadhaar_verified'] == 1 ||
                               candidate?['is_verified'] == true ||
                               candidate?['is_verified'] == 1 ||
                               candidate?['verification_status'] == 'verified';
 
+                          final isPending = !isVerified && (
+                              candidate?['verification_status'] == 'pending' ||
+                              candidate?['is_accept'] == 0 ||
+                              candidate?['bluetick_status'] == 'pending'
+                          );
+
                           return _buildSidebarItem(
                             icon: CupertinoIcons.shield,
                             title: 'Aadhaar Verification',
+                            isHighlighted: activeItem == 'aadhaar',
                             trailingBadge: isVerified
                                 ? Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -200,13 +219,87 @@ class RaniSidebarDrawer extends StatelessWidget {
                                       ],
                                     ),
                                   )
-                                : null,
+                                : (isPending
+                                    ? Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEF3C7),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(
+                                            color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(CupertinoIcons.clock_fill, color: Color(0xFFD97706), size: 11),
+                                            const SizedBox(width: 3.5),
+                                            Text(
+                                              'Under Review',
+                                              style: GoogleFonts.outfit(
+                                                color: const Color(0xFFD97706),
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : null),
                             onTap: () {
                               Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const RaniAadhaarVerificationScreen()),
-                              );
+                              if (isPending) {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                    title: Row(
+                                      children: [
+                                        const Icon(CupertinoIcons.clock_fill, color: Color(0xFFD97706), size: 22),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Under Review',
+                                          style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 17),
+                                        ),
+                                      ],
+                                    ),
+                                    content: Text(
+                                      'Your Aadhaar verification documents have been submitted and are under review by our admin team. The verification process takes 24-48 hours.',
+                                      style: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFF4A4A4A), height: 1.4),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: Text('Close', style: GoogleFonts.outfit(color: Colors.grey)),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF750000),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () {
+                                          Navigator.pop(ctx);
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const RaniVerifyProfileScreen(),
+                                            ),
+                                          );
+                                        },
+                                        child: Text('View Details', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const RaniVerifyProfileScreen(),
+                                  ),
+                                );
+                              }
                             },
                           );
                         },
@@ -221,6 +314,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.headphones,
                         title: 'Help & Support',
+                        isHighlighted: activeItem == 'support',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -234,6 +328,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.phone,
                         title: 'Contact Us',
+                        isHighlighted: activeItem == 'contact',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(
@@ -247,6 +342,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       _buildSidebarItem(
                         icon: CupertinoIcons.gear_alt,
                         title: 'Account Settings',
+                        isHighlighted: activeItem == 'account_settings' || activeItem == 'profile',
                         onTap: () => _handleTabNavigation(context, 4),
                       ),
 
@@ -255,6 +351,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                         icon: CupertinoIcons.trash,
                         title: 'Delete My Account',
                         isDestructive: true,
+                        isHighlighted: activeItem == 'delete_account',
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.push(

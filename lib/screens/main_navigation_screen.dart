@@ -564,9 +564,31 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     );
   }
 
+  /// Compute currently active sidebar navigation item based on screen and sub-tab
+  String _computeActiveSidebarItem() {
+    switch (_currentIndex) {
+      case 0:
+        return 'home';
+      case 1:
+        return (_matchesTab == 'shortlisted') ? 'shortlisted' : 'matches';
+      case 2:
+        final connTab = _connectionsTabIndex ?? 0;
+        if (connTab == 2) return 'accepted_connections';
+        if (connTab == 1) return 'sent_requests';
+        return 'received_connections';
+      case 3:
+        return 'wallet';
+      case 4:
+        return 'account_settings';
+      default:
+        return 'matches';
+    }
+  }
+
   /// Full-Screen Royal Matrimonial Sidebar Drawer
   Widget _buildFullScreenSidebar() {
     return RaniSidebarDrawer(
+      activeItem: _computeActiveSidebarItem(),
       onNavigateToTab: (index, {connectionTabIndex, matchesTab}) {
         _navigateToTab(index, connectionTabIndex: connectionTabIndex, matchesTab: matchesTab);
       },
@@ -619,6 +641,11 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             key: ValueKey('matches_${_matchesRefreshKey}_${_matchesTab ?? "new"}'),
             showAppBar: false,
             initialTab: _matchesTab ?? 'new',
+            onTabChanged: (tab) {
+              if (mounted && _matchesTab != tab) {
+                setState(() => _matchesTab = tab);
+              }
+            },
             onOpenSearch: () {
               Navigator.push(
                 context,
@@ -638,6 +665,11 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             key: ValueKey('interests_${_interestsRefreshKey}_${_connectionsTabIndex ?? 0}'),
             showAppBar: false,
             initialTabIndex: _connectionsTabIndex ?? 0,
+            onTabChanged: (tabIdx) {
+              if (mounted && _connectionsTabIndex != tabIdx) {
+                setState(() => _connectionsTabIndex = tabIdx);
+              }
+            },
           ),
 
           // 3. Wallet Screen (Replaces Chat per user request)

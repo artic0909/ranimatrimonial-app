@@ -27,6 +27,7 @@ class RaniMatchesScreen extends StatefulWidget {
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenMenu;
   final ValueChanged<int>? onMatchesCountChanged;
+  final ValueChanged<String>? onTabChanged;
   final bool showAppBar;
   final String initialTab;
 
@@ -36,6 +37,7 @@ class RaniMatchesScreen extends StatefulWidget {
     this.onOpenNotifications,
     this.onOpenMenu,
     this.onMatchesCountChanged,
+    this.onTabChanged,
     this.showAppBar = true,
     this.initialTab = 'new',
   });
@@ -509,7 +511,11 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: widget.showAppBar ? const RaniSidebarDrawer() : null,
+      drawer: widget.showAppBar
+          ? RaniSidebarDrawer(
+              activeItem: _selectedTab == 'shortlisted' ? 'shortlisted' : 'matches',
+            )
+          : null,
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: widget.showAppBar
           ? RaniTopBar(
@@ -583,6 +589,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       onTap: () {
                         if (_selectedTab != 'new') {
                           setState(() => _selectedTab = 'new');
+                          widget.onTabChanged?.call('new');
                           _fetchMatches(isRefresh: true);
                         }
                       },
@@ -598,6 +605,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       onTap: () {
                         if (_selectedTab != 'near_me') {
                           setState(() => _selectedTab = 'near_me');
+                          widget.onTabChanged?.call('near_me');
                           _fetchMatches(isRefresh: true);
                         }
                       },
@@ -613,6 +621,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                       onTap: () {
                         if (_selectedTab != 'shortlisted') {
                           setState(() => _selectedTab = 'shortlisted');
+                          widget.onTabChanged?.call('shortlisted');
                           _fetchMatches(isRefresh: true);
                         }
                       },
