@@ -157,14 +157,20 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
 
   List<String> _incomeOptions = [
     'No Income',
-    'Under ₹ 3 Lakh',
-    '₹ 3 - 5 Lakh',
-    '₹ 5 - 10 Lakh',
-    '₹ 10 - 15 Lakh',
-    '₹ 15 - 20 Lakh',
-    '₹ 20 - 30 Lakh',
-    '₹ 30 - 50 Lakh',
-    '₹ 50 Lakh+',
+    'Under 1 Lakh',
+    '1 - 2 Lakhs',
+    '2 - 3 Lakhs',
+    '3 - 4 Lakhs',
+    '4 - 5 Lakhs',
+    '5 - 7.5 Lakhs',
+    '7.5 - 10 Lakhs',
+    '10 - 15 Lakhs',
+    '15 - 20 Lakhs',
+    '20 - 30 Lakhs',
+    '30 - 50 Lakhs',
+    '50 - 75 Lakhs',
+    '75 Lakhs - 1 Crore',
+    '1 Crore & Above',
   ];
 
   List<String> _maritalStatusOptions = [
@@ -402,7 +408,12 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     _professionController = TextEditingController(text: c['profession']?.toString() ?? '');
     _designationController = TextEditingController(text: c['designation']?.toString() ?? '');
     _companyController = TextEditingController(text: c['company_name']?.toString() ?? '');
-    _annualIncome = _findMatch(_incomeOptions, c['annual_income']);
+    final rawIncome = c['annual_income']?.toString().trim();
+    _annualIncome = _findIncomeMatch(_incomeOptions, rawIncome) ??
+        (rawIncome != null && rawIncome.isNotEmpty && rawIncome != '-' ? rawIncome : null);
+    if (_annualIncome != null && !_incomeOptions.contains(_annualIncome)) {
+      _incomeOptions.insert(0, _annualIncome!);
+    }
 
     // 6. Location (Country -> State -> City dependent hierarchy)
     _country = _findMatch(_countryOptions, c['country']) ?? c['country']?.toString().trim() ?? 'India';
@@ -480,6 +491,64 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     } catch (_) {
       return null;
     }
+  }
+
+  String? _findIncomeMatch(List<String> list, dynamic val) {
+    if (val == null) return null;
+    final str = val.toString().trim();
+    if (str.isEmpty || str == '-') return null;
+
+    // 1. Exact case-insensitive match
+    for (final item in list) {
+      if (item.toLowerCase() == str.toLowerCase()) {
+        return item;
+      }
+    }
+
+    // 2. Normalized match (strip ₹, rs., inr, plural 's', extra spaces)
+    String normalize(String s) {
+      return s
+          .toLowerCase()
+          .replaceAll('₹', '')
+          .replaceAll('rs.', '')
+          .replaceAll('rs', '')
+          .replaceAll('inr', '')
+          .replaceAll('lakhs', 'lakh')
+          .replaceAll('crores', 'crore')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+    }
+
+    final normVal = normalize(str);
+    for (final item in list) {
+      if (normalize(item) == normVal) {
+        return item;
+      }
+    }
+
+    // 3. Number extraction match (e.g., "20 - 30" in "₹ 20 - 30 Lakh" and "20 - 30 Lakhs")
+    final numbersInVal = RegExp(r'\d+(\.\d+)?')
+        .allMatches(str)
+        .map((m) => m.group(0))
+        .toList();
+    if (numbersInVal.isNotEmpty) {
+      for (final item in list) {
+        final numbersInItem = RegExp(r'\d+(\.\d+)?')
+            .allMatches(item)
+            .map((m) => m.group(0))
+            .toList();
+        if (numbersInVal.length == numbersInItem.length &&
+            numbersInVal.join(',') == numbersInItem.join(',')) {
+          final valHasCrore = str.toLowerCase().contains('crore');
+          final itemHasCrore = item.toLowerCase().contains('crore');
+          if (valHasCrore == itemHasCrore) {
+            return item;
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   @override
@@ -613,6 +682,14 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
           }
           if (iList.isNotEmpty) {
             _incomeOptions = iList;
+            if (_annualIncome != null && _annualIncome!.isNotEmpty) {
+              final matched = _findIncomeMatch(_incomeOptions, _annualIncome);
+              if (matched != null) {
+                _annualIncome = matched;
+              } else if (!_incomeOptions.contains(_annualIncome)) {
+                _incomeOptions.insert(0, _annualIncome!);
+              }
+            }
           }
         }
 

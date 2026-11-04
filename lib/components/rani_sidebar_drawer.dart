@@ -618,49 +618,6 @@ class RaniSidebarDrawer extends StatelessWidget {
                                       letterSpacing: 0.3,
                                     ),
                                   ),
-                                  const SizedBox(height: 6),
-
-                                  // Golden "👑 Premium Member" pill
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [Color(0xFFFCE195), Color(0xFFE5B842)],
-                                        ),
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFFE5B842).withValues(alpha: 0.35),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.workspace_premium_rounded,
-                                            size: 13.5,
-                                            color: Color(0xFF5A0008),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Premium Member',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w800,
-                                              color: const Color(0xFF5A0008),
-                                              letterSpacing: 0.2,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
