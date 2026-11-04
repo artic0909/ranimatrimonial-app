@@ -8,9 +8,7 @@ import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
-import '../splash_screen.dart';
 import '../wallet/wallet_screen.dart';
-import '../help_support_screen.dart';
 import '../home/photos.dart';
 import '../home/profile_edit.dart';
 import '../auth/aadhaar_verification_screen.dart';
@@ -238,63 +236,6 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     );
   }
 
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFFEFE8DE), width: 1.2),
-        ),
-        title: Text(
-          'Log Out',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            color: const Color(0xFF1E1E1E),
-          ),
-        ),
-        content: Text(
-          'Are you sure you wish to log out from Rani Matrimonial?',
-          style: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFF6E6E6E)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.outfit(color: const Color(0xFF6E6E6E), fontWeight: FontWeight.w600),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF750000),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              RaniMatrimonialLoader.show(context, message: 'Logging out...');
-              try {
-                await ApiService.instance.logout();
-              } catch (_) {}
-              if (!mounted) return;
-              RaniMatrimonialLoader.hide(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const RaniSplashScreen()),
-                (route) => false,
-              );
-            },
-            child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
   int _calculateCompleteness(Map<String, dynamic> c) {
     return ApiService.calculateProfileCompleteness(c);
   }
@@ -426,26 +367,7 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
             // 12. Quick Services & Settings Links
             _buildQuickServicesCard(),
 
-            const SizedBox(height: 20),
-
-            // 13. Log Out Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF750000),
-                  side: const BorderSide(color: Color(0xFF750000), width: 1.2),
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: _showLogoutDialog,
-                icon: const Icon(Icons.logout_rounded, size: 18),
-                label: Text(
-                  'Log Out of Rani Matrimonial',
-                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1050,11 +972,13 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
             label2: 'Company Name',
             val2: c['company_name'] ?? '-',
           ),
-          _buildInfoRowPair(
-            label1: 'Annual Income',
-            val1: c['annual_income'] ?? '-',
-            label2: 'Income Type',
-            val2: c['income_type'] ?? 'Annual',
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildInfoItem('Annual Income', c['annual_income'] ?? '-')),
+              const SizedBox(width: 14),
+              const Expanded(child: SizedBox.shrink()),
+            ],
           ),
         ],
       ),
@@ -1182,44 +1106,17 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFEFE8DE)),
       ),
-      child: Column(
-        children: [
-          _buildQuickTile(
-            icon: CupertinoIcons.photo_on_rectangle,
-            title: 'Manage Photo Gallery',
-            subtitle: 'Add, reorder or adjust privacy of your photos',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RaniPhotosScreen()),
-              ).then((_) => _loadProfileData());
-            },
-          ),
-          const Divider(height: 1, indent: 56, color: Color(0xFFEFE8DE)),
-          _buildQuickTile(
-            icon: Icons.account_balance_wallet_outlined,
-            title: 'My Royal Wallet',
-            subtitle: 'Check transactions, add coins and invoices',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RaniWalletScreen()),
-              ).then((_) => _loadProfileData());
-            },
-          ),
-          const Divider(height: 1, indent: 56, color: Color(0xFFEFE8DE)),
-          _buildQuickTile(
-            icon: CupertinoIcons.question_circle,
-            title: 'Help & Support Desk',
-            subtitle: 'FAQs, ticket inquiries and customer helplines',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RaniHelpSupportScreen()),
-              );
-            },
-          ),
-        ],
+      child: _buildQuickTile(
+        icon: CupertinoIcons.photo_on_rectangle,
+        title: 'Manage Photo Gallery',
+        subtitle: 'Add, reorder or adjust privacy of your photos',
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const RaniPhotosScreen()),
+          ).then((_) => _loadProfileData());
+        },
       ),
     );
   }
@@ -1229,12 +1126,13 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    BorderRadius? borderRadius,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: borderRadius ?? BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
