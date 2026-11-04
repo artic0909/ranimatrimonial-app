@@ -92,10 +92,12 @@ class RaniSidebarDrawer extends StatelessWidget {
                   final liveSent = sentCount > 0 ? sentCount : (dynCounts['sent'] ?? 0);
                   final liveShortlisted = (dynCounts['shortlisted'] ?? 0);
 
-                  return ListView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    children: [
+                  return ScrollConfiguration(
+                    behavior: const ScrollBehavior().copyWith(overscroll: false),
+                    child: ListView(
+                      physics: const ClampingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      children: [
                       // a. My Matches (Highlighted when active)
                       _buildSidebarItem(
                         icon: CupertinoIcons.sparkles,
@@ -363,10 +365,11 @@ class RaniSidebarDrawer extends StatelessWidget {
                         },
                       ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
+          ),
 
             // 3. Fixed Bottom Area: Dynamic Wallet Balance & Recharge CTA Button
             _buildFixedWalletBottomBar(context),
