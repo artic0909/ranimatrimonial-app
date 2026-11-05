@@ -423,7 +423,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'PRIVILEGE CARD',
+                              'DIGITAL CARD',
                               style: GoogleFonts.outfit(
                                 fontSize: 7.2,
                                 letterSpacing: 2.0,
@@ -722,7 +722,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Rani',
+                'RM',
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 7.0,
                   fontWeight: FontWeight.w700,
@@ -731,7 +731,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                 ),
               ),
               const Text(
-                '★ ★ ★',
+                '₹₹₹',
                 style: TextStyle(
                   fontSize: 4.0,
                   color: Color(0xFFE5B842),
