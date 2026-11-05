@@ -13,6 +13,7 @@ import 'connections/connection_request.dart';
 import 'wallet/wallet_screen.dart';
 import 'profile/profile_screen.dart';
 import 'search/search_screen.dart';
+import 'splash_screen.dart';
 import '../services/push_notification_service.dart';
 import '../services/security_service.dart';
 
@@ -205,21 +206,19 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _matchesCount = matchesLen;
           }
 
-          if (pendingInvitations > 0) {
-            _interestsCount = pendingInvitations;
-          }
+          _interestsCount = pendingInvitations;
         });
       }
 
       // 2. Fetch live matches total count for bottom nav badge
       try {
-        final matchesRes = await ApiService.instance.getMatches(tab: 'new');
+        final matchesRes = await ApiService.instance.getMatches(tab: 'my_matches');
         if (mounted && matchesRes['success'] == true) {
           int count = 0;
           if (matchesRes['counts'] is Map) {
             final c = matchesRes['counts'] as Map;
-            // Prefer total new / my_matches count over subset today's picks
-            count = _toInt(c['new'] ?? c['my_matches'] ?? c['all'] ?? c['todays']);
+            // Prefer total my_matches count
+            count = _toInt(c['my_matches'] ?? c['new'] ?? c['all'] ?? c['todays']);
           }
           if (count == 0 && matchesRes['matches'] is List) {
             count = (matchesRes['matches'] as List).length;
@@ -228,6 +227,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             setState(() {
               _matchesCount = count;
             });
+            ApiService.instance.updateSidebarCounts(matches: count);
           }
         }
       } catch (_) {}
@@ -239,19 +239,18 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         final rec = _toInt(counts['received'] ?? counts['pending']);
         final sent = _toInt(counts['sent']);
         final acc = _toInt(counts['accepted']);
-        final total = _toInt(counts['total']);
 
         setState(() {
-          if (rec > 0) {
-            _interestsCount = rec;
-          } else if (total > 0) {
-            _interestsCount = total;
-          } else if (sent > 0) {
-            _interestsCount = sent;
-          }
-          if (acc > 0) _acceptedCount = acc;
-          if (sent > 0) _sentCount = sent;
+          _interestsCount = rec;
+          _acceptedCount = acc;
+          _sentCount = sent;
         });
+
+        ApiService.instance.updateSidebarCounts(
+          received: rec,
+          sent: sent,
+          accepted: acc,
+        );
       }
     } catch (_) {}
   }
@@ -512,6 +511,17 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _scaffoldKey.currentState?.openDrawer();
           },
           onNotificationPressed: _openNotificationsSheet,
+          trailingActions: [
+            IconButton(
+              tooltip: 'Log Out',
+              icon: const Icon(
+                Icons.logout_rounded,
+                color: Color(0xFF750000),
+                size: 22,
+              ),
+              onPressed: _confirmLogout,
+            ),
+          ],
         );
 
       default:
@@ -520,6 +530,67 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           notificationCount: _notificationCount,
           onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
         );
+    }
+  }
+
+  /// Show clean confirmation dialog before logging out candidate
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Log Out',
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: const Color(0xFF1E1E1E),
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to log out from Rani Matrimonial?',
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            color: const Color(0xFF555555),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.outfit(
+                color: const Color(0xFF777777),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF750000),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Log Out',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && mounted) {
+      final nav = Navigator.of(context, rootNavigator: true);
+      await ApiService.instance.logout();
+      if (!mounted) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const RaniSplashScreen()),
+        (route) => false,
+      );
     }
   }
 

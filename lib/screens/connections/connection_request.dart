@@ -110,12 +110,21 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
 
       if (res['counts'] is Map) {
         final c = res['counts'] as Map;
+        final rec = _toInt(c['received'] ?? c['pending'], _receivedCount);
+        final sent = _toInt(c['sent'], _sentCount);
+        final acc = _toInt(c['accepted'], _acceptedCount);
+        final dec = _toInt(c['declined'] ?? c['rejected'], _declinedCount);
         setState(() {
-          _receivedCount = _toInt(c['received'] ?? c['pending'], _receivedCount);
-          _sentCount = _toInt(c['sent'], _sentCount);
-          _acceptedCount = _toInt(c['accepted'], _acceptedCount);
-          _declinedCount = _toInt(c['declined'] ?? c['rejected'], _declinedCount);
+          _receivedCount = rec;
+          _sentCount = sent;
+          _acceptedCount = acc;
+          _declinedCount = dec;
         });
+        ApiService.instance.updateSidebarCounts(
+          received: rec,
+          sent: sent,
+          accepted: acc,
+        );
       }
 
       if (res['success'] == true) {

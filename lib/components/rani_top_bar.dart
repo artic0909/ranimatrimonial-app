@@ -18,6 +18,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
   final int notificationCount;
   final VoidCallback? onNotificationPressed;
   final List<Widget>? actions;
+  final List<Widget>? trailingActions;
   final Color backgroundColor;
   final PreferredSizeWidget? bottom;
   final double? leadingWidth;
@@ -32,6 +33,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.notificationCount = 3,
     this.onNotificationPressed,
     this.actions,
+    this.trailingActions,
     this.backgroundColor = const Color(0xFFFAF7F2),
     this.bottom,
     this.leadingWidth,
@@ -101,6 +103,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
                   size: 22,
                 ),
         ),
+        ...?trailingActions,
         const SizedBox(width: 8),
       ],
       bottom: bottom,

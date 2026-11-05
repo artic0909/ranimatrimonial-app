@@ -30,6 +30,23 @@ class ApiService {
     'shortlisted': 0,
   });
 
+  /// Update dynamic sidebar badges cleanly across screens
+  void updateSidebarCounts({
+    int? matches,
+    int? accepted,
+    int? received,
+    int? sent,
+    int? shortlisted,
+  }) {
+    final map = Map<String, int>.from(sidebarCountsNotifier.value);
+    if (matches != null) map['matches'] = matches;
+    if (accepted != null) map['accepted'] = accepted;
+    if (received != null) map['received'] = received;
+    if (sent != null) map['sent'] = sent;
+    if (shortlisted != null) map['shortlisted'] = shortlisted;
+    sidebarCountsNotifier.value = map;
+  }
+
   String? get token => _token;
   Map<String, dynamic>? get candidate => _candidate;
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
@@ -817,6 +834,18 @@ class ApiService {
         }
       }
       shortlistedIdsNotifier.value = set;
+
+      if (data['counts'] is Map) {
+        final c = data['counts'] as Map;
+        final mCount = int.tryParse(c['my_matches']?.toString() ?? c['new']?.toString() ?? c['all']?.toString() ?? '');
+        final sCount = int.tryParse(c['shortlisted']?.toString() ?? '');
+        final aCount = int.tryParse(c['accepted']?.toString() ?? '');
+        updateSidebarCounts(
+          matches: mCount,
+          shortlisted: sCount,
+          accepted: aCount,
+        );
+      }
     }
     return data;
   }
@@ -910,7 +939,15 @@ class ApiService {
     try {
       final uri = Uri.parse('$baseUrl/inbox?tab=$tab');
       final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
-      return _processResponse(response);
+      final data = _processResponse(response);
+      if (data['success'] == true && data['counts'] is Map) {
+        final c = data['counts'] as Map;
+        final rec = int.tryParse(c['received']?.toString() ?? c['pending']?.toString() ?? '0') ?? 0;
+        final sent = int.tryParse(c['sent']?.toString() ?? '0') ?? 0;
+        final acc = int.tryParse(c['accepted']?.toString() ?? '0') ?? 0;
+        updateSidebarCounts(received: rec, sent: sent, accepted: acc);
+      }
+      return data;
     } catch (e) {
       debugPrint('[ApiService] getInbox error: $e');
       return {'success': false, 'message': 'Connection error: $e', 'requests': [], 'counts': {}};

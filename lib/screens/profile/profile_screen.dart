@@ -13,6 +13,7 @@ import '../wallet/wallet_screen.dart';
 import '../home/photos.dart';
 import '../home/profile_edit.dart';
 import '../auth/aadhaar_verification_screen.dart';
+import '../splash_screen.dart';
 import 'edit_section_modal.dart';
 
 /// Screen: Candidate Profile & Account Dashboard
@@ -418,10 +419,76 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
             tooltip: 'Edit Profile',
             onPressed: _openEditProfile,
           ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Color(0xFF750000)),
+            tooltip: 'Log Out',
+            onPressed: _confirmLogout,
+          ),
         ],
       ),
       body: content,
     );
+  }
+
+  /// Show clean confirmation dialog before logging out candidate
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Log Out',
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: const Color(0xFF1E1E1E),
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to log out from Rani Matrimonial?',
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            color: const Color(0xFF555555),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.outfit(
+                color: const Color(0xFF777777),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF750000),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Log Out',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && mounted) {
+      final nav = Navigator.of(context, rootNavigator: true);
+      await ApiService.instance.logout();
+      if (!mounted) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const RaniSplashScreen()),
+        (route) => false,
+      );
+    }
   }
 
   /// 1. Profile Hero Window Card with Photo, Badges & Profile Completeness
@@ -448,8 +515,11 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
           ),
         ],
       ),
-      child: Column(
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
+          Column(
+            children: [
           // Circular Avatar with Gold Gradient Frame & Camera Button
           Stack(
             children: [
@@ -638,7 +708,43 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
           ),
         ],
       ),
-    );
+      Positioned(
+        top: -6,
+        right: -6,
+        child: Tooltip(
+          message: 'Log Out',
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: _confirmLogout,
+              child: Container(
+                padding: const EdgeInsets.all(7.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFBF4ED),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFECD5C5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  size: 18,
+                  color: Color(0xFF750000),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
   }
 
   /// 2. Royal Wallet Balance Card (Keep wallet balance prominently displayed per user request)

@@ -86,10 +86,18 @@ class RaniSidebarDrawer extends StatelessWidget {
               child: ValueListenableBuilder<Map<String, int>>(
                 valueListenable: ApiService.instance.sidebarCountsNotifier,
                 builder: (context, dynCounts, _) {
-                  final liveMatches = matchesCount > 0 ? matchesCount : (dynCounts['matches'] ?? 0);
-                  final liveAccepted = acceptedCount > 0 ? acceptedCount : (dynCounts['accepted'] ?? 0);
-                  final liveReceived = interestsCount > 0 ? interestsCount : (dynCounts['received'] ?? 0);
-                  final liveSent = sentCount > 0 ? sentCount : (dynCounts['sent'] ?? 0);
+                  final liveMatches = (dynCounts['matches'] != null && dynCounts['matches']! > 0)
+                      ? dynCounts['matches']!
+                      : (matchesCount > 0 ? matchesCount : 0);
+                  final liveAccepted = (dynCounts['accepted'] != null)
+                      ? dynCounts['accepted']!
+                      : (acceptedCount > 0 ? acceptedCount : 0);
+                  final liveReceived = (dynCounts['received'] != null)
+                      ? dynCounts['received']!
+                      : (interestsCount > 0 ? interestsCount : 0);
+                  final liveSent = (dynCounts['sent'] != null)
+                      ? dynCounts['sent']!
+                      : (sentCount > 0 ? sentCount : 0);
                   final liveShortlisted = (dynCounts['shortlisted'] ?? 0);
 
                   return ScrollConfiguration(

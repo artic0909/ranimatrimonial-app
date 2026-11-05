@@ -249,7 +249,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
           _matches = initialBatch;
 
           if (counts is Map) {
-            final todays = counts['new'] ?? counts['todays'] ?? counts['my_matches'];
+            final todays = counts['my_matches'] ?? counts['new'] ?? counts['todays'];
             if (todays != null) {
               _newCount = todays is int ? todays : int.tryParse('$todays') ?? _newCount;
             }
@@ -271,11 +271,22 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             if (shortlisted != null) {
               _shortlistedCount = shortlisted is int ? shortlisted : int.tryParse('$shortlisted') ?? _shortlistedCount;
             }
+
+            ApiService.instance.updateSidebarCounts(
+              matches: _newCount,
+              accepted: _acceptedCount,
+              shortlisted: _shortlistedCount,
+            );
           } else {
             if (_selectedTab == 'new') _newCount = list.length;
             if (_selectedTab == 'near_me') _nearMeCount = list.length;
             if (_selectedTab == 'accepted') _acceptedCount = list.length;
             if (_selectedTab == 'shortlisted') _shortlistedCount = list.length;
+            ApiService.instance.updateSidebarCounts(
+              matches: _newCount,
+              accepted: _acceptedCount,
+              shortlisted: _shortlistedCount,
+            );
           }
           if (_newCount > 0) {
             widget.onMatchesCountChanged?.call(_newCount);
