@@ -3,7 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
+import '../../services/razorpay_service.dart';
 import '../../components/rani_alert.dart';
+import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
 import '../../components/rani_sidebar_drawer.dart';
@@ -118,7 +120,11 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
     }
     _loadSearchOptions();
     _loadShortlistedIds();
+    _preloadConnections();
     ApiService.instance.shortlistedIdsNotifier.addListener(_onGlobalShortlistChanged);
+    ApiService.instance.sentRequestIdsNotifier.addListener(_onGlobalShortlistChanged);
+    ApiService.instance.receivedRequestIdsNotifier.addListener(_onGlobalShortlistChanged);
+    ApiService.instance.acceptedRequestIdsNotifier.addListener(_onGlobalShortlistChanged);
 
     // Automatically open full screen filter modal on screen entry
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -163,6 +169,15 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
     } catch (_) {}
   }
 
+  Future<void> _preloadConnections() async {
+    try {
+      await ApiService.instance.preloadAllConnections();
+    } catch (_) {}
+    if (mounted && _results.isNotEmpty) {
+      setState(() {});
+    }
+  }
+
   void _applyInitialFilters(Map<String, dynamic> f) {
     if (f['gender'] != null) _gender = f['gender'];
     if (f['religion'] != null) _religion = f['religion'];
@@ -173,6 +188,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
   @override
   void dispose() {
     ApiService.instance.shortlistedIdsNotifier.removeListener(_onGlobalShortlistChanged);
+    ApiService.instance.sentRequestIdsNotifier.removeListener(_onGlobalShortlistChanged);
+    ApiService.instance.receivedRequestIdsNotifier.removeListener(_onGlobalShortlistChanged);
+    ApiService.instance.acceptedRequestIdsNotifier.removeListener(_onGlobalShortlistChanged);
     _debounceTimer?.cancel();
     _keywordController.dispose();
     _subCommunityController.dispose();
@@ -280,7 +298,12 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
     if (myCode != null && myCode.isNotEmpty) payload['candidate_code'] = myCode;
 
     try {
-      final res = await ApiService.instance.searchProfiles(payload);
+      final searchFuture = ApiService.instance.searchProfiles(payload);
+      if (ApiService.instance.receivedRequestIdsNotifier.value.isEmpty &&
+          ApiService.instance.sentRequestIdsNotifier.value.isEmpty) {
+        await ApiService.instance.preloadAllConnections();
+      }
+      final res = await searchFuture;
       if (!mounted) return;
 
       if (res['success'] == true) {
@@ -289,7 +312,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
         for (final item in rawList) {
           final map = Map<String, dynamic>.from(item as Map);
           final pid = (map['candidate_code'] ?? map['profile_id'] ?? map['id'])?.toString() ?? '';
-          final numId = map['numeric_id']?.toString() ?? '';
+          final numId = (map['numeric_id'] ?? map['db_id'])?.toString() ?? '';
           final itemId = map['id']?.toString() ?? '';
 
           // Strictly exclude logged-in candidate's profile from search results
@@ -308,6 +331,29 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
           if (_shortlistedIds.contains(pid) || (numId.isNotEmpty && _shortlistedIds.contains(numId))) {
             map['is_shortlisted'] = true;
           }
+
+          // Synchronize connection request status from global registry
+          final isAcc = ApiService.instance.isRequestAccepted(map) ||
+              ApiService.instance.isRequestAccepted(pid) ||
+              (numId.isNotEmpty && ApiService.instance.isRequestAccepted(numId));
+          final isRecv = ApiService.instance.isRequestReceived(map) ||
+              ApiService.instance.isRequestReceived(pid) ||
+              (numId.isNotEmpty && ApiService.instance.isRequestReceived(numId));
+          final isSnt = ApiService.instance.isRequestSent(map) ||
+              ApiService.instance.isRequestSent(pid) ||
+              (numId.isNotEmpty && ApiService.instance.isRequestSent(numId));
+
+          if (isAcc) {
+            map['request_type'] = 'accepted';
+            map['is_accepted'] = true;
+          } else if (isRecv) {
+            map['request_type'] = 'received';
+            map['is_interest_received'] = true;
+          } else if (isSnt) {
+            map['request_type'] = 'sent';
+            map['is_interest_sent'] = true;
+          }
+
           processed.add(map);
         }
         setState(() {
@@ -443,14 +489,29 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
   }
 
   void _syncDetailsShortlistResult(dynamic result) {
-    if (result is Map && result['profile_id'] != null && result['is_shortlisted'] != null) {
+    if (result is Map && result['profile_id'] != null) {
       final pid = result['profile_id'].toString();
       final isShort = result['is_shortlisted'] == true;
+      final reqType = result['request_type']?.toString();
+      final isSent = result['is_sent'] == true || reqType == 'sent';
+      final isAcc = result['is_accepted'] == true || reqType == 'accepted';
+      final isRecv = result['is_received'] == true || reqType == 'received';
+
+      if (isSent) {
+        ApiService.instance.registerConnectionStatus(profileId: pid, status: 'sent');
+      } else if (isAcc) {
+        ApiService.instance.registerConnectionStatus(profileId: pid, status: 'accepted');
+      } else if (isRecv) {
+        ApiService.instance.registerConnectionStatus(profileId: pid, status: 'received');
+      }
+
       setState(() {
-        if (isShort) {
-          _shortlistedIds.add(pid);
-        } else {
-          _shortlistedIds.remove(pid);
+        if (result['is_shortlisted'] != null) {
+          if (isShort) {
+            _shortlistedIds.add(pid);
+          } else {
+            _shortlistedIds.remove(pid);
+          }
         }
         for (int i = 0; i < _results.length; i++) {
           final item = _results[i];
@@ -458,7 +519,21 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
           final numId = item['numeric_id']?.toString();
           if (itemId == pid || numId == pid) {
             final m = Map<String, dynamic>.from(item as Map);
-            m['is_shortlisted'] = isShort;
+            if (result['is_shortlisted'] != null) {
+              m['is_shortlisted'] = isShort;
+            }
+            if (isSent) {
+              m['request_type'] = 'sent';
+              m['is_interest_sent'] = true;
+            } else if (isAcc) {
+              m['request_type'] = 'accepted';
+              m['is_accepted'] = true;
+            } else if (isRecv) {
+              m['request_type'] = 'received';
+              m['is_interest_received'] = true;
+            } else if (reqType != null && reqType.isNotEmpty) {
+              m['request_type'] = reqType;
+            }
             _results[i] = m;
           }
         }
@@ -545,6 +620,100 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
           updated['is_shortlisted'] = currentStatus;
           _results[index] = updated;
         });
+        RaniAlert.error(context, 'Error: $e');
+      }
+    }
+  }
+
+  Future<void> _handleSendInterest(Map<String, dynamic> c, int index) async {
+    final candidateId = (c['candidate_code'] ?? c['profile_id'] ?? c['id'] ?? '').toString();
+    final name = '${c['first_name'] ?? 'Candidate'}'.trim();
+
+    RaniMatrimonialLoader.show(context, message: 'Sending connection request to $name...');
+
+    try {
+      final res = await ApiService.instance.sendInterest(candidateId);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (res['success'] == true) {
+        setState(() {
+          final updated = Map<String, dynamic>.from(_results[index] as Map);
+          updated['request_type'] = 'sent';
+          updated['is_interest_sent'] = true;
+          _results[index] = updated;
+        });
+        RaniAlert.success(
+          context,
+          res['message'] ?? 'Connection request sent to $name!',
+          title: 'Connected! 🎉',
+        );
+      } else {
+        final msg = res['message']?.toString() ?? 'Could not send interest.';
+        if (res['insufficient_balance'] == true ||
+            res['recharge_required'] == true ||
+            msg.toLowerCase().contains('balance') ||
+            msg.toLowerCase().contains('recharge')) {
+          _showInsufficientBalanceModal(candidateId, msg, () => _handleSendInterest(c, index));
+        } else {
+          RaniAlert.error(context, msg);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        RaniAlert.error(context, 'Error: $e');
+      }
+    }
+  }
+
+  void _showInsufficientBalanceModal(String candidateId, String message, VoidCallback onRetry) {
+    RaniRazorpayService.showRechargeModal(
+      context: context,
+      defaultAmount: 100,
+      subtitle: message,
+      onPaymentSuccess: (amount) {
+        onRetry();
+      },
+    );
+  }
+
+  Future<void> _handleRespondInterest(Map<String, dynamic> c, String action, int index) async {
+    final candidateId = (c['candidate_code'] ?? c['profile_id'] ?? c['id'] ?? '').toString();
+    final isAccept = action == 'accept';
+
+    RaniMatrimonialLoader.show(
+      context,
+      message: isAccept ? 'Accepting connection request...' : 'Declining request...',
+    );
+
+    try {
+      final res = await ApiService.instance.respondInterest(candidateId, action);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (res['success'] == true) {
+        setState(() {
+          final updated = Map<String, dynamic>.from(_results[index] as Map);
+          if (isAccept) {
+            updated['request_type'] = 'accepted';
+            updated['is_accepted'] = true;
+          } else {
+            updated['request_type'] = 'declined';
+            updated['is_accepted'] = false;
+          }
+          _results[index] = updated;
+        });
+        RaniAlert.success(
+          context,
+          res['message'] ?? (isAccept ? 'Request accepted successfully!' : 'Request declined.'),
+        );
+      } else {
+        RaniAlert.error(context, res['message'] ?? 'Action failed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
         RaniAlert.error(context, 'Error: $e');
       }
     }
@@ -1165,53 +1334,258 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
                 const SizedBox(height: 10),
 
-                // Full-Width "View Profile" CTA Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 38,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF750000),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => RaniMatchDetailsScreen(
-                            profileId: profileId,
-                            initialProfileData: c,
-                          ),
+                // Dynamic Action Button (Connect / Wait for Acceptance / Accept & Reject / Connected)
+                _buildCandidateActionButton(c, index, profileId),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Dynamic Candidate Action Button based on connection state:
+  /// 1. isAccepted -> "Connected" (Green, checkmark)
+  /// 2. isReceived -> "Accept" (Green) & "Reject" (Red outline)
+  /// 3. isSent -> Disabled "Wait for Acceptance" (Clock icon, slate/grey)
+  /// 4. Default -> "Connect" (Royal Burgundy, heart icon & golden corner ornament)
+  Widget _buildCandidateActionButton(Map<String, dynamic> c, int index, String profileId) {
+    final pid = (c['candidate_code'] ?? c['profile_id'] ?? c['id'])?.toString() ?? profileId;
+    final numId = c['numeric_id']?.toString() ?? '';
+
+    final isSentFromApi = ApiService.instance.isRequestSent(c) ||
+        ApiService.instance.isRequestSent(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestSent(numId));
+    final isReceivedFromApi = ApiService.instance.isRequestReceived(c) ||
+        ApiService.instance.isRequestReceived(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestReceived(numId));
+    final isAcceptedFromApi = ApiService.instance.isRequestAccepted(c) ||
+        ApiService.instance.isRequestAccepted(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestAccepted(numId));
+
+    final requestType = (c['request_type'] ?? '').toString().toLowerCase();
+    final isAccepted = isAcceptedFromApi || requestType == 'accepted' || c['is_accepted'] == true;
+    final isReceived = isReceivedFromApi || requestType == 'received' || c['is_interest_received'] == true;
+    final isSent = isSentFromApi || requestType == 'sent' || c['is_interest_sent'] == true || c['is_connected'] == true;
+
+    if (isAccepted) {
+      return SizedBox(
+        width: double.infinity,
+        height: 38,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2E7D32),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RaniMatchDetailsScreen(
+                  profileId: profileId,
+                  initialProfileData: c,
+                ),
+              ),
+            );
+            _syncDetailsShortlistResult(result);
+          },
+          icon: const Icon(CupertinoIcons.checkmark_alt, size: 15, color: Colors.white),
+          label: Text(
+            'Connected',
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isReceived) {
+      return SizedBox(
+        width: double.infinity,
+        height: 40,
+        child: Row(
+          children: [
+            // Reject Button
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _handleRespondInterest(c, 'decline', index),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x59E11D48), width: 1.2),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x0FE11D48),
+                          blurRadius: 4,
+                          offset: Offset(0, 1.5),
                         ),
-                      );
-                      _syncDetailsShortlistResult(result);
-                    },
+                      ],
+                    ),
+                    alignment: Alignment.center,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        const Icon(CupertinoIcons.xmark_circle_fill, size: 15, color: Color(0xFFBE123C)),
+                        const SizedBox(width: 5),
                         Text(
-                          'View Profile',
+                          'Reject',
                           style: GoogleFonts.outfit(
-                            fontSize: 13,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFBE123C),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Accept Button
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _handleRespondInterest(c, 'accept', index),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF15803D), Color(0xFF22C55E)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x5915803D),
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 16, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Accept',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12.5,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
                             letterSpacing: 0.2,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        const Icon(CupertinoIcons.chevron_right, size: 13, color: Colors.white),
                       ],
                     ),
                   ),
                 ),
-              ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (isSent) {
+      return SizedBox(
+        width: double.infinity,
+        height: 38,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFCBD5E1),
+            foregroundColor: const Color(0xFF475569),
+            disabledBackgroundColor: const Color(0xFFCBD5E1),
+            disabledForegroundColor: const Color(0xFF475569),
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: null,
+          icon: const Icon(CupertinoIcons.clock, size: 14, color: Color(0xFF475569)),
+          label: Text(
+            'Wait for Acceptance',
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF475569),
             ),
           ),
+        ),
+      );
+    }
+
+    // Default: Connect Button with Golden Corner Ornament (Royal Burgundy Theme)
+    return SizedBox(
+      width: double.infinity,
+      height: 38,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          children: [
+            SizedBox.expand(
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF750000),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => _handleSendInterest(c, index),
+                icon: const Icon(CupertinoIcons.heart, size: 15, color: Colors.white),
+                label: Text(
+                  'Connect',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              width: 48,
+              height: 48,
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.75,
+                  child: Transform.flip(
+                    flipY: true,
+                    child: Image.asset(
+                      'assets/sidebar-top-right-corner.png',
+                      fit: BoxFit.contain,
+                      alignment: Alignment.bottomRight,
+                      errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

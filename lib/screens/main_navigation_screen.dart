@@ -56,6 +56,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   int _interestsCount = 0;
   int _acceptedCount = 0;
   int _sentCount = 0;
+  int _declinedCount = 0;
   double _walletBalance = 0.00;
   List<dynamic> _dynamicNotifications = [];
   final Set<String> _dismissedNotificationIds = {};
@@ -137,6 +138,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   Future<void> _fetchLiveMetrics() async {
     _fetchLiveWalletBalance();
     _fetchLiveDashboardAndNotifications();
+    ApiService.instance.preloadAllConnections();
   }
 
   static double _toDouble(dynamic val, [double fallback = 0.0]) {
@@ -248,11 +250,13 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         final rec = _toInt(counts['received'] ?? counts['pending']);
         final sent = _toInt(counts['sent']);
         final acc = _toInt(counts['accepted']);
+        final dec = _toInt(counts['declined'] ?? counts['rejected']);
 
         setState(() {
           _interestsCount = rec;
           _acceptedCount = acc;
           _sentCount = sent;
+          _declinedCount = dec;
         });
 
         ApiService.instance.updateSidebarCounts(
@@ -658,6 +662,51 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     );
   }
 
+  /// Interests Nav Icon with live type signal dot in top-right corner:
+  /// - Red live signal dot when inactive and data exists in receive/send/accepted/declined
+  /// - Golden live signal dot when active (selected) and data exists
+  Widget _buildInterestsNavIcon({required bool isActive}) {
+    final hasData = (_interestsCount > 0 || _sentCount > 0 || _acceptedCount > 0 || _declinedCount > 0);
+    final iconWidget = Icon(
+      isActive ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+      size: 23,
+    );
+
+    if (!hasData) return iconWidget;
+
+    final dotColor = isActive ? const Color(0xFFE5B842) : const Color(0xFFE53935);
+    final glowColor = isActive
+        ? const Color(0xFFE5B842).withValues(alpha: 0.6)
+        : const Color(0xFFE53935).withValues(alpha: 0.5);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        iconWidget,
+        Positioned(
+          top: -2,
+          right: -4,
+          child: Container(
+            width: 8.5,
+            height: 8.5,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: glowColor,
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Badge indicator wrapper for bottom nav items with counting
   Widget _buildNavBadgeIcon({
     required IconData icon,
@@ -875,10 +924,10 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
               activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.person_2_fill, count: _matchesCount, size: 24),
               label: 'Matches',
             ),
-            // Tab 2: Interests (Replaced Inbox)
+            // Tab 2: Interests (Replaced Inbox) with Live Signal Dot
             BottomNavigationBarItem(
-              icon: _buildNavBadgeIcon(icon: CupertinoIcons.heart, count: _interestsCount, size: 23),
-              activeIcon: _buildNavBadgeIcon(icon: CupertinoIcons.heart_fill, count: _interestsCount, size: 23),
+              icon: _buildInterestsNavIcon(isActive: false),
+              activeIcon: _buildInterestsNavIcon(isActive: true),
               label: 'Interests',
             ),
             // Tab 3: Wallet (Replaced Chat)

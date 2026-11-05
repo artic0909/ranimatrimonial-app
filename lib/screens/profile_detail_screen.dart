@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';
@@ -94,6 +95,43 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
         });
       } else {
         RaniAlert.error(context, res['message'] ?? 'Unable to send interest.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+      RaniAlert.error(context, 'Error: $e');
+    }
+  }
+
+  Future<void> _respondInterest(String action) async {
+    if (_data == null) return;
+    final isAccept = action == 'accept';
+    RaniMatrimonialLoader.show(
+      context,
+      message: isAccept ? 'Accepting connection request...' : 'Declining request...',
+    );
+
+    try {
+      final res = await ApiService.instance.respondInterest(widget.profileId, action);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (res['success'] == true) {
+        setState(() {
+          if (isAccept) {
+            _data!['request_type'] = 'accepted';
+            _data!['is_accepted'] = true;
+          } else {
+            _data!['request_type'] = 'declined';
+            _data!['is_accepted'] = false;
+          }
+        });
+        RaniAlert.success(
+          context,
+          res['message'] ?? (isAccept ? 'Connection accepted successfully!' : 'Connection declined.'),
+        );
+      } else {
+        RaniAlert.error(context, res['message'] ?? 'Action failed.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -202,9 +240,10 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
     final matchScore = d['match_score'] ?? 85;
     final matchReasons = (d['match_reasons'] as List<dynamic>?) ?? ['High Compatibility'];
     final isShortlisted = d['is_shortlisted'] == true;
-    final requestType = d['request_type'] ?? 'none';
+    final requestType = (d['request_type'] ?? 'none').toString().toLowerCase();
     final isAccepted = d['is_accepted'] == true || requestType == 'accepted';
-    final isSent = requestType == 'sent';
+    final isReceived = requestType == 'received' || d['is_interest_received'] == true;
+    final isSent = requestType == 'sent' || d['is_interest_sent'] == true;
 
     List<String> photos = [];
     if (d['photos'] != null && (d['photos'] as List).isNotEmpty) {
@@ -603,7 +642,7 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
                   ),
                   const SizedBox(width: 8),
 
-                  // Primary Button
+                  // Primary Action Buttons
                   Expanded(
                     child: isAccepted
                         ? ElevatedButton.icon(
@@ -620,35 +659,131 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
                               style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
                             ),
                           )
-                        : isSent
-                            ? ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4A1818),
-                                  foregroundColor: const Color(0xFFD5CCC4),
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                ),
-                                onPressed: null,
-                                child: Text(
-                                  'Interest Already Sent',
-                                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
-                                ),
+                        : isReceived
+                            ? Row(
+                                children: [
+                                  // Reject
+                                  Expanded(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _respondInterest('decline'),
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Container(
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFF1F2),
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: const Color(0x59E11D48), width: 1.2),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0x14E11D48),
+                                                blurRadius: 8,
+                                                offset: Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: Color(0xFFBE123C)),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Reject',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 14.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFFBE123C),
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  // Accept
+                                  Expanded(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _respondInterest('accept'),
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Container(
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF15803D), Color(0xFF22C55E)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius: BorderRadius.circular(14),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0x5915803D),
+                                                blurRadius: 10,
+                                                offset: Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 19, color: Colors.white),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Accept',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 14.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               )
-                            : ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFD4A034),
-                                  foregroundColor: const Color(0xFF1E0A0A),
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 3,
-                                ),
-                                onPressed: _sendInterest,
-                                icon: const Icon(Icons.favorite_rounded),
-                                label: Text(
-                                  'Send Connection Interest',
-                                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
-                                ),
-                              ),
+                            : isSent
+                                ? ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4A1818),
+                                      foregroundColor: const Color(0xFFD5CCC4),
+                                      disabledBackgroundColor: const Color(0xFF4A1818),
+                                      disabledForegroundColor: const Color(0xFFD5CCC4),
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    onPressed: null,
+                                    icon: const Icon(Icons.access_time, size: 16, color: Color(0xFFD5CCC4)),
+                                    label: Text(
+                                      'Wait for Acceptance',
+                                      style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFFD5CCC4)),
+                                    ),
+                                  )
+                                : ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD4A034),
+                                      foregroundColor: const Color(0xFF1E0A0A),
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      elevation: 3,
+                                    ),
+                                    onPressed: _sendInterest,
+                                    icon: const Icon(Icons.favorite_rounded),
+                                    label: Text(
+                                      'Send Connection Interest',
+                                      style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
                   ),
                 ],
               ),

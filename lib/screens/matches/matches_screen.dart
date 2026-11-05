@@ -482,6 +482,45 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     );
   }
 
+  Future<void> _respondRoyalInterest(dynamic candidate, String action) async {
+    final candidateId = (candidate['candidate_code'] ?? candidate['profile_id'] ?? candidate['id']?.toString() ?? '').toString();
+    final isAccept = action == 'accept';
+
+    RaniMatrimonialLoader.show(
+      context,
+      message: isAccept ? 'Accepting connection request...' : 'Declining request...',
+    );
+
+    try {
+      final res = await ApiService.instance.respondInterest(candidateId, action);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (res['success'] == true) {
+        setState(() {
+          if (isAccept) {
+            candidate['request_type'] = 'accepted';
+            candidate['is_accepted'] = true;
+          } else {
+            candidate['request_type'] = 'declined';
+            candidate['is_accepted'] = false;
+          }
+        });
+        RaniAlert.success(
+          context,
+          res['message'] ?? (isAccept ? 'Connection accepted successfully!' : 'Connection declined.'),
+        );
+      } else {
+        RaniAlert.error(context, res['message'] ?? 'Action failed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        RaniAlert.error(context, 'Error: $e');
+      }
+    }
+  }
+
   Future<void> _toggleShortlist(dynamic candidate) async {
     final profileId = candidate['candidate_code'] ?? candidate['profile_id'] ?? candidate['id']?.toString() ?? '';
     final name = '${candidate['first_name'] ?? 'Candidate'}'.trim();
@@ -1183,7 +1222,23 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     final photoCount = (c['photos'] is List && (c['photos'] as List).isNotEmpty)
         ? (c['photos'] as List).length
         : (photo.toString().isNotEmpty ? 1 : 1);
-    final isInterestSent = c['request_type'] == 'sent' || c['is_connected'] == true || isAcceptedTab;
+    final pid = (c['candidate_code'] ?? c['profile_id'] ?? c['id'])?.toString() ?? profileId;
+    final numId = c['numeric_id']?.toString() ?? '';
+
+    final isSentFromApi = ApiService.instance.isRequestSent(c) ||
+        ApiService.instance.isRequestSent(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestSent(numId));
+    final isReceivedFromApi = ApiService.instance.isRequestReceived(c) ||
+        ApiService.instance.isRequestReceived(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestReceived(numId));
+    final isAcceptedFromApi = ApiService.instance.isRequestAccepted(c) ||
+        ApiService.instance.isRequestAccepted(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestAccepted(numId));
+
+    final requestType = (c['request_type'] ?? '').toString().toLowerCase();
+    final isAccepted = isAcceptedFromApi || requestType == 'accepted' || c['is_accepted'] == true || isAcceptedTab;
+    final isReceived = isReceivedFromApi || requestType == 'received' || c['is_interest_received'] == true;
+    final isSent = isSentFromApi || requestType == 'sent' || c['is_interest_sent'] == true || c['is_connected'] == true;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1203,8 +1258,8 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => RaniMatchDetailsScreen(
@@ -1213,6 +1268,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                 ),
               ),
             );
+            if (mounted) setState(() {});
           },
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -1441,8 +1497,8 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => RaniMatchDetailsScreen(
@@ -1451,6 +1507,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                               ),
                             ),
                           );
+                          if (mounted) setState(() {});
                         },
                         icon: const Icon(CupertinoIcons.chat_bubble_2_fill, size: 14),
                         label: Text(
@@ -1478,60 +1535,176 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Connect CTA Button with Golden Corner Ornament
+                      // Dynamic Candidate Action Buttons
                       Expanded(
-                        child: SizedBox(
-                          height: 42,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Stack(
-                              children: [
-                                SizedBox.expand(
-                                  child: ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isInterestSent ? const Color(0xFF2E7D32) : const Color(0xFF750000),
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    ),
-                                    onPressed: isInterestSent ? null : () => _sendRoyalInterest(c),
-                                    icon: Icon(
-                                      isInterestSent ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
-                                      size: 15,
-                                    ),
-                                    label: Text(
-                                      isInterestSent ? 'Connected' : 'Connect Now',
-                                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700),
-                                    ),
-                                  ),
-                                ),
-
-                                // Golden Indian Royal Corner Ornament in Bottom-Right
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  width: 52,
-                                  height: 52,
-                                  child: IgnorePointer(
-                                    child: Opacity(
-                                      opacity: 0.75,
-                                      child: Transform.flip(
-                                        flipY: true,
-                                        child: Image.asset(
-                                          'assets/sidebar-top-right-corner.png',
-                                          fit: BoxFit.contain,
-                                          alignment: Alignment.bottomRight,
-                                          errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                        child: isReceived
+                            ? Row(
+                                children: [
+                                  // Reject
+                                  Expanded(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _respondRoyalInterest(c, 'decline'),
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Container(
+                                          height: 42,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFF1F2),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(color: const Color(0x59E11D48), width: 1.2),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0x0FE11D48),
+                                                blurRadius: 4,
+                                                offset: Offset(0, 1.5),
+                                              ),
+                                            ],
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(CupertinoIcons.xmark_circle_fill, size: 14, color: Color(0xFFBE123C)),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Reject',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFFBE123C),
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                                  const SizedBox(width: 6),
+                                  // Accept
+                                  Expanded(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _respondRoyalInterest(c, 'accept'),
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Container(
+                                          height: 42,
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF15803D), Color(0xFF22C55E)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius: BorderRadius.circular(10),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0x5915803D),
+                                                blurRadius: 6,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 15, color: Colors.white),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Accept',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : isSent
+                                ? SizedBox(
+                                    height: 42,
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFCBD5E1),
+                                        foregroundColor: const Color(0xFF475569),
+                                        disabledBackgroundColor: const Color(0xFFCBD5E1),
+                                        disabledForegroundColor: const Color(0xFF475569),
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                      onPressed: null,
+                                      icon: const Icon(CupertinoIcons.clock, size: 14, color: Color(0xFF475569)),
+                                      label: Text(
+                                        'Wait for Acceptance',
+                                        style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF475569)),
+                                      ),
+                                    ),
+                                  )
+                                : SizedBox(
+                                    height: 42,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Stack(
+                                        children: [
+                                          SizedBox.expand(
+                                            child: ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: isAccepted ? const Color(0xFF2E7D32) : const Color(0xFF750000),
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                              onPressed: isAccepted ? null : () => _sendRoyalInterest(c),
+                                              icon: Icon(
+                                                isAccepted ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
+                                                size: 15,
+                                              ),
+                                              label: Text(
+                                                isAccepted ? 'Connected' : 'Connect Now',
+                                                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Golden Indian Royal Corner Ornament in Bottom-Right
+                                          Positioned(
+                                            bottom: 0,
+                                            right: 0,
+                                            width: 52,
+                                            height: 52,
+                                            child: IgnorePointer(
+                                              child: Opacity(
+                                                opacity: 0.75,
+                                                child: Transform.flip(
+                                                  flipY: true,
+                                                  child: Image.asset(
+                                                    'assets/sidebar-top-right-corner.png',
+                                                    fit: BoxFit.contain,
+                                                    alignment: Alignment.bottomRight,
+                                                    errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                       ),
                     ],
                   ),
@@ -1563,11 +1736,27 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
     final photoCount = (c['photos'] is List && (c['photos'] as List).isNotEmpty)
         ? (c['photos'] as List).length
         : (photo.toString().isNotEmpty ? 1 : 1);
-    final isInterestSent = c['request_type'] == 'sent' || c['is_connected'] == true;
+    final pid = (c['candidate_code'] ?? c['profile_id'] ?? c['id'])?.toString() ?? profileId;
+    final numId = c['numeric_id']?.toString() ?? '';
+
+    final isSentFromApi = ApiService.instance.isRequestSent(c) ||
+        ApiService.instance.isRequestSent(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestSent(numId));
+    final isReceivedFromApi = ApiService.instance.isRequestReceived(c) ||
+        ApiService.instance.isRequestReceived(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestReceived(numId));
+    final isAcceptedFromApi = ApiService.instance.isRequestAccepted(c) ||
+        ApiService.instance.isRequestAccepted(pid) ||
+        (numId.isNotEmpty && ApiService.instance.isRequestAccepted(numId));
+
+    final requestType = (c['request_type'] ?? '').toString().toLowerCase();
+    final isAccepted = isAcceptedFromApi || requestType == 'accepted' || c['is_accepted'] == true;
+    final isReceived = isReceivedFromApi || requestType == 'received' || c['is_interest_received'] == true;
+    final isSent = isSentFromApi || requestType == 'sent' || c['is_interest_sent'] == true || c['is_connected'] == true;
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => RaniMatchDetailsScreen(
@@ -1576,6 +1765,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             ),
           ),
         );
+        if (mounted) setState(() {});
       },
       child: Container(
         decoration: BoxDecoration(
@@ -1840,71 +2030,185 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
 
                     const SizedBox(height: 14),
 
-                    // Connect Button with Golden Royal Corner Ornament in Bottom-Right
+                    // Dynamic Action Button (Accept & Reject / Wait for Acceptance / Connect)
                     SizedBox(
                       width: double.infinity,
                       height: 48,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Stack(
-                          children: [
-                            SizedBox.expand(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isInterestSent ? const Color(0xFF2E7D32) : const Color(0xFF750000),
-                                  foregroundColor: Colors.white,
-                                  elevation: 3,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                onPressed: isInterestSent ? null : () => _sendRoyalInterest(c),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      isInterestSent ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
-                                      size: 18,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      isInterestSent ? 'Connected' : 'Connect',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
+                      child: isReceived
+                          ? Row(
+                              children: [
+                                // Reject
+                                Expanded(
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => _respondRoyalInterest(c, 'decline'),
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Container(
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFF1F2),
+                                          borderRadius: BorderRadius.circular(14),
+                                          border: Border.all(color: const Color(0x59E11D48), width: 1.2),
+                                          boxShadow: const [
+                                            BoxShadow(
+                                              color: Color(0x14E11D48),
+                                              blurRadius: 8,
+                                              offset: Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: Color(0xFFBE123C)),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Reject',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 14.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: const Color(0xFFBE123C),
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
-
-                            // Golden Indian Royal Corner Ornament in Bottom-Right (Generous Luxury Size)
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              width: 72,
-                              height: 72,
-                              child: IgnorePointer(
-                                child: Opacity(
-                                  opacity: 0.75,
-                                  child: Transform.flip(
-                                    flipY: true,
-                                    child: Image.asset(
-                                      'assets/sidebar-top-right-corner.png',
-                                      fit: BoxFit.contain,
-                                      alignment: Alignment.bottomRight,
-                                      errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                const SizedBox(width: 10),
+                                // Accept
+                                Expanded(
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => _respondRoyalInterest(c, 'accept'),
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Container(
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF15803D), Color(0xFF22C55E)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(14),
+                                          boxShadow: const [
+                                            BoxShadow(
+                                              color: Color(0x5915803D),
+                                              blurRadius: 10,
+                                              offset: Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 19, color: Colors.white),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Accept',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 14.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                              ],
+                            )
+                          : isSent
+                              ? ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFCBD5E1),
+                                    foregroundColor: const Color(0xFF475569),
+                                    disabledBackgroundColor: const Color(0xFFCBD5E1),
+                                    disabledForegroundColor: const Color(0xFF475569),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  ),
+                                  onPressed: null,
+                                  icon: const Icon(CupertinoIcons.clock, size: 18, color: Color(0xFF475569)),
+                                  label: Text(
+                                    'Wait for Acceptance',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF475569),
+                                    ),
+                                  ),
+                                )
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Stack(
+                                    children: [
+                                      SizedBox.expand(
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: isAccepted ? const Color(0xFF2E7D32) : const Color(0xFF750000),
+                                            foregroundColor: Colors.white,
+                                            elevation: 3,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                          onPressed: isAccepted ? null : () => _sendRoyalInterest(c),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                isAccepted ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
+                                                size: 18,
+                                                color: Colors.white,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                isAccepted ? 'Connected' : 'Connect',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Golden Indian Royal Corner Ornament in Bottom-Right (Generous Luxury Size)
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        width: 72,
+                                        height: 72,
+                                        child: IgnorePointer(
+                                          child: Opacity(
+                                            opacity: 0.75,
+                                            child: Transform.flip(
+                                              flipY: true,
+                                              child: Image.asset(
+                                                'assets/sidebar-top-right-corner.png',
+                                                fit: BoxFit.contain,
+                                                alignment: Alignment.bottomRight,
+                                                errorBuilder: (ctx, err, stack) => const SizedBox.shrink(),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                     ),
                   ],
                 ),

@@ -148,6 +148,7 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
         setState(() {
           _data!['request_type'] = 'sent';
           _data!['is_connected'] = true;
+          _status['is_sent_by_me'] = true;
         });
         RaniAlert.success(
           context,
@@ -160,6 +161,49 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
         } else {
           RaniAlert.error(context, res['message'] ?? 'Unable to send connection request.');
         }
+      }
+    } catch (e) {
+      if (mounted) {
+        RaniMatrimonialLoader.hide(context);
+        RaniAlert.error(context, 'Error: $e');
+      }
+    }
+  }
+
+  Future<void> _respondRoyalInterest(String action) async {
+    if (_data == null) return;
+    final candidateId = (_data!['candidate_code'] ?? _data!['profile_id'] ?? _data!['id']?.toString() ?? widget.profileId).toString();
+    final isAccept = action == 'accept';
+
+    RaniMatrimonialLoader.show(
+      context,
+      message: isAccept ? 'Accepting connection request...' : 'Declining request...',
+    );
+
+    try {
+      final res = await ApiService.instance.respondInterest(candidateId, action);
+      if (!mounted) return;
+      RaniMatrimonialLoader.hide(context);
+
+      if (res['success'] == true) {
+        setState(() {
+          if (isAccept) {
+            _data!['request_type'] = 'accepted';
+            _data!['is_accepted'] = true;
+            _status['is_accepted'] = true;
+            _status['is_received_by_me'] = false;
+          } else {
+            _data!['request_type'] = 'declined';
+            _data!['is_accepted'] = false;
+            _status['is_received_by_me'] = false;
+          }
+        });
+        RaniAlert.success(
+          context,
+          res['message'] ?? (isAccept ? 'Connection accepted successfully!' : 'Connection declined.'),
+        );
+      } else {
+        RaniAlert.error(context, res['message'] ?? 'Action failed.');
       }
     } catch (e) {
       if (mounted) {
@@ -473,12 +517,20 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     final isVerified = d['verified'] == true || d['is_verified'] == 1 || (d['bluetick'] != null && d['bluetick']['is_accept'] == 1);
     final matchScore = int.tryParse(d['match_score']?.toString() ?? d['match_percentage']?.toString() ?? '95') ?? 95;
     final isShortlisted = d['is_shortlisted'] == true || d['is_shortlisted'] == 1 || d['is_shortlisted'] == '1';
-    final isConnected = d['request_type'] == 'sent' || d['request_type'] == 'accepted' || d['is_connected'] == true;
+    final requestType = (d['request_type'] ?? _status['request_type'] ?? '').toString().toLowerCase();
     final status = _status;
     final isAccepted = status['is_accepted'] == true ||
-        d['request_type'] == 'accepted' ||
+        requestType == 'accepted' ||
         d['is_accepted'] == true ||
         (d['status']?.toString().toLowerCase() == 'accepted');
+    final isReceived = requestType == 'received' ||
+        status['is_received_by_me'] == true ||
+        d['is_interest_received'] == true;
+    final isSent = requestType == 'sent' ||
+        status['is_sent_by_me'] == true ||
+        d['is_interest_sent'] == true ||
+        d['is_connected'] == true;
+    final isConnected = isSent || isAccepted;
     final isWpChatAccepted = status['is_wp_chat_accepted'] == true ||
         d['is_wp_chat_accepted'] == true;
     final isWpChatSentByMe = status['is_wp_chat_sent_by_me'] == true ||
@@ -541,9 +593,25 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
       matchReasons.add('Educational Compatibility');
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F2),
-      body: Stack(
+    final popResult = {
+      'profile_id': widget.profileId,
+      'is_shortlisted': isShortlisted,
+      'request_type': isAccepted ? 'accepted' : (isReceived ? 'received' : (isSent ? 'sent' : 'none')),
+      'is_sent': isSent,
+      'is_accepted': isAccepted,
+      'is_received': isReceived,
+    };
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.pop(context, popResult);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAF7F2),
+        body: Stack(
         children: [
           CustomScrollView(
             slivers: [
@@ -635,10 +703,7 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                         children: [
                           // Back Button
                           GestureDetector(
-                            onTap: () => Navigator.pop(context, {
-                              'profile_id': widget.profileId,
-                              'is_shortlisted': isShortlisted,
-                            }),
+                            onTap: () => Navigator.pop(context, popResult),
                             child: Container(
                               width: 38,
                               height: 38,
@@ -859,6 +924,8 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
             child: _buildBottomActionBar(
               isConnected: isConnected,
               isAccepted: isAccepted,
+              isReceived: isReceived,
+              isSent: isSent,
               isWpChatAccepted: isWpChatAccepted,
               isWpChatSentByMe: isWpChatSentByMe,
               isWpChatReceivedByMe: isWpChatReceivedByMe,
@@ -868,7 +935,8 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   /// Main Candidate Header Card
@@ -1795,6 +1863,8 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
   Widget _buildBottomActionBar({
     required bool isConnected,
     required bool isAccepted,
+    required bool isReceived,
+    required bool isSent,
     required bool isWpChatAccepted,
     required bool isWpChatSentByMe,
     required bool isWpChatReceivedByMe,
@@ -1897,27 +1967,142 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                               ),
                             ),
                           ))))
-            : ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isConnected ? const Color(0xFF2E7D32) : const Color(0xFF750000), // Royal burgundy
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: isConnected ? null : _sendRoyalInterest,
-                icon: Icon(
-                  isConnected ? CupertinoIcons.checkmark_alt : CupertinoIcons.heart,
-                  size: 18,
-                ),
-                label: Text(
-                  isConnected ? 'Connection Sent' : 'Connect Now',
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
+            : isReceived
+                ? Row(
+                    children: [
+                      // Reject Button
+                      Expanded(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _respondRoyalInterest('decline'),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF1F2),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0x59E11D48), width: 1.2),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x14E11D48),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: Color(0xFFBE123C)),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Reject',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFFBE123C),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Accept Button
+                      Expanded(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _respondRoyalInterest('accept'),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF15803D), Color(0xFF22C55E)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x5915803D),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 19, color: Colors.white),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Accept',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : isSent
+                    ? ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFCBD5E1),
+                          foregroundColor: const Color(0xFF475569),
+                          disabledBackgroundColor: const Color(0xFFCBD5E1),
+                          disabledForegroundColor: const Color(0xFF475569),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: null,
+                        icon: const Icon(CupertinoIcons.clock, size: 18, color: Color(0xFF475569)),
+                        label: Text(
+                          'Wait for Acceptance',
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF750000), // Royal burgundy
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: _sendRoyalInterest,
+                        icon: const Icon(
+                          CupertinoIcons.heart,
+                          size: 18,
+                        ),
+                        label: Text(
+                          'Connect Now',
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
       ),
     );
   }

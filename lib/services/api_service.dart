@@ -23,6 +23,9 @@ class ApiService {
   final ValueNotifier<Map<String, dynamic>?> candidateNotifier = ValueNotifier<Map<String, dynamic>?>(null);
   final ValueNotifier<double> walletBalanceNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<Set<String>> shortlistedIdsNotifier = ValueNotifier<Set<String>>({});
+  final ValueNotifier<Set<String>> sentRequestIdsNotifier = ValueNotifier<Set<String>>({});
+  final ValueNotifier<Set<String>> receivedRequestIdsNotifier = ValueNotifier<Set<String>>({});
+  final ValueNotifier<Set<String>> acceptedRequestIdsNotifier = ValueNotifier<Set<String>>({});
   final ValueNotifier<Map<String, int>> sidebarCountsNotifier = ValueNotifier<Map<String, int>>({
     'matches': 0,
     'accepted': 0,
@@ -82,6 +85,177 @@ class ApiService {
       if (secondaryId != null && secondaryId.isNotEmpty) current.remove(secondaryId);
     }
     shortlistedIdsNotifier.value = current;
+  }
+
+  static String normalizeCandidateId(dynamic raw) {
+    if (raw == null) return '';
+    var str = raw.toString().trim().toUpperCase();
+    while (str.startsWith('RMRM')) {
+      str = str.substring(2);
+    }
+    return str;
+  }
+
+  /// Generate all candidate ID variations (e.g., 'RM00024', '24', 'RM24') to guarantee exact matching
+  static Set<String> candidateIdVariants(dynamic candidateOrId) {
+    final set = <String>{};
+    if (candidateOrId == null) return set;
+
+    void addVariants(String? s) {
+      if (s == null || s.trim().isEmpty) return;
+      final trimmed = s.trim();
+      set.add(trimmed);
+      final norm = normalizeCandidateId(trimmed);
+      if (norm.isNotEmpty) set.add(norm);
+      final digits = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isNotEmpty) {
+        final val = int.tryParse(digits);
+        if (val != null) {
+          set.add(val.toString());
+          set.add('RM${val.toString().padLeft(5, '0')}');
+          set.add('RM$val');
+        }
+      }
+    }
+
+    if (candidateOrId is Map) {
+      final pid = (candidateOrId['candidate_code'] ??
+              candidateOrId['profile_id'] ??
+              candidateOrId['id'])
+          ?.toString();
+      final numId = (candidateOrId['numeric_id'] ?? candidateOrId['db_id'])?.toString();
+      addVariants(pid);
+      addVariants(numId);
+    } else {
+      addVariants(candidateOrId.toString());
+    }
+
+    return set;
+  }
+
+  /// Check if a candidate or ID has a sent connection request
+  bool isRequestSent(dynamic candidateOrId) {
+    if (candidateOrId == null) return false;
+    final set = sentRequestIdsNotifier.value;
+    final variants = candidateIdVariants(candidateOrId);
+    for (final v in variants) {
+      if (set.contains(v)) return true;
+    }
+    if (candidateOrId is Map) {
+      return candidateOrId['request_type'] == 'sent' ||
+          candidateOrId['is_interest_sent'] == true ||
+          candidateOrId['is_connected'] == true;
+    }
+    return false;
+  }
+
+  /// Check if a candidate or ID has a received connection request
+  bool isRequestReceived(dynamic candidateOrId) {
+    if (candidateOrId == null) return false;
+    final set = receivedRequestIdsNotifier.value;
+    final variants = candidateIdVariants(candidateOrId);
+    for (final v in variants) {
+      if (set.contains(v)) return true;
+    }
+    if (candidateOrId is Map) {
+      return candidateOrId['request_type'] == 'received' ||
+          candidateOrId['is_interest_received'] == true;
+    }
+    return false;
+  }
+
+  /// Check if a candidate or ID is an accepted connection
+  bool isRequestAccepted(dynamic candidateOrId) {
+    if (candidateOrId == null) return false;
+    final set = acceptedRequestIdsNotifier.value;
+    final variants = candidateIdVariants(candidateOrId);
+    for (final v in variants) {
+      if (set.contains(v)) return true;
+    }
+    if (candidateOrId is Map) {
+      return candidateOrId['request_type'] == 'accepted' ||
+          candidateOrId['is_accepted'] == true;
+    }
+    return false;
+  }
+
+  /// Register connection status in the global reactive registry
+  void registerConnectionStatus({
+    required String profileId,
+    String? numericId,
+    required String status,
+  }) {
+    final sentSet = Set<String>.from(sentRequestIdsNotifier.value);
+    final recvSet = Set<String>.from(receivedRequestIdsNotifier.value);
+    final accSet = Set<String>.from(acceptedRequestIdsNotifier.value);
+
+    final ids = candidateIdVariants(profileId);
+    if (numericId != null && numericId.isNotEmpty) {
+      ids.addAll(candidateIdVariants(numericId));
+    }
+
+    // Clear previous occurrences across sets
+    sentSet.removeAll(ids);
+    recvSet.removeAll(ids);
+    accSet.removeAll(ids);
+
+    final normStatus = status.toLowerCase();
+    if (normStatus == 'sent') {
+      sentSet.addAll(ids);
+    } else if (normStatus == 'received') {
+      recvSet.addAll(ids);
+    } else if (normStatus == 'accepted') {
+      accSet.addAll(ids);
+    }
+
+    sentRequestIdsNotifier.value = sentSet;
+    receivedRequestIdsNotifier.value = recvSet;
+    acceptedRequestIdsNotifier.value = accSet;
+  }
+
+  bool _isPreloadingConnections = false;
+
+  /// Preload received, sent, and accepted connection requests across all modules
+  Future<void> preloadAllConnections() async {
+    if (_isPreloadingConnections) return;
+    _isPreloadingConnections = true;
+    try {
+      await Future.wait([
+        getInbox(tab: 'received'),
+        getInbox(tab: 'sent'),
+        getInbox(tab: 'accepted'),
+      ]).catchError((e) {
+        debugPrint('[ApiService] preloadAllConnections inbox error: $e');
+        return <Map<String, dynamic>>[];
+      });
+
+      try {
+        final matchRes = await getMatches(tab: 'my_matches', page: 1);
+        if (matchRes['success'] == true) {
+          final rawMatches = matchRes['matches'];
+          List<dynamic> list = [];
+          if (rawMatches is List) {
+            list = rawMatches;
+          } else if (rawMatches is Map && rawMatches['data'] is List) {
+            list = rawMatches['data'] as List;
+          }
+          for (final m in list) {
+            if (m is Map) {
+              final pid = (m['candidate_code'] ?? m['profile_id'] ?? m['id'])?.toString();
+              final numId = m['numeric_id']?.toString() ?? m['db_id']?.toString();
+              final reqType = (m['request_type'] ?? '').toString().toLowerCase();
+              if (pid != null && pid.isNotEmpty && reqType.isNotEmpty && reqType != 'none') {
+                registerConnectionStatus(profileId: pid, numericId: numId, status: reqType);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[ApiService] preloadAllConnections my_matches error: $e');
+      }
+    } finally {
+      _isPreloadingConnections = false;
+    }
   }
 
   /// Safely format any photo/avatar URL (handles local dev domains, relative storage paths, and absolute URLs)
@@ -832,6 +1006,16 @@ class ApiService {
             if (pid != null && pid.isNotEmpty) set.add(pid);
             if (numId != null && numId.isNotEmpty) set.add(numId);
           }
+          if (pid != null && pid.isNotEmpty) {
+            final reqType = (m['request_type'] ?? '').toString();
+            if (reqType == 'sent' || m['is_interest_sent'] == true || tab == 'my_matches') {
+              registerConnectionStatus(profileId: pid, numericId: numId, status: 'sent');
+            } else if (reqType == 'received' || m['is_interest_received'] == true) {
+              registerConnectionStatus(profileId: pid, numericId: numId, status: 'received');
+            } else if (reqType == 'accepted' || m['is_accepted'] == true || tab == 'accepted') {
+              registerConnectionStatus(profileId: pid, numericId: numId, status: 'accepted');
+            }
+          }
         }
       }
       shortlistedIdsNotifier.value = set;
@@ -856,7 +1040,21 @@ class ApiService {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/profile/$id');
     final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    final data = _processResponse(response);
+    if (data['success'] == true) {
+      final p = data['profile'] ?? data['candidate'] ?? {};
+      final pid = (p['candidate_code'] ?? p['profile_id'] ?? p['id'] ?? id)?.toString() ?? id.toString();
+      final numId = p['id']?.toString() ?? (id is int || int.tryParse(id.toString()) != null ? id.toString() : null);
+      final status = data['status'] ?? {};
+      if (status['is_accepted'] == true) {
+        registerConnectionStatus(profileId: pid, numericId: numId, status: 'accepted');
+      } else if (status['is_sent_by_me'] == true) {
+        registerConnectionStatus(profileId: pid, numericId: numId, status: 'sent');
+      } else if (status['is_received_by_me'] == true) {
+        registerConnectionStatus(profileId: pid, numericId: numId, status: 'received');
+      }
+    }
+    return data;
   }
 
   /// Send Interest / Connection Request
@@ -868,7 +1066,11 @@ class ApiService {
       headers: _headers,
       body: jsonEncode({'profile_id': profileId}),
     );
-    return _processResponse(response);
+    final data = _processResponse(response);
+    if (data['success'] == true) {
+      registerConnectionStatus(profileId: profileId, status: 'sent');
+    }
+    return data;
   }
 
   /// Respond to an Interest (accept / decline)
@@ -883,7 +1085,14 @@ class ApiService {
         'action': action,
       }),
     );
-    return _processResponse(response);
+    final data = _processResponse(response);
+    if (data['success'] == true) {
+      registerConnectionStatus(
+        profileId: profileId,
+        status: action == 'accept' ? 'accepted' : 'declined',
+      );
+    }
+    return data;
   }
 
   /// Toggle candidate shortlist
@@ -947,6 +1156,21 @@ class ApiService {
         final sent = int.tryParse(c['sent']?.toString() ?? '0') ?? 0;
         final acc = int.tryParse(c['accepted']?.toString() ?? '0') ?? 0;
         updateSidebarCounts(received: rec, sent: sent, accepted: acc);
+      }
+      if (data['success'] == true) {
+        final list = (data['requests'] ?? data['data'] ?? []) as List<dynamic>;
+        for (final item in list) {
+          if (item is Map) {
+            final p = item['candidate'] ?? item['profile'] ?? item;
+            final pid = (p['candidate_code'] ?? p['profile_id'] ?? p['id'] ?? item['id'])?.toString();
+            final numId = p['numeric_id']?.toString() ?? p['db_id']?.toString() ?? item['db_id']?.toString();
+            if (pid != null && pid.isNotEmpty) {
+              final itemStatus = (item['status'] ?? tab).toString().toLowerCase();
+              final effectiveStatus = itemStatus == 'pending' ? (tab == 'sent' ? 'sent' : 'received') : itemStatus;
+              registerConnectionStatus(profileId: pid, numericId: numId, status: effectiveStatus);
+            }
+          }
+        }
       }
       return data;
     } catch (e) {
