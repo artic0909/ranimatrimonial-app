@@ -486,9 +486,13 @@ class _RoyalRechargeSheetState extends State<_RoyalRechargeSheet> {
               children: [
                 const Icon(CupertinoIcons.checkmark_seal_fill, size: 12, color: Color(0xFF2E7D32)),
                 const SizedBox(width: 4),
-                Text(
-                  '100% Secure Checkout powered by Razorpay (UPI, Cards, Netbanking)',
-                  style: GoogleFonts.outfit(fontSize: 10, color: const Color(0xFF8E8E93)),
+                Flexible(
+                  child: Text(
+                    '100% Secure Checkout powered by Razorpay',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(fontSize: 10, color: const Color(0xFF8E8E93)),
+                  ),
                 ),
               ],
             ),

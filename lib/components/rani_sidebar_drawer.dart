@@ -14,6 +14,7 @@ typedef SidebarTabNavigateCallback = void Function(
   int tabIndex, {
   int? connectionTabIndex,
   String? matchesTab,
+  String? walletTab,
 });
 
 /// Royal Full-Screen Matrimonial Sliding Sidebar Drawer
@@ -45,6 +46,7 @@ class RaniSidebarDrawer extends StatelessWidget {
     int tabIndex, {
     int? connectionTabIndex,
     String? matchesTab,
+    String? walletTab,
   }) {
     Navigator.pop(context);
     if (onNavigateToTab != null) {
@@ -52,6 +54,7 @@ class RaniSidebarDrawer extends StatelessWidget {
         tabIndex,
         connectionTabIndex: connectionTabIndex,
         matchesTab: matchesTab,
+        walletTab: walletTab,
       );
     } else {
       Navigator.of(context).pushAndRemoveUntil(
@@ -60,6 +63,7 @@ class RaniSidebarDrawer extends StatelessWidget {
             initialIndex: tabIndex,
             initialConnectionTabIndex: connectionTabIndex,
             initialMatchesTab: matchesTab,
+            initialWalletTab: walletTab,
           ),
         ),
         (route) => false,
@@ -152,7 +156,15 @@ class RaniSidebarDrawer extends StatelessWidget {
                         icon: Icons.account_balance_wallet_outlined,
                         title: 'My Wallet',
                         isHighlighted: activeItem == 'wallet',
-                        onTap: () => _handleTabNavigation(context, 3),
+                        onTap: () => _handleTabNavigation(context, 3, walletTab: 'wallet'),
+                      ),
+
+                      // All Transactions
+                      _buildSidebarItem(
+                        icon: Icons.receipt_long_rounded,
+                        title: 'All Transactions',
+                        isHighlighted: activeItem == 'transactions',
+                        onTap: () => _handleTabNavigation(context, 3, walletTab: 'transactions'),
                       ),
 
                       // f. Advance Serch

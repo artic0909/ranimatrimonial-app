@@ -16,11 +16,13 @@ import 'package:ranimatrimonial_app/screens/connections/accepted_screen.dart';
 import 'package:ranimatrimonial_app/screens/connections/declined_screen.dart';
 import 'package:ranimatrimonial_app/screens/connections/rejected_screen.dart';
 import 'package:ranimatrimonial_app/screens/wallet/wallet_screen.dart';
+import 'package:ranimatrimonial_app/screens/wallet/transactions.dart';
 import 'package:ranimatrimonial_app/screens/profile/profile_screen.dart';
 import 'package:ranimatrimonial_app/screens/profile/edit_section_modal.dart';
 import 'package:ranimatrimonial_app/screens/home/photos.dart';
 import 'package:ranimatrimonial_app/screens/main_navigation_screen.dart';
 import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
+import 'package:ranimatrimonial_app/components/rani_top_bar.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -587,6 +589,85 @@ void main() {
             reason: 'Section edit modal ($section) overflow on size $size',
           );
         }
+      }
+    });
+
+    testWidgets('Wallet Transactions statement screen fits all phone sizes without overflow', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          const RaniTransactionsScreen(showAppBar: true),
+          size: size,
+        ));
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'Transactions statement screen overflow on size $size',
+        );
+      }
+    });
+
+    testWidgets('All Transactions in Main Navigation shell has TopBar, BottomNav and working Burger Menu', (tester) async {
+      for (final size in testSizes) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+
+        await tester.pumpWidget(wrapScreen(
+          RaniMainNavigationScreen(
+            key: ValueKey('main_nav_$size'),
+            initialIndex: 3,
+            initialWalletTab: 'transactions',
+          ),
+          size: size,
+        ));
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'Main Nav All Transactions overflow on size $size',
+        );
+
+        // Verify TopBar has 'All Transactions' title
+        expect(find.descendant(of: find.byType(RaniTopBar), matching: find.text('All Transactions')), findsOneWidget);
+
+        // Verify BottomNavigationBar is present
+        expect(find.byType(BottomNavigationBar), findsOneWidget);
+
+        // Verify Burger Menu icon exists and opens drawer
+        final menuFinder = find.byTooltip('Menu');
+        expect(menuFinder, findsOneWidget);
+
+        // Tap burger menu and open drawer
+        await tester.tap(menuFinder);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.byType(Drawer), findsOneWidget);
+        // Verify 'All Transactions' is in sidebar drawer as well
+        expect(find.descendant(of: find.byType(Drawer), matching: find.text('All Transactions')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        // Close sidebar drawer cleanly
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).closeDrawer();
+        await tester.pumpAndSettle();
+
+        // Tap 'Wallet' in BottomNavigationBar
+        final walletBottomNavFinder = find.descendant(
+          of: find.byType(BottomNavigationBar),
+          matching: find.text('Wallet'),
+        );
+        expect(walletBottomNavFinder, findsOneWidget);
+        await tester.tap(walletBottomNavFinder);
+        await tester.pumpAndSettle();
+
+        // Must now show 'My Wallet' screen (not 'All Transactions')
+        expect(find.descendant(of: find.byType(RaniTopBar), matching: find.text('My Wallet')), findsOneWidget);
+        expect(find.byType(RaniWalletScreen), findsOneWidget);
+        expect(tester.takeException(), isNull);
       }
     });
   });

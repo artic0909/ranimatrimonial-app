@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../services/razorpay_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_skeleton_loader.dart';
+import 'transactions.dart';
 
 /// Screen: Royal Wallet & Transactions with native Razorpay Gateway Integration
 /// Features:
@@ -17,10 +19,12 @@ import '../../components/rani_skeleton_loader.dart';
 /// 7. Native Razorpay checkout & signature verification
 class RaniWalletScreen extends StatefulWidget {
   final bool showAppBar;
+  final VoidCallback? onOpenTransactions;
 
   const RaniWalletScreen({
     super.key,
     this.showAppBar = true,
+    this.onOpenTransactions,
   });
 
   @override
@@ -251,6 +255,11 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
 
         // 2. Metrics Summary (Total Credited & Total Spent)
         _buildMetricsRow(totalCredit, totalDebit),
+
+        const SizedBox(height: 14),
+
+        // 2b. View Transaction Statement & Invoices Link
+        _buildTransactionHistoryButton(),
 
         const SizedBox(height: 22),
 
@@ -854,6 +863,82 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// 2b. View Transaction Statement & Invoices Button
+  Widget _buildTransactionHistoryButton() {
+    return InkWell(
+      onTap: () {
+        if (widget.onOpenTransactions != null) {
+          widget.onOpenTransactions!();
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const RaniTransactionsScreen(),
+            ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF7F2),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFEFE8DE)),
+              ),
+              child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF750000), size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Transaction Statement',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  Text(
+                    'Topup history, debits & official tax invoices',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      color: const Color(0xFF8C827A),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(CupertinoIcons.chevron_right, size: 16, color: Color(0xFF750000)),
+          ],
+        ),
+      ),
     );
   }
 

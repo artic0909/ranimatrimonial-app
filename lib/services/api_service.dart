@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'security_service.dart';
 
@@ -1022,6 +1023,53 @@ class ApiService {
       debugPrint('[ApiService] getWalletTransactions error: $e');
       return {'success': false, 'message': 'Connection error: $e', 'transactions': {'data': []}};
     }
+  }
+
+  /// Download official PDF Tax Invoice for a wallet transaction
+  Future<Map<String, dynamic>> downloadTransactionInvoice(dynamic transactionId, {String? invoiceNo}) async {
+    await _ensureAuthLoaded();
+    try {
+      final uri = Uri.parse('$baseUrl/wallet/transaction/$transactionId/invoice');
+      final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 25));
+
+      if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+        Directory? dir;
+        try {
+          dir = await getDownloadsDirectory();
+        } catch (_) {}
+        dir ??= await getApplicationDocumentsDirectory();
+
+        final cleanNo = invoiceNo?.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '') ?? transactionId.toString();
+        final fileName = 'Invoice-$cleanNo.pdf';
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(res.bodyBytes, flush: true);
+
+        return {
+          'success': true,
+          'file': file,
+          'filePath': file.path,
+          'fileName': fileName,
+          'message': 'Invoice downloaded successfully to $fileName',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to download invoice (Server returned ${res.statusCode}).',
+        };
+      }
+    } catch (e) {
+      debugPrint('[ApiService] downloadTransactionInvoice error: $e');
+      return {
+        'success': false,
+        'message': 'Network error downloading invoice: $e',
+      };
+    }
+  }
+
+  /// Get direct web invoice download/preview URL with auth token
+  String getInvoiceWebUrl(dynamic transactionId) {
+    final t = _token ?? '';
+    return '$baseUrl/wallet/transaction/$transactionId/download-invoice?token=$t&view=1';
   }
 
   /// Add Money / Direct credit recharge

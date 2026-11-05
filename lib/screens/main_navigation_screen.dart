@@ -11,6 +11,7 @@ import 'matches/matches_screen.dart';
 import 'matches/details_screen.dart';
 import 'connections/connection_request.dart';
 import 'wallet/wallet_screen.dart';
+import 'wallet/transactions.dart';
 import 'profile/profile_screen.dart';
 import 'search/search_screen.dart';
 import 'splash_screen.dart';
@@ -30,12 +31,14 @@ class RaniMainNavigationScreen extends StatefulWidget {
   final int initialIndex;
   final int? initialConnectionTabIndex;
   final String? initialMatchesTab;
+  final String? initialWalletTab; // 'wallet' or 'transactions'
 
   const RaniMainNavigationScreen({
     super.key,
     this.initialIndex = 1, // Default directly to Matches screen ('new' tab) per user specification
     this.initialConnectionTabIndex,
     this.initialMatchesTab,
+    this.initialWalletTab,
   });
 
   @override
@@ -47,6 +50,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   late int _currentIndex;
   int? _connectionsTabIndex;
   String? _matchesTab;
+  late String _walletTab;
   int _notificationCount = 0;
   int _matchesCount = 0;
   int _interestsCount = 0;
@@ -76,6 +80,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     _currentIndex = widget.initialIndex;
     _connectionsTabIndex = widget.initialConnectionTabIndex;
     _matchesTab = widget.initialMatchesTab;
+    _walletTab = widget.initialWalletTab ?? 'wallet';
     if (widget.initialIndex != 0) {
       _tabHistory.add(widget.initialIndex);
     }
@@ -345,10 +350,13 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     int index, {
     int? connectionTabIndex,
     String? matchesTab,
+    String? walletTab,
     bool addToHistory = true,
   }) {
+    final targetWalletTab = (index == 3) ? (walletTab ?? 'wallet') : _walletTab;
     final bool subTabChanged = (connectionTabIndex != null && connectionTabIndex != _connectionsTabIndex) ||
-        (matchesTab != null && matchesTab != _matchesTab);
+        (matchesTab != null && matchesTab != _matchesTab) ||
+        (index == 3 && targetWalletTab != _walletTab);
 
     if (index == _currentIndex && !subTabChanged) return;
 
@@ -357,6 +365,9 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     }
     if (matchesTab != null) {
       _matchesTab = matchesTab;
+    }
+    if (index == 3) {
+      _walletTab = targetWalletTab;
     }
 
     if (addToHistory) {
@@ -490,7 +501,27 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         );
 
       case 3:
-        // Wallet Screen TopBar
+        // Tab 3: All Transactions or My Wallet
+        if (_walletTab == 'transactions') {
+          return RaniTopBar(
+            title: 'All Transactions',
+            notificationCount: _notificationCount,
+            onMenuPressed: () {
+              _fetchLiveWalletBalance();
+              _scaffoldKey.currentState?.openDrawer();
+            },
+            onNotificationPressed: _openNotificationsSheet,
+            trailingActions: [
+              IconButton(
+                tooltip: 'Recharge Wallet',
+                icon: const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF750000), size: 22),
+                onPressed: () {
+                  _navigateToTab(3, walletTab: 'wallet');
+                },
+              ),
+            ],
+          );
+        }
         return RaniTopBar(
           title: 'My Wallet',
           notificationCount: _notificationCount,
@@ -499,6 +530,15 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             _scaffoldKey.currentState?.openDrawer();
           },
           onNotificationPressed: _openNotificationsSheet,
+          trailingActions: [
+            IconButton(
+              tooltip: 'All Transactions',
+              icon: const Icon(Icons.receipt_long_rounded, color: Color(0xFF750000), size: 22),
+              onPressed: () {
+                _navigateToTab(3, walletTab: 'transactions');
+              },
+            ),
+          ],
         );
 
       case 4:
@@ -651,7 +691,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         if (connTab == 1) return 'sent_requests';
         return 'received_connections';
       case 3:
-        return 'wallet';
+        return (_walletTab == 'transactions') ? 'transactions' : 'wallet';
       case 4:
         return 'account_settings';
       default:
@@ -663,8 +703,13 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
   Widget _buildFullScreenSidebar() {
     return RaniSidebarDrawer(
       activeItem: _computeActiveSidebarItem(),
-      onNavigateToTab: (index, {connectionTabIndex, matchesTab}) {
-        _navigateToTab(index, connectionTabIndex: connectionTabIndex, matchesTab: matchesTab);
+      onNavigateToTab: (index, {connectionTabIndex, matchesTab, walletTab}) {
+        _navigateToTab(
+          index,
+          connectionTabIndex: connectionTabIndex,
+          matchesTab: matchesTab,
+          walletTab: walletTab,
+        );
       },
       interestsCount: _interestsCount,
       acceptedCount: _acceptedCount,
@@ -746,11 +791,22 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             },
           ),
 
-          // 3. Wallet Screen (Replaces Chat per user request)
-          RaniWalletScreen(
-            key: ValueKey('wallet_$_walletRefreshKey'),
-            showAppBar: false,
-          ),
+          // 3. Wallet / Transactions Screen
+          _walletTab == 'wallet'
+              ? RaniWalletScreen(
+                  key: ValueKey('wallet_$_walletRefreshKey'),
+                  showAppBar: false,
+                  onOpenTransactions: () {
+                    _navigateToTab(3, walletTab: 'transactions');
+                  },
+                )
+              : RaniTransactionsScreen(
+                  key: ValueKey('transactions_$_walletRefreshKey'),
+                  showAppBar: false,
+                  onOpenWallet: () {
+                    _navigateToTab(3, walletTab: 'wallet');
+                  },
+                ),
 
           // 4. Profile Screen
           RaniProfileScreen(
@@ -792,7 +848,13 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
-          onTap: _navigateToTab,
+          onTap: (index) {
+            if (index == 3) {
+              _navigateToTab(3, walletTab: 'wallet');
+            } else {
+              _navigateToTab(index);
+            }
+          },
           items: [
             // Tab 0: Home with Normal Brand Logo Icon (Not disabled)
             BottomNavigationBarItem(
