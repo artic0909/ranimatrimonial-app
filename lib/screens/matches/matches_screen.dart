@@ -249,7 +249,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
           _matches = initialBatch;
 
           if (counts is Map) {
-            final todays = counts['my_matches'] ?? counts['new'] ?? counts['todays'];
+            final todays = counts['new'] ?? counts['todays'] ?? counts['my_matches'];
             if (todays != null) {
               _newCount = todays is int ? todays : int.tryParse('$todays') ?? _newCount;
             }

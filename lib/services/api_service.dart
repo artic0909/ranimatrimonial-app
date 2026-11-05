@@ -838,7 +838,7 @@ class ApiService {
 
       if (data['counts'] is Map) {
         final c = data['counts'] as Map;
-        final mCount = int.tryParse(c['my_matches']?.toString() ?? c['new']?.toString() ?? c['all']?.toString() ?? '');
+        final mCount = int.tryParse(c['new']?.toString() ?? c['todays']?.toString() ?? c['my_matches']?.toString() ?? c['all']?.toString() ?? '');
         final sCount = int.tryParse(c['shortlisted']?.toString() ?? '');
         final aCount = int.tryParse(c['accepted']?.toString() ?? '');
         updateSidebarCounts(

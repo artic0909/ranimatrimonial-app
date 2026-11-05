@@ -213,17 +213,21 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
 
           _interestsCount = pendingInvitations;
         });
+
+        if (matchesLen > 0) {
+          ApiService.instance.updateSidebarCounts(matches: matchesLen);
+        }
       }
 
       // 2. Fetch live matches total count for bottom nav badge
       try {
-        final matchesRes = await ApiService.instance.getMatches(tab: 'my_matches');
+        final matchesRes = await ApiService.instance.getMatches(tab: 'new');
         if (mounted && matchesRes['success'] == true) {
           int count = 0;
           if (matchesRes['counts'] is Map) {
             final c = matchesRes['counts'] as Map;
-            // Prefer total my_matches count
-            count = _toInt(c['my_matches'] ?? c['new'] ?? c['all'] ?? c['todays']);
+            // Prefer total new / todays count (authoritative count)
+            count = _toInt(c['new'] ?? c['todays'] ?? c['my_matches'] ?? c['all']);
           }
           if (count == 0 && matchesRes['matches'] is List) {
             count = (matchesRes['matches'] as List).length;
@@ -773,8 +777,11 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             },
             onOpenNotifications: _openNotificationsSheet,
             onMatchesCountChanged: (count) {
-              if (mounted && count > 0 && _matchesCount != count) {
-                setState(() => _matchesCount = count);
+              if (mounted && count > 0) {
+                if (_matchesCount != count) {
+                  setState(() => _matchesCount = count);
+                }
+                ApiService.instance.updateSidebarCounts(matches: count);
               }
             },
           ),

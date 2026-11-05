@@ -25,6 +25,7 @@ import 'package:ranimatrimonial_app/components/rani_skeleton_loader.dart';
 import 'package:ranimatrimonial_app/components/rani_top_bar.dart';
 import 'package:ranimatrimonial_app/theme/rani_theme.dart';
 
+import 'package:ranimatrimonial_app/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -669,6 +670,32 @@ void main() {
         expect(find.byType(RaniWalletScreen), findsOneWidget);
         expect(tester.takeException(), isNull);
       }
+    });
+
+    testWidgets('Matches count synchronization across bottom nav badge and sidebar drawer', (tester) async {
+      final size = const Size(390, 844);
+      tester.view.physicalSize = size * 3.0;
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      // Update sidebar counts to 10
+      ApiService.instance.updateSidebarCounts(matches: 10, shortlisted: 2, accepted: 3);
+
+      await tester.pumpWidget(wrapScreen(const RaniMainNavigationScreen(initialIndex: 0), size: size));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Open drawer
+      final menuFinder = find.byTooltip('Menu');
+      await tester.tap(menuFinder);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify Drawer has 'My Matches' and count 10
+      expect(find.descendant(of: find.byType(Drawer), matching: find.text('My Matches')), findsOneWidget);
+      expect(find.descendant(of: find.byType(Drawer), matching: find.text('10')), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

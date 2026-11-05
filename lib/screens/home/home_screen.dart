@@ -113,7 +113,7 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
       } catch (_) {}
 
       // 4. Fetch matches for recommended section
-      final res = await ApiService.instance.getMatches(tab: 'all');
+      final res = await ApiService.instance.getMatches(tab: 'new');
       if (mounted) {
         if (res['success'] == true) {
           setState(() {
