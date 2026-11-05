@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
@@ -165,12 +167,13 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
       if (res['success'] == true && res['file'] is File) {
         final File file = res['file'] as File;
         final fileName = res['fileName'] ?? 'Invoice.pdf';
+        final location = res['location'] as String?;
 
         RaniAlert.success(context, 'Invoice downloaded: $fileName');
 
-        // Show post-download modal offering to open the PDF immediately
+        // Show post-download modal offering to open or share the PDF
         if (mounted) {
-          _showDownloadSuccessDialog(file, invNo, txnId);
+          _showDownloadSuccessDialog(file, invNo, txnId, location: location);
         }
       } else {
         // Fallback: Open authenticated direct invoice view in browser
@@ -195,27 +198,84 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
     }
   }
 
-  void _showDownloadSuccessDialog(File file, String invNo, String txnId) {
+  Future<void> _openInvoiceFile(File file, String txnId, String invNo) async {
+    try {
+      // 1. Primary: Open natively via OpenFilex (uses FileProvider on Android & DocumentInteractionController on iOS)
+      final openRes = await OpenFilex.open(file.path, type: 'application/pdf');
+      if (openRes.type == ResultType.done) {
+        return;
+      }
+
+      debugPrint('[Invoice] OpenFilex status: ${openRes.type} - ${openRes.message}');
+
+      // 2. Fallback: Share sheet so user can open in Google Drive, Mi PDF, Adobe, or save to any folder
+      final fileName = file.path.split('/').last;
+      final shareRes = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/pdf', name: fileName)],
+          text: 'Tax Invoice: $invNo - Rani Matrimonial',
+        ),
+      );
+      if (shareRes.status == ShareResultStatus.success) {
+        return;
+      }
+    } catch (e) {
+      debugPrint('[Invoice] Open error: $e');
+    }
+
+    // 3. Fallback: Browser external launch
+    try {
+      final webUrl = Uri.parse(ApiService.instance.getInvoiceWebUrl(txnId));
+      if (await canLaunchUrl(webUrl)) {
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _shareInvoiceFile(File file, String invNo) async {
+    try {
+      final fileName = file.path.split('/').last;
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/pdf', name: fileName)],
+          text: 'Tax Invoice: $invNo - Rani Matrimonial',
+        ),
+      );
+    } catch (e) {
+      debugPrint('[Invoice] Share error: $e');
+    }
+  }
+
+  void _showDownloadSuccessDialog(File file, String invNo, String txnId, {String? location}) {
+    final fileName = file.path.split('/').last;
+    final whereSaved = location ?? (Platform.isAndroid ? 'Downloads folder' : 'Device Storage');
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+              padding: const EdgeInsets.all(7),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8F5E9),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 24),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 22),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Invoice Downloaded',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 17),
+                'Tax Invoice Saved',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  color: const Color(0xFF1E1E1E),
+                ),
               ),
             ),
           ],
@@ -226,61 +286,116 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
           children: [
             Text(
               'Tax Invoice ($invNo) has been saved successfully to your device.',
-              style: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFF4A4A4A)),
+              style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF4A4A4A), height: 1.35),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFFFAF7F2),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFEFE8DE)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF750000), size: 20),
-                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF750000), size: 22),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      file.path.split('/').last,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E1E1E),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '📁 $whereSaved',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF2E7D32),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF750000), width: 1.2),
+                      foregroundColor: const Color(0xFF750000),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _shareInvoiceFile(file, invNo);
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 15),
+                    label: Text(
+                      'Share / Save',
+                      style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF750000),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _openInvoiceFile(file, txnId, invNo);
+                    },
+                    icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                    label: Text(
+                      'Open PDF',
+                      style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Close',
-              style: GoogleFonts.outfit(color: const Color(0xFF777777), fontWeight: FontWeight.w600),
-            ),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF750000),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final fileUri = Uri.file(file.path);
-              if (await canLaunchUrl(fileUri)) {
-                await launchUrl(fileUri);
-              } else {
-                final webUrl = Uri.parse(ApiService.instance.getInvoiceWebUrl(txnId));
-                await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-              }
-            },
-            icon: const Icon(Icons.open_in_new_rounded, size: 16),
-            label: Text(
-              'Open Invoice',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Close',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF888888),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                ),
+              ),
             ),
           ),
         ],

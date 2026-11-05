@@ -1033,23 +1033,56 @@ class ApiService {
       final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 25));
 
       if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
-        Directory? dir;
-        try {
-          dir = await getDownloadsDirectory();
-        } catch (_) {}
-        dir ??= await getApplicationDocumentsDirectory();
-
         final cleanNo = invoiceNo?.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '') ?? transactionId.toString();
         final fileName = 'Invoice-$cleanNo.pdf';
-        final file = File('${dir.path}/$fileName');
-        await file.writeAsBytes(res.bodyBytes, flush: true);
+
+        File? savedFile;
+        String locationDesc = 'Downloads';
+
+        // 1. Try public Android Downloads folder (/storage/emulated/0/Download)
+        if (Platform.isAndroid) {
+          try {
+            final publicDownloadDir = Directory('/storage/emulated/0/Download');
+            if (await publicDownloadDir.exists()) {
+              final pubFile = File('${publicDownloadDir.path}/$fileName');
+              await pubFile.writeAsBytes(res.bodyBytes, flush: true);
+              savedFile = pubFile;
+              locationDesc = 'Downloads folder';
+            }
+          } catch (e) {
+            debugPrint('[ApiService] Public Downloads folder write fallback: $e');
+          }
+        }
+
+        // 2. Try getDownloadsDirectory()
+        if (savedFile == null) {
+          try {
+            final downloadsDir = await getDownloadsDirectory();
+            if (downloadsDir != null) {
+              final dFile = File('${downloadsDir.path}/$fileName');
+              await dFile.writeAsBytes(res.bodyBytes, flush: true);
+              savedFile = dFile;
+              locationDesc = 'Downloads folder';
+            }
+          } catch (_) {}
+        }
+
+        // 3. Fallback to getApplicationDocumentsDirectory()
+        if (savedFile == null) {
+          final docDir = await getApplicationDocumentsDirectory();
+          final docFile = File('${docDir.path}/$fileName');
+          await docFile.writeAsBytes(res.bodyBytes, flush: true);
+          savedFile = docFile;
+          locationDesc = 'App Documents';
+        }
 
         return {
           'success': true,
-          'file': file,
-          'filePath': file.path,
+          'file': savedFile,
+          'filePath': savedFile.path,
           'fileName': fileName,
-          'message': 'Invoice downloaded successfully to $fileName',
+          'location': locationDesc,
+          'message': 'Invoice downloaded successfully to $locationDesc',
         };
       } else {
         return {
