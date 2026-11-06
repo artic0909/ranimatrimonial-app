@@ -571,6 +571,7 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
                           children: [
                             _buildDataRow('Father Profession', d['father_profession'] ?? 'Businessman'),
                             _buildDataRow('Mother Profession', d['mother_profession'] ?? 'Homemaker'),
+                            _buildDataRow('Family Type', d['family_type'] ?? 'Joint Family'),
                             _buildDataRow('Family Financial Status', d['family_financial_status'] ?? 'Upper Middle Class'),
                             _buildDataRow('Brothers', d['brothers_count']?.toString() ?? '1'),
                             _buildDataRow('Sisters', d['sisters_count']?.toString() ?? '0'),

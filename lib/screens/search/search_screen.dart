@@ -86,23 +86,76 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
   bool _verifiedOnly = false;
   String _sortBy = 'newest'; // 'newest', 'match_score', 'age_asc', 'age_desc'
 
-  // Master options data from backend
-  List<dynamic> _religions = [];
+  static const List<String> _defaultHeights = [
+    '4\' 0" (121 cm)', '4\' 1" (124 cm)', '4\' 2" (127 cm)', '4\' 3" (129 cm)', '4\' 4" (132 cm)',
+    '4\' 5" (134 cm)', '4\' 6" (137 cm)', '4\' 7" (139 cm)', '4\' 8" (142 cm)', '4\' 9" (144 cm)',
+    '4\' 10" (147 cm)', '4\' 11" (149 cm)', '5\' 0" (152 cm)', '5\' 1" (154 cm)', '5\' 2" (157 cm)',
+    '5\' 3" (160 cm)', '5\' 4" (162 cm)', '5\' 5" (165 cm)', '5\' 6" (167 cm)', '5\' 7" (170 cm)',
+    '5\' 8" (172 cm)', '5\' 9" (175 cm)', '5\' 10" (177 cm)', '5\' 11" (180 cm)', '6\' 0" (182 cm)',
+    '6\' 1" (185 cm)', '6\' 2" (187 cm)', '6\' 3" (190 cm)', '6\' 4" (193 cm)', '6\' 5" (195 cm)',
+    '6\' 6" (198 cm)', '6\' 7" (200 cm)', '6\' 8" (203 cm)', '6\' 9" (205 cm)', '6\' 10" (208 cm)',
+    '6\' 11" (210 cm)', '7\' 0" (213 cm)',
+  ];
+
+  static const List<String> _defaultMaritalStatuses = [
+    'Never Married', 'Divorced', 'Widowed', 'Awaiting Divorce', 'Annulled'
+  ];
+
+  static const List<String> _defaultReligions = [
+    'Hindu', 'Muslim', 'Christian', 'Sikh', 'Jain', 'Buddhist', 'Parsi', 'Jewish', 'Other'
+  ];
+
+  static const List<String> _defaultDiets = [
+    'Vegetarian', 'Non-Vegetarian', 'Eggetarian', 'Vegan', 'Jain'
+  ];
+
+  static const List<String> _defaultIncomes = [
+    'No Income', 'Under 1 Lakh', '1 - 2 Lakhs', '2 - 3 Lakhs', '3 - 4 Lakhs', '4 - 5 Lakhs',
+    '5 - 7.5 Lakhs', '7.5 - 10 Lakhs', '10 - 15 Lakhs', '15 - 20 Lakhs', '20 - 30 Lakhs',
+    '30 - 50 Lakhs', '50 - 75 Lakhs', '75 Lakhs - 1 Crore', '1 Crore & Above'
+  ];
+
+  static const List<String> _defaultWorkingWiths = [
+    'Private Company', 'Government / Public Sector', 'Defense / Civil Services', 'Business / Self Employed', 'Not Working'
+  ];
+
+  static const List<String> _defaultMotherTongues = [
+    'Bengali', 'Hindi', 'English', 'Urdu', 'Odia', 'Assamese', 'Telugu', 'Tamil', 'Marathi', 'Gujarati', 'Punjabi'
+  ];
+
+  static const List<String> _defaultBloodGroups = [
+    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
+  ];
+
+  static const List<String> _defaultFamilyStatuses = [
+    'Rich / Affluent', 'Upper Middle Class', 'Middle Class', 'Modest'
+  ];
+
+  static const List<String> _defaultResidencyStatuses = [
+    'Citizen', 'Permanent Resident', 'Work Permit', 'Student Visa', 'Temporary Visa'
+  ];
+
+  static const List<String> _defaultProfileFors = [
+    'Self', 'Son', 'Daughter', 'Brother', 'Sister', 'Friend', 'Relative'
+  ];
+
+  // Master options data from backend (with immediate robust fallbacks)
+  List<dynamic> _religions = List.from(_defaultReligions);
   List<dynamic> _availableCommunities = [];
   List<dynamic> _countries = [];
   List<dynamic> _availableStates = [];
   List<dynamic> _availableCities = [];
-  List<dynamic> _maritalStatuses = [];
-  List<dynamic> _heights = [];
-  List<dynamic> _diets = [];
-  List<dynamic> _incomes = [];
-  List<dynamic> _workingWiths = [];
+  List<dynamic> _maritalStatuses = List.from(_defaultMaritalStatuses);
+  List<dynamic> _heights = List.from(_defaultHeights);
+  List<dynamic> _diets = List.from(_defaultDiets);
+  List<dynamic> _incomes = List.from(_defaultIncomes);
+  List<dynamic> _workingWiths = List.from(_defaultWorkingWiths);
   List<dynamic> _allHobbies = [];
-  List<String> _motherTongues = [];
-  List<String> _bloodGroups = [];
-  List<String> _familyStatuses = [];
-  List<String> _residencyStatuses = [];
-  List<String> _profileFors = [];
+  List<String> _motherTongues = List.from(_defaultMotherTongues);
+  List<String> _bloodGroups = List.from(_defaultBloodGroups);
+  List<String> _familyStatuses = List.from(_defaultFamilyStatuses);
+  List<String> _residencyStatuses = List.from(_defaultResidencyStatuses);
+  List<String> _profileFors = List.from(_defaultProfileFors);
 
   // Search results
   List<dynamic> _results = [];
@@ -112,6 +165,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _hasAutoOpenedFilter = false;
+  StateSetter? _filterModalSetState;
 
   @override
   void initState() {
@@ -210,19 +264,45 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
 
       if (res['success'] == true) {
         setState(() {
-          _religions = res['religions'] ?? [];
-          _countries = res['countries'] ?? [];
-          _maritalStatuses = res['marital_statuses'] ?? [];
-          _heights = res['heights'] ?? [];
-          _diets = res['diets'] ?? [];
-          _incomes = res['incomes'] ?? [];
-          _workingWiths = res['working_withs'] ?? [];
-          _allHobbies = res['hobbies'] ?? [];
-          _motherTongues = List<String>.from(res['mother_tongues'] ?? []);
-          _bloodGroups = List<String>.from(res['blood_groups'] ?? []);
-          _familyStatuses = List<String>.from(res['family_financial_statuses'] ?? []);
-          _residencyStatuses = List<String>.from(res['residency_statuses'] ?? []);
-          _profileFors = List<String>.from(res['profile_fors'] ?? []);
+          if (res['religions'] != null && (res['religions'] as List).isNotEmpty) {
+            _religions = res['religions'];
+          }
+          if (res['countries'] != null && (res['countries'] as List).isNotEmpty) {
+            _countries = res['countries'];
+          }
+          if (res['marital_statuses'] != null && (res['marital_statuses'] as List).isNotEmpty) {
+            _maritalStatuses = res['marital_statuses'];
+          }
+          if (res['heights'] != null && (res['heights'] as List).isNotEmpty) {
+            _heights = res['heights'];
+          }
+          if (res['diets'] != null && (res['diets'] as List).isNotEmpty) {
+            _diets = res['diets'];
+          }
+          if (res['incomes'] != null && (res['incomes'] as List).isNotEmpty) {
+            _incomes = res['incomes'];
+          }
+          if (res['working_withs'] != null && (res['working_withs'] as List).isNotEmpty) {
+            _workingWiths = res['working_withs'];
+          }
+          if (res['hobbies'] != null && (res['hobbies'] as List).isNotEmpty) {
+            _allHobbies = res['hobbies'];
+          }
+          if (res['mother_tongues'] != null && (res['mother_tongues'] as List).isNotEmpty) {
+            _motherTongues = List<String>.from(res['mother_tongues']);
+          }
+          if (res['blood_groups'] != null && (res['blood_groups'] as List).isNotEmpty) {
+            _bloodGroups = List<String>.from(res['blood_groups']);
+          }
+          if (res['family_financial_statuses'] != null && (res['family_financial_statuses'] as List).isNotEmpty) {
+            _familyStatuses = List<String>.from(res['family_financial_statuses']);
+          }
+          if (res['residency_statuses'] != null && (res['residency_statuses'] as List).isNotEmpty) {
+            _residencyStatuses = List<String>.from(res['residency_statuses']);
+          }
+          if (res['profile_fors'] != null && (res['profile_fors'] as List).isNotEmpty) {
+            _profileFors = List<String>.from(res['profile_fors']);
+          }
 
           if (widget.initialFilters == null && res['default_gender'] != null) {
             _gender = res['default_gender'];
@@ -230,6 +310,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
           _isLoadingOptions = false;
         });
 
+        _filterModalSetState?.call(() {});
         _performSearch();
       } else {
         setState(() => _isLoadingOptions = false);
@@ -1568,6 +1649,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
+            _filterModalSetState = setModalState;
             final bottomInset = MediaQuery.of(modalCtx).padding.bottom;
             final topPadding = MediaQuery.of(modalCtx).padding.top;
             return Container(
@@ -1736,9 +1818,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                                   value: _heightMin,
                                   items: [
                                     {'value': 'all', 'label': "Doesn't Matter"},
-                                    ..._heights.map((h) => {
-                                      'value': (h is Map ? (h['name'] ?? h['title']) : h).toString(),
-                                      'label': (h is Map ? (h['name'] ?? h['title']) : h).toString(),
+                                    ..._heights.map((h) {
+                                      final name = _extractOptionName(h);
+                                      return {'value': name, 'label': name};
                                     }),
                                   ],
                                   onChanged: (v) => setModalState(() => _heightMin = v ?? 'all'),
@@ -1751,9 +1833,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                                   value: _heightMax,
                                   items: [
                                     {'value': 'all', 'label': "Doesn't Matter"},
-                                    ..._heights.map((h) => {
-                                      'value': (h is Map ? (h['name'] ?? h['title']) : h).toString(),
-                                      'label': (h is Map ? (h['name'] ?? h['title']) : h).toString(),
+                                    ..._heights.map((h) {
+                                      final name = _extractOptionName(h);
+                                      return {'value': name, 'label': name};
                                     }),
                                   ],
                                   onChanged: (v) => setModalState(() => _heightMax = v ?? 'all'),
@@ -1769,17 +1851,10 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _maritalStatus,
                             items: [
                               {'value': 'all', 'label': 'All Marital Statuses'},
-                              ..._maritalStatuses.map((m) => {
-                                'value': (m is Map ? (m['name'] ?? m['title']) : m).toString(),
-                                'label': (m is Map ? (m['name'] ?? m['title']) : m).toString(),
+                              ..._maritalStatuses.map((m) {
+                                final name = _extractOptionName(m);
+                                return {'value': name, 'label': name};
                               }),
-                              if (_maritalStatuses.isEmpty) ...const [
-                                {'value': 'Never Married', 'label': 'Never Married'},
-                                {'value': 'Divorced', 'label': 'Divorced'},
-                                {'value': 'Widowed', 'label': 'Widowed'},
-                                {'value': 'Awaiting Divorce', 'label': 'Awaiting Divorce'},
-                                {'value': 'Annulled', 'label': 'Annulled'},
-                              ],
                             ],
                             onChanged: (v) => setModalState(() => _maritalStatus = v ?? 'all'),
                           ),
@@ -1796,7 +1871,10 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _religion,
                             items: [
                               {'value': 'all', 'label': 'All Religions'},
-                              ..._religions.map((r) => {'value': r['name'].toString(), 'label': r['name'].toString()}),
+                              ..._religions.map((r) {
+                                final name = _extractOptionName(r);
+                                return {'value': name, 'label': name};
+                              }),
                             ],
                             onChanged: (v) {
                               setModalState(() {
@@ -1813,9 +1891,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _community,
                             items: [
                               {'value': 'all', 'label': 'All Communities'},
-                              ..._availableCommunities.map((c) => {
-                                'value': (c is Map ? (c['name'] ?? c['title']) : c).toString(),
-                                'label': (c is Map ? (c['name'] ?? c['title']) : c).toString(),
+                              ..._availableCommunities.map((c) {
+                                final name = _extractOptionName(c);
+                                return {'value': name, 'label': name};
                               }),
                             ],
                             onChanged: (v) {
@@ -1879,7 +1957,10 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _country,
                             items: [
                               {'value': 'all', 'label': 'All Countries'},
-                              ..._countries.map((c) => {'value': c['name'].toString(), 'label': c['name'].toString()}),
+                              ..._countries.map((c) {
+                                final name = _extractOptionName(c);
+                                return {'value': name, 'label': name};
+                              }),
                             ],
                             onChanged: (v) {
                               setModalState(() {
@@ -1896,9 +1977,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _state,
                             items: [
                               {'value': 'all', 'label': 'All States'},
-                              ..._availableStates.map((s) => {
-                                'value': (s is Map ? (s['name'] ?? s['title']) : s).toString(),
-                                'label': (s is Map ? (s['name'] ?? s['title']) : s).toString(),
+                              ..._availableStates.map((s) {
+                                final name = _extractOptionName(s);
+                                return {'value': name, 'label': name};
                               }),
                             ],
                             onChanged: (v) {
@@ -1916,9 +1997,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _city,
                             items: [
                               {'value': 'all', 'label': 'All Cities'},
-                              ..._availableCities.map((ct) => {
-                                'value': (ct is Map ? (ct['name'] ?? ct['title']) : ct).toString(),
-                                'label': (ct is Map ? (ct['name'] ?? ct['title']) : ct).toString(),
+                              ..._availableCities.map((ct) {
+                                final name = _extractOptionName(ct);
+                                return {'value': name, 'label': name};
                               }),
                             ],
                             onChanged: (v) {
@@ -1979,7 +2060,10 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _workingWith,
                             items: [
                               {'value': 'all', 'label': 'All Sectors'},
-                              ..._workingWiths.map((w) => {'value': w['name'].toString(), 'label': w['name'].toString()}),
+                              ..._workingWiths.map((w) {
+                                final name = _extractOptionName(w);
+                                return {'value': name, 'label': name};
+                              }),
                             ],
                             onChanged: (v) => setModalState(() => _workingWith = v ?? 'all'),
                           ),
@@ -1999,20 +2083,10 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _annualIncome,
                             items: [
                               {'value': 'all', 'label': 'All Income Levels'},
-                              ..._incomes.map((inc) => {
-                                'value': (inc is Map ? (inc['name'] ?? inc['title']) : inc).toString(),
-                                'label': (inc is Map ? (inc['name'] ?? inc['title']) : inc).toString(),
+                              ..._incomes.map((inc) {
+                                final name = _extractOptionName(inc);
+                                return {'value': name, 'label': name};
                               }),
-                              if (_incomes.isEmpty) ...const [
-                                {'value': '0-3', 'label': '₹0 - 3 Lakh'},
-                                {'value': '3-6', 'label': '₹3 - 6 Lakh'},
-                                {'value': '6-10', 'label': '₹6 - 10 Lakh'},
-                                {'value': '10-15', 'label': '₹10 - 15 Lakh'},
-                                {'value': '15-25', 'label': '₹15 - 25 Lakh'},
-                                {'value': '25-50', 'label': '₹25 - 50 Lakh'},
-                                {'value': '50', 'label': '₹50 Lakh - 1 Crore'},
-                                {'value': '100', 'label': '₹1 Crore & above'},
-                              ],
                             ],
                             onChanged: (v) => setModalState(() => _annualIncome = v ?? 'all'),
                           ),
@@ -2029,7 +2103,10 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _diet,
                             items: [
                               {'value': 'all', 'label': 'All Diets'},
-                              ..._diets.map((d) => {'value': d['name'].toString(), 'label': d['name'].toString()}),
+                              ..._diets.map((d) {
+                                final name = _extractOptionName(d);
+                                return {'value': name, 'label': name};
+                              }),
                             ],
                             onChanged: (v) => setModalState(() => _diet = v ?? 'all'),
                           ),
@@ -2066,9 +2143,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             value: _hobbies,
                             items: [
                               {'value': 'all', 'label': 'All Hobbies'},
-                              ..._allHobbies.map((hb) => {
-                                'value': (hb is Map ? (hb['name'] ?? hb['title']) : hb).toString(),
-                                'label': (hb is Map ? (hb['name'] ?? hb['title']) : hb).toString(),
+                              ..._allHobbies.map((hb) {
+                                final name = _extractOptionName(hb);
+                                return {'value': name, 'label': name};
                               }),
                             ],
                             onChanged: (v) => setModalState(() => _hobbies = v ?? 'all'),
@@ -2191,7 +2268,9 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
             },
           );
         },
-      );
+      ).then((_) {
+        _filterModalSetState = null;
+      });
     }
 
   Widget _buildTextInputField({
@@ -2304,15 +2383,33 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
     );
   }
 
+  String _extractOptionName(dynamic item) {
+    if (item == null) return '';
+    if (item is Map) {
+      return (item['name'] ?? item['title'] ?? item['value'] ?? '').toString();
+    }
+    return item.toString();
+  }
+
   Widget _buildDropdownField({
     required String label,
     required String value,
     required List<Map<String, String>> items,
     required ValueChanged<String?> onChanged,
   }) {
-    // Ensure value is present in items
-    final hasValue = items.any((i) => i['value'] == value);
-    final safeValue = hasValue ? value : (items.isNotEmpty ? items.first['value'] : null);
+    // Deduplicate items safely by value to eliminate any assertion crashes
+    final seen = <String>{};
+    final uniqueItems = <Map<String, String>>[];
+    for (final item in items) {
+      final v = item['value'] ?? '';
+      if (!seen.contains(v)) {
+        seen.add(v);
+        uniqueItems.add(item);
+      }
+    }
+
+    final hasValue = uniqueItems.any((i) => i['value'] == value);
+    final safeValue = hasValue ? value : (uniqueItems.isNotEmpty ? uniqueItems.first['value'] : null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2334,7 +2431,7 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
               style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF1E293B), fontWeight: FontWeight.w500),
               dropdownColor: Colors.white,
               onChanged: onChanged,
-              items: items.map((item) {
+              items: uniqueItems.map((item) {
                 return DropdownMenuItem<String>(
                   value: item['value'],
                   child: Text(item['label'] ?? item['value'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),

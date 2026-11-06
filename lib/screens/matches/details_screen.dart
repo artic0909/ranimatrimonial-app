@@ -583,6 +583,7 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
     // Family Background
     final fatherProfession = d['father_profession'] ?? d['father_occupation'] ?? d['details']?['father_profession'] ?? 'Business Owner';
     final motherProfession = d['mother_profession'] ?? d['mother_occupation'] ?? d['details']?['mother_profession'] ?? 'Homemaker';
+    final familyType = d['family_type'] ?? d['details']?['family_type'] ?? 'Joint Family';
     final financialStatus = d['family_financial_status'] ?? d['details']?['family_financial_status'] ?? 'Upper Middle Class';
     final familyLocation = d['family_location'] ?? d['details']?['family_location'] ?? locationText;
 
@@ -883,6 +884,7 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                           children: [
                             _buildDetailRow("Father's Profession", fatherProfession),
                             _buildDetailRow("Mother's Profession", motherProfession),
+                            _buildDetailRow('Family Type', familyType),
                             _buildDetailRow('Financial Status', financialStatus),
                             _buildDetailRow('Family Location', familyLocation, isLast: true),
                           ],

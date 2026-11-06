@@ -1163,8 +1163,14 @@ class _RaniProfileScreenState extends State<RaniProfileScreen> {
           _buildInfoRowPair(
             label1: 'Family Location',
             val1: c['family_location'] ?? '-',
-            label2: 'Financial Status',
-            val2: c['family_financial_status'] ?? 'Middle Class',
+            label2: 'Family Type',
+            val2: c['family_type'] ?? '-',
+          ),
+          _buildInfoRowPair(
+            label1: 'Financial Status',
+            val1: c['family_financial_status'] ?? 'Middle Class',
+            label2: '',
+            val2: '',
           ),
         ],
       ),

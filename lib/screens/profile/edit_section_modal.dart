@@ -237,6 +237,12 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     'High Class',
   ];
 
+  static const List<String> _familyTypes = [
+    'Joint Family',
+    'Nuclear Family',
+    'Other',
+  ];
+
   static const List<String> _contactDisplayOptions = [
     'Visible to all Premium Members',
     'Visible only after I accept connection',
@@ -322,6 +328,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
   int _brothersCount = 0;
   int _sistersCount = 0;
   late final TextEditingController _familyLocationController;
+  String? _familyType;
   String? _familyFinancialStatus;
 
   // 8. Contact
@@ -456,6 +463,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     _brothersCount = int.tryParse(c['brothers_count']?.toString() ?? '0') ?? 0;
     _sistersCount = int.tryParse(c['sisters_count']?.toString() ?? '0') ?? 0;
     _familyLocationController = TextEditingController(text: c['family_location']?.toString() ?? '');
+    _familyType = _findMatch(_familyTypes, c['family_type']);
     _familyFinancialStatus = _findMatch(_financialStatuses, c['family_financial_status']);
 
     // 8. Contact
@@ -928,6 +936,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
           'brothers_count': _brothersCount,
           'sisters_count': _sistersCount,
           'family_location': _familyLocationController.text.trim(),
+          if (_familyType != null) 'family_type': _familyType,
           if (_familyFinancialStatus != null) 'family_financial_status': _familyFinancialStatus,
         };
 
@@ -1573,6 +1582,14 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
             _buildTextField(
               controller: _familyLocationController,
               hint: 'e.g. Kolkata, West Bengal',
+            ),
+            const SizedBox(height: 14),
+            _buildFieldLabel('Family Type'),
+            _buildDropdownField(
+              value: _familyType,
+              items: _familyTypes,
+              hint: 'Select family type',
+              onChanged: (val) => setState(() => _familyType = val),
             ),
             const SizedBox(height: 14),
             _buildFieldLabel('Financial Status'),

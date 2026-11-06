@@ -290,40 +290,59 @@ class ApiService {
     return '$serverBase/storage/$cleanPath';
   }
 
-  /// Accurate profile completeness percentage calculation (shared across Home & Profile screens)
+  /// Comprehensive profile completeness calculation matching backend
   static int calculateProfileCompleteness(Map<String, dynamic>? candidate) {
-    if (candidate == null) return 40;
+    if (candidate == null) return 30;
 
-    final criticalFields = [
-      candidate['first_name'],
-      candidate['last_name'],
-      candidate['dob'],
-      candidate['gender'],
-      candidate['religion'],
-      candidate['community'],
-      candidate['city'],
-      candidate['state'],
-      candidate['highest_qualification'],
-      candidate['profession'],
-      candidate['annual_income'],
-      candidate['about_yourself'] ?? candidate['about_me'] ?? candidate['about'],
-      candidate['profile_picture'] ?? candidate['profile_picture_url'] ?? candidate['photo'],
-      candidate['marital_status'],
-      candidate['height'],
-      candidate['diet'],
-    ];
-
-    int filledCount = 0;
-    for (final f in criticalFields) {
-      if (f == null) continue;
-      final str = f.toString().trim();
-      if (str.isNotEmpty && str != '-' && str != 'null') {
-        filledCount++;
-      }
+    bool isFilled(dynamic val, [int minLen = 1]) {
+      if (val == null) return false;
+      final s = val.toString().trim();
+      return s.isNotEmpty && s != '-' && s != 'null' && s.length >= minLen;
     }
 
-    final pct = ((filledCount / criticalFields.length) * 100).round();
-    return pct.clamp(20, 100);
+    int score = 0;
+
+    // 1. Basic & Identity (25%)
+    if (isFilled(candidate['first_name']) && isFilled(candidate['last_name'])) score += 6;
+    if (isFilled(candidate['gender']) && isFilled(candidate['dob'])) score += 6;
+    if (isFilled(candidate['marital_status'])) score += 4;
+    if (isFilled(candidate['height'])) score += 4;
+    final photo = candidate['profile_picture'] ?? candidate['profile_picture_url'] ?? candidate['photo'];
+    if (isFilled(photo)) score += 5;
+
+    // 2. Religious & Cultural (10%)
+    if (isFilled(candidate['religion'])) score += 4;
+    if (isFilled(candidate['community'])) score += 3;
+    if (isFilled(candidate['mother_tongue']) || isFilled(candidate['gothra'])) score += 3;
+
+    // 3. Location & Contact (10%)
+    if (isFilled(candidate['city']) && isFilled(candidate['state'])) score += 5;
+    if (isFilled(candidate['pincode']) || isFilled(candidate['full_address'])) score += 5;
+
+    // 4. Education & Career (15%)
+    if (isFilled(candidate['highest_qualification'])) score += 5;
+    if (isFilled(candidate['profession']) && isFilled(candidate['annual_income'])) score += 5;
+    if (isFilled(candidate['working_with']) || isFilled(candidate['company_name']) || isFilled(candidate['college_name'])) score += 5;
+
+    // 5. Family Details (15%)
+    if (isFilled(candidate['father_profession'])) score += 4;
+    if (isFilled(candidate['mother_profession'])) score += 4;
+    if (isFilled(candidate['family_type'])) score += 4;
+    if (isFilled(candidate['family_location']) || isFilled(candidate['family_financial_status'])) score += 3;
+
+    // 6. Astro / Horoscope (10%)
+    if (isFilled(candidate['manglik'])) score += 4;
+    if (isFilled(candidate['time_of_birth']) || isFilled(candidate['city_of_birth'])) score += 6;
+
+    // 7. About & Lifestyle (15%)
+    final about = candidate['about_yourself'] ?? candidate['about_me'] ?? candidate['about'];
+    if (isFilled(about, 20)) score += 7;
+    if (isFilled(candidate['diet'])) score += 3;
+    if (isFilled(candidate['blood_group'])) score += 2;
+    final hobbies = candidate['hobbies_interests'];
+    if (hobbies is List ? hobbies.isNotEmpty : isFilled(hobbies)) score += 3;
+
+    return score.clamp(20, 100);
   }
 
   static double _extractBalance(dynamic raw) {
