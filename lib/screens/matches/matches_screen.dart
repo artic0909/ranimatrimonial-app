@@ -8,6 +8,7 @@ import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
 import '../../components/rani_sidebar_drawer.dart';
+import '../../components/rani_privacy_photo_widget.dart';
 import 'details_screen.dart';
 import '../search/search_screen.dart';
 
@@ -1285,19 +1286,13 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                           child: SizedBox(
                             width: 95,
                             height: 115,
-                            child: photo.toString().isNotEmpty
-                                ? Image.network(
-                                    photo.toString(),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: const Color(0xFFEFE7DC),
-                                      child: const Icon(CupertinoIcons.person_fill, size: 45, color: Color(0xFFB5A795)),
-                                    ),
-                                  )
-                                : Container(
-                                    color: const Color(0xFFEFE7DC),
-                                    child: const Icon(CupertinoIcons.person_fill, size: 45, color: Color(0xFFB5A795)),
-                                  ),
+                            child: RaniPrivacyPhotoWidget(
+                              imageUrl: photo.toString(),
+                              isBlurred: RaniPhotoPrivacyHelper.shouldBlurProfilePhoto(c),
+                              width: 95,
+                              height: 115,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                         // Match score badge
@@ -1784,19 +1779,13 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             fit: StackFit.expand,
             children: [
               // 1. Full Image Background
-              photo.toString().isNotEmpty
-                  ? Image.network(
-                      photo.toString(),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: const Color(0xFFDED5C9),
-                        child: const Icon(CupertinoIcons.person_fill, size: 80, color: Colors.white70),
-                      ),
-                    )
-                  : Container(
-                      color: const Color(0xFFDED5C9),
-                      child: const Icon(CupertinoIcons.person_fill, size: 80, color: Colors.white70),
-                    ),
+              RaniPrivacyPhotoWidget(
+                imageUrl: photo.toString(),
+                isBlurred: RaniPhotoPrivacyHelper.shouldBlurProfilePhoto(c),
+                fit: BoxFit.cover,
+                showLockBadge: true,
+                lockText: 'Photo Protected',
+              ),
 
               // 2. Bottom Royal Burgundy Gradient Overlay for optimal legibility
               Positioned.fill(

@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/razorpay_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
+import '../../components/rani_privacy_photo_widget.dart';
 import '../../components/rani_skeleton_loader.dart';
 
 /// Screen: Candidate Details Screen (Matches Theme)
@@ -73,6 +74,12 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
           setState(() {
             if (profileData is Map) {
               final fetched = Map<String, dynamic>.from(profileData);
+              if (res['status'] is Map) {
+                fetched.addAll(Map<String, dynamic>.from(res['status']));
+              }
+              if (res['photos'] is List) {
+                fetched['photos'] = res['photos'];
+              }
               if (_data != null) {
                 _data!.addAll(fetched);
               } else {
@@ -631,18 +638,18 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                               itemCount: photos.length,
                               onPageChanged: (idx) => setState(() => _activePhotoIndex = idx),
                               itemBuilder: (context, idx) {
+                                final isBlurred = RaniPhotoPrivacyHelper.shouldBlurGalleryPhoto(
+                                  candidate: _data,
+                                  photoIndex: idx,
+                                );
                                 return GestureDetector(
-                                  onTap: () => _openFullScreenViewer(photos, idx),
-                                  child: Image.network(
-                                    photos[idx],
+                                  onTap: isBlurred ? null : () => _openFullScreenViewer(photos, idx),
+                                  child: RaniPrivacyPhotoWidget(
+                                    imageUrl: photos[idx].toString(),
+                                    isBlurred: isBlurred,
                                     fit: BoxFit.cover,
                                     alignment: Alignment.topCenter,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: const Color(0xFFDED5C9),
-                                      child: const Center(
-                                        child: Icon(CupertinoIcons.person_fill, size: 80, color: Colors.white70),
-                                      ),
-                                    ),
+                                    lockText: idx == 0 ? 'Photo Protected' : 'Album Locked',
                                   ),
                                 );
                               },

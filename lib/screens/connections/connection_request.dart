@@ -7,6 +7,7 @@ import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
 import '../../components/rani_sidebar_drawer.dart';
+import '../../components/rani_privacy_photo_widget.dart';
 import '../matches/details_screen.dart';
 import '../search/search_screen.dart';
 
@@ -595,9 +596,9 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
     final isSent = _selectedTabIndex == 1;
     final isAccepted = _selectedTabIndex == 2;
 
-    final profileMap = (c is Map<String, dynamic>)
-        ? c
-        : (c is Map ? Map<String, dynamic>.from(c) : <String, dynamic>{});
+    final profileMap = (c is Map) ? Map<String, dynamic>.from(c) : <String, dynamic>{};
+    if (isAccepted) profileMap['is_accepted'] = true;
+    if (isReceived) profileMap['request_type'] = 'received';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
@@ -647,18 +648,12 @@ class _RaniConnectionsScreenState extends State<RaniConnectionsScreen> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            photo.toString().isNotEmpty
-                                ? Image.network(
-                                    photo.toString(),
-                                    fit: BoxFit.cover,
-                                    alignment: Alignment.topCenter,
-                                    errorBuilder: (context, error, stackTrace) => const Center(
-                                      child: Icon(CupertinoIcons.person_fill, size: 48, color: Color(0xFFB5A795)),
-                                    ),
-                                  )
-                                : const Center(
-                                    child: Icon(CupertinoIcons.person_fill, size: 48, color: Color(0xFFB5A795)),
-                                  ),
+                            RaniPrivacyPhotoWidget(
+                              imageUrl: photo.toString(),
+                              candidate: profileMap,
+                              fit: BoxFit.cover,
+                              alignment: Alignment.topCenter,
+                            ),
 
                             // Top-Left: Match Score Pill (★ 99%)
                             Positioned(

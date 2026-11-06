@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../components/rani_alert.dart';
 import '../components/rani_matrimonial_loader.dart';
+import '../components/rani_privacy_photo_widget.dart';
 import '../components/rani_skeleton_loader.dart';
 
 /// Screen: Candidate Profile Details (matching website profile_view.blade.php)
@@ -52,9 +53,18 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
     try {
       final res = await ApiService.instance.getProfileDetails(widget.profileId);
       if (mounted) {
-        if (res['success'] == true && res['candidate'] != null) {
+        if (res['success'] == true) {
+          final profileData = res['profile'] ?? res['candidate'] ?? {};
+          final status = res['status'] ?? {};
+          final merged = Map<String, dynamic>.from(profileData);
+          if (status is Map) {
+            status.forEach((k, v) => merged[k] = v);
+          }
+          if (res['photos'] is List) {
+            merged['photos'] = res['photos'];
+          }
           setState(() {
-            _data = res['candidate'];
+            _data = merged;
             _isLoading = false;
           });
         } else if (_data == null) {
@@ -306,14 +316,16 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
                               child: const Icon(Icons.person, size: 80, color: Color(0xFFD4A034)),
                             );
                           }
-                          return Image.network(
-                            photos[i],
+                          final isBlurred = RaniPhotoPrivacyHelper.shouldBlurGalleryPhoto(
+                            candidate: _data,
+                            photoIndex: i,
+                          );
+                          return RaniPrivacyPhotoWidget(
+                            imageUrl: photos[i].toString(),
+                            isBlurred: isBlurred,
                             fit: BoxFit.cover,
                             alignment: Alignment.topCenter,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFF381212),
-                              child: const Icon(Icons.person, size: 80, color: Color(0xFFD4A034)),
-                            ),
+                            lockText: i == 0 ? 'Photo Private' : 'Album Blurred until Accepted',
                           );
                         },
                       ),

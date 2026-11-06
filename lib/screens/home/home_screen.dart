@@ -9,6 +9,7 @@ import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_top_bar.dart';
 import '../../components/rani_image_cropper_modal.dart';
+import '../../components/rani_privacy_photo_widget.dart';
 import '../search/search_screen.dart';
 import '../matches/details_screen.dart';
 import '../matches/matches_screen.dart';
@@ -1292,19 +1293,11 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    photo.toString().isNotEmpty
-                        ? Image.network(
-                            photo.toString(),
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFFF3ECE4),
-                              child: const Icon(CupertinoIcons.person_fill, size: 40, color: Color(0xFF8B0000)),
-                            ),
-                          )
-                        : Container(
-                            color: const Color(0xFFF3ECE4),
-                            child: const Icon(CupertinoIcons.person_fill, size: 40, color: Color(0xFF8B0000)),
-                          ),
+                    RaniPrivacyPhotoWidget(
+                      imageUrl: photo.toString(),
+                      candidate: candidate,
+                      fit: BoxFit.cover,
+                    ),
                     // Match score pill
                     Positioned(
                       top: 6,

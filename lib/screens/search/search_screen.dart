@@ -9,6 +9,7 @@ import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_top_bar.dart';
 import '../../components/rani_sidebar_drawer.dart';
+import '../../components/rani_privacy_photo_widget.dart';
 import 'details_screen.dart';
 
 /// Screen: Candidate Search & Dynamic Filter
@@ -1063,21 +1064,13 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             width: 100,
                             height: 120,
                             color: const Color(0xFFF7F3EC),
-                            child: photo.isNotEmpty
-                                ? Image.network(
-                                    photo,
-                                    width: 100,
-                                    height: 120,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: const Color(0xFFF3ECE4),
-                                      child: const Icon(CupertinoIcons.person_fill, size: 40, color: Color(0xFFBCAAA4)),
-                                    ),
-                                  )
-                                : Container(
-                                    color: const Color(0xFFF3ECE4),
-                                    child: const Icon(CupertinoIcons.person_fill, size: 40, color: Color(0xFFBCAAA4)),
-                                  ),
+                            child: RaniPrivacyPhotoWidget(
+                              imageUrl: photo,
+                              isBlurred: RaniPhotoPrivacyHelper.shouldBlurProfilePhoto(c),
+                              width: 100,
+                              height: 120,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
 

@@ -4,6 +4,7 @@ import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
+import '../../components/rani_privacy_photo_widget.dart';
 import '../profile_detail_screen.dart';
 
 /// Screen: Candidate Inbox (matching website inbox.blade.php)
@@ -331,16 +332,13 @@ class _RaniInboxScreenState extends State<RaniInboxScreen> {
               // Photo Thumbnail
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  photo,
+                child: SizedBox(
                   width: 76,
                   height: 94,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 76,
-                    height: 94,
-                    color: const Color(0xFF381212),
-                    child: const Icon(Icons.person, color: Color(0xFFD4A034)),
+                  child: RaniPrivacyPhotoWidget(
+                    imageUrl: photo,
+                    candidate: item,
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),
