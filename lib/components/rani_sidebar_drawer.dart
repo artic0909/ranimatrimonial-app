@@ -170,7 +170,7 @@ class RaniSidebarDrawer extends StatelessWidget {
                       // f. Advance Serch
                       _buildSidebarItem(
                         icon: CupertinoIcons.search,
-                        title: 'Advance Serch',
+                        title: 'Advance Search',
                         isHighlighted: activeItem == 'search',
                         onTap: () {
                           Navigator.pop(context);
