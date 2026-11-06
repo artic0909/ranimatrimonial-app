@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
@@ -681,6 +682,11 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
                                 label: 'Pincode',
                                 hint: 'e.g. 700016',
                                 keyboardType: TextInputType.number,
+                                maxLength: 6,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(6),
+                                ],
                               ),
                             ),
                           ],
@@ -846,6 +852,8 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
     required String label,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -869,8 +877,12 @@ class _RaniProfileCompletionScreenState extends State<RaniProfileCompletionScree
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            maxLength: maxLength,
+            buildCounter: maxLength != null ? (_, {required currentLength, required isFocused, maxLength}) => null : null,
             style: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFF1E1E1E)),
             decoration: InputDecoration(
+              counterText: '',
               hintText: hint,
               hintStyle: GoogleFonts.outfit(fontSize: 12.5, color: const Color(0xFF9E9E9E)),
               border: InputBorder.none,

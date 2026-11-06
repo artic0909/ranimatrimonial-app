@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../components/rani_alert.dart';
@@ -989,7 +990,16 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
                       onChanged: (v) => setState(() => _residencyStatus = v),
                     ),
                     const SizedBox(height: 12),
-                    _buildTextField(label: 'Pincode / Zip Code', controller: _pincodeController, keyboardType: TextInputType.number),
+                    _buildTextField(
+                      label: 'Pincode / Zip Code',
+                      controller: _pincodeController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     _buildTextField(label: 'Police Station', controller: _policeStController),
                     const SizedBox(height: 12),
@@ -1177,6 +1187,8 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
     int maxLines = 1,
     bool isRequired = false,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1200,8 +1212,12 @@ class _RaniProfileEditScreenState extends State<RaniProfileEditScreen> {
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          maxLength: maxLength,
+          buildCounter: maxLength != null ? (_, {required currentLength, required isFocused, maxLength}) => null : null,
           style: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFF1E1E1E)),
           decoration: InputDecoration(
+            counterText: '',
             hintText: hint,
             hintStyle: GoogleFonts.outfit(fontSize: 12.5, color: Colors.grey.shade400),
             filled: true,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 
@@ -1500,6 +1501,11 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
               controller: _pincodeController,
               hint: 'e.g. 700001',
               keyboardType: TextInputType.number,
+              maxLength: 6,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
             ),
             const SizedBox(height: 14),
             _buildFieldLabel('Police Station'),
@@ -1622,6 +1628,8 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
     int maxLines = 1,
     int minLines = 1,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -1634,12 +1642,16 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
         maxLines: maxLines,
         minLines: minLines,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
+        buildCounter: maxLength != null ? (_, {required currentLength, required isFocused, maxLength}) => null : null,
         style: GoogleFonts.outfit(
           fontSize: 13.5,
           fontWeight: FontWeight.w500,
           color: const Color(0xFF1E1E1E),
         ),
         decoration: InputDecoration(
+          counterText: '',
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           hintText: hint,
           hintStyle: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF9E9E9E)),

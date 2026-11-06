@@ -2251,6 +2251,10 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
             controller: controller,
             focusNode: focusNode,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(maxLength),
+            ],
             maxLength: maxLength,
             textAlign: TextAlign.center,
             onChanged: onChanged,
@@ -2451,7 +2455,13 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
             child: TextField(
               controller: controller,
               focusNode: focusNode,
-              keyboardType: TextInputType.phone,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              maxLength: 10,
+              buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
               cursorColor: const Color(0xFF881337),
               style: GoogleFonts.outfit(
                 fontSize: 15,
@@ -2459,6 +2469,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                 color: const Color(0xFF2C140E),
               ),
               decoration: InputDecoration(
+                counterText: '',
                 filled: false,
                 hintText: hintText,
                 hintStyle: GoogleFonts.outfit(
@@ -2608,6 +2619,11 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                     focusNode: _pincodeFocus,
                     hintText: 'e.g. 700016',
                     keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
                   ),
                 ],
               ),
