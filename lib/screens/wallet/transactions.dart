@@ -627,6 +627,25 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
                                   label: 'Payment Method',
                                   value: paymentMethod,
                                 ),
+                                if (isCredit) ...[
+                                  const Divider(height: 18, color: Color(0xFFF0EAE1)),
+                                  _buildDetailRow(
+                                    label: 'Recharge Subtotal',
+                                    value: '₹ ${(amount / 1.02).toStringAsFixed(2)}',
+                                  ),
+                                  const Divider(height: 18, color: Color(0xFFF0EAE1)),
+                                  _buildDetailRow(
+                                    label: 'Platform Fee (2%)',
+                                    value: '₹ ${(amount - (amount / 1.02)).toStringAsFixed(2)}',
+                                    valueColor: const Color(0xFF8D6200),
+                                  ),
+                                  const Divider(height: 18, color: Color(0xFFF0EAE1)),
+                                  _buildDetailRow(
+                                    label: 'Total Added to Wallet',
+                                    value: '₹ ${amount.toStringAsFixed(2)}',
+                                    valueColor: const Color(0xFF1B5E20),
+                                  ),
+                                ],
                                 if (balanceAfter > 0) ...[
                                   const Divider(height: 18, color: Color(0xFFF0EAE1)),
                                   _buildDetailRow(

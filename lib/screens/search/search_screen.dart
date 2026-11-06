@@ -727,48 +727,13 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
       backgroundColor: const Color(0xFFFAF7F2),
       appBar: RaniTopBar(
         title: 'Search Profiles',
+        showNotification: false,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.line_horizontal_3, size: 23, color: Color(0xFF1E1E1E)),
           tooltip: 'Menu',
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
         onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        onNotificationPressed: () => RaniTopBar.showNotificationsSheet(context, 3),
-        actions: [
-          // Filter Button with Badge
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(CupertinoIcons.slider_horizontal_3, color: Color(0xFF750000), size: 22),
-                tooltip: 'Open Advanced Filters',
-                onPressed: _openFullScreenFilterModal,
-              ),
-              if (_activeFiltersCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE5B842),
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                    child: Text(
-                      '$_activeFiltersCount',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF750000),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFF750000),

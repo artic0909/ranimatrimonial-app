@@ -16,6 +16,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? leading;
   final VoidCallback? onMenuPressed;
   final int notificationCount;
+  final bool showNotification;
   final VoidCallback? onNotificationPressed;
   final List<Widget>? actions;
   final List<Widget>? trailingActions;
@@ -31,6 +32,7 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.leading,
     this.onMenuPressed,
     this.notificationCount = 3,
+    this.showNotification = true,
     this.onNotificationPressed,
     this.actions,
     this.trailingActions,
@@ -76,35 +78,37 @@ class RaniTopBar extends StatelessWidget implements PreferredSizeWidget {
           ),
       actions: [
         ...?actions,
-        IconButton(
-          tooltip: 'Notifications ($notificationCount)',
-          onPressed: onNotificationPressed ?? () => showNotificationsSheet(context, notificationCount),
-          icon: notificationCount > 0
-              ? Badge(
-                  label: Text(
-                    notificationCount > 99 ? '99+' : '$notificationCount',
-                    style: GoogleFonts.outfit(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+        if (showNotification)
+          IconButton(
+            tooltip: 'Notifications ($notificationCount)',
+            onPressed: onNotificationPressed ?? () => showNotificationsSheet(context, notificationCount),
+            icon: notificationCount > 0
+                ? Badge(
+                    label: Text(
+                      notificationCount > 99 ? '99+' : '$notificationCount',
+                      style: GoogleFonts.outfit(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  backgroundColor: const Color(0xFF750000), // Theme Burgundy
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
-                  child: const Icon(
+                    backgroundColor: const Color(0xFF750000), // Theme Burgundy
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
+                    child: const Icon(
+                      CupertinoIcons.bell,
+                      color: Color(0xFF1E1E1E),
+                      size: 22,
+                    ),
+                  )
+                : const Icon(
                     CupertinoIcons.bell,
                     color: Color(0xFF1E1E1E),
                     size: 22,
                   ),
-                )
-              : const Icon(
-                  CupertinoIcons.bell,
-                  color: Color(0xFF1E1E1E),
-                  size: 22,
-                ),
-        ),
+          ),
         ...?trailingActions,
-        const SizedBox(width: 8),
+        if (showNotification || (actions != null && actions!.isNotEmpty) || (trailingActions != null && trailingActions!.isNotEmpty))
+          const SizedBox(width: 8),
       ],
       bottom: bottom,
     );

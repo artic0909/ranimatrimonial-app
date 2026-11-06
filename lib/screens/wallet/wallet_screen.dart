@@ -40,7 +40,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
 
   final List<Map<String, dynamic>> _rechargePlans = [
     {'amount': 500.0, 'label': 'Starter Pack', 'popular': false},
-    {'amount': 1000.0, 'label': 'Royal Standard', 'popular': true},
+    {'amount': 1000.0, 'label': 'RM Standard', 'popular': true},
     {'amount': 2500.0, 'label': 'Elite Privilege', 'popular': false},
     {'amount': 5000.0, 'label': 'Imperial Crown', 'popular': false},
   ];
@@ -59,11 +59,17 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
   void initState() {
     super.initState();
     _candidate = ApiService.instance.candidate;
+    _customAmountController.addListener(_onCustomAmountChanged);
     _fetchWalletData();
+  }
+
+  void _onCustomAmountChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _customAmountController.removeListener(_onCustomAmountChanged);
     _customAmountController.dispose();
     super.dispose();
   }
@@ -106,16 +112,21 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
     }
   }
 
-  Future<void> _startRecharge(double amount) async {
-    if (amount < 10) {
+  Future<void> _startRecharge(double baseAmount) async {
+    if (baseAmount < 10) {
       RaniAlert.error(context, 'Please enter a valid recharge amount (minimum ₹10).');
       return;
     }
 
+    final platformFee = RaniRazorpayService.calculatePlatformFee(baseAmount);
+    final totalPayable = RaniRazorpayService.calculateTotalPayable(baseAmount);
+
     await RaniRazorpayService.instance.startCheckout(
       context: context,
-      amount: amount,
-      description: 'Royal Wallet Recharge (₹${amount.toStringAsFixed(0)})',
+      amount: totalPayable,
+      baseAmount: baseAmount,
+      platformFee: platformFee,
+      description: 'Royal Wallet Top-up (₹${baseAmount.toStringAsFixed(0)} + 2% Platform Fee: ₹${platformFee.toStringAsFixed(2)})',
       onSuccess: (rechargedAmount) {
         _fetchWalletData();
       },
@@ -1031,13 +1042,24 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 5),
             Text(
               '₹ ${amount.toInt()}',
               style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
+                fontSize: 19,
                 fontWeight: FontWeight.w800,
                 color: const Color(0xFF750000),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Pay & Add ₹${RaniRazorpayService.calculateTotalPayable(amount).toInt()}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF2E7D32),
               ),
             ),
           ],
@@ -1048,6 +1070,12 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
 
   /// 4. Custom Amount Recharge Card
   Widget _buildCustomRechargeCard() {
+    final customText = _customAmountController.text.trim();
+    final customVal = double.tryParse(customText);
+    final hasValidAmount = customVal != null && customVal >= 10;
+    final totalPayable = hasValidAmount ? RaniRazorpayService.calculateTotalPayable(customVal) : 0.0;
+    final platformFee = hasValidAmount ? RaniRazorpayService.calculatePlatformFee(customVal) : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1144,14 +1172,40 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                   }
                   _startRecharge(amt);
                 },
-                icon: const Icon(Icons.add_card_rounded, size: 18, color: Color(0xFFE5B842)),
                 label: Text(
-                  'Add Money',
+                  hasValidAmount ? 'Pay ₹ ${totalPayable.toStringAsFixed(0)}' : 'Add Money',
                   style: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
           ),
+          if (hasValidAmount) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFBF4E6),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.45)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF8D6200)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Recharge: ₹${customVal.toStringAsFixed(0)} + 2% Platform Fee: ₹${platformFee.toStringAsFixed(2)} = Pay & Add ₹${totalPayable.toStringAsFixed(2)} to Wallet',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF6B450C),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           // Quick amount chip helpers
           Wrap(

@@ -19,9 +19,22 @@ class RaniRazorpayService {
 
   late Razorpay _razorpay;
   double _pendingAmount = 0.0;
+  double _baseAmount = 0.0;
+  double _platformFee = 0.0;
   BuildContext? _currentContext;
   Function(double amount)? _onSuccess;
   Function(String error)? _onError;
+
+  /// Calculate 2% platform fee for any recharge amount
+  static double calculatePlatformFee(double baseAmount) {
+    return double.parse((baseAmount * 0.02).toStringAsFixed(2));
+  }
+
+  /// Calculate total payable amount (base amount + 2% platform fee)
+  static double calculateTotalPayable(double baseAmount) {
+    final fee = calculatePlatformFee(baseAmount);
+    return double.parse((baseAmount + fee).toStringAsFixed(2));
+  }
 
   void _initRazorpay() {
     _razorpay = Razorpay();
@@ -46,6 +59,8 @@ class RaniRazorpayService {
         'razorpay_order_id': response.orderId ?? '',
         'razorpay_signature': response.signature ?? '',
         'amount': _pendingAmount,
+        'base_amount': _baseAmount,
+        'platform_fee': _platformFee,
       });
 
       if (ctx.mounted) RaniMatrimonialLoader.hide(ctx);
@@ -103,14 +118,21 @@ class RaniRazorpayService {
   Future<void> startCheckout({
     required BuildContext context,
     required double amount,
-    String description = 'Royal Wallet Recharge',
+    double? baseAmount,
+    double? platformFee,
+    String? description,
     Function(double amount)? onSuccess,
     Function(String error)? onError,
   }) async {
     _currentContext = context;
     _pendingAmount = amount;
+    _baseAmount = baseAmount ?? double.parse((amount / 1.02).toStringAsFixed(2));
+    _platformFee = platformFee ?? double.parse((amount - _baseAmount).toStringAsFixed(2));
     _onSuccess = onSuccess;
     _onError = onError;
+
+    final desc = description ??
+        'Royal Wallet Top-up (₹${_baseAmount.toStringAsFixed(0)} + 2% Platform Fee: ₹${_platformFee.toStringAsFixed(2)})';
 
     RaniMatrimonialLoader.show(context, message: 'Opening Secure Payment...');
 
@@ -125,7 +147,7 @@ class RaniRazorpayService {
           'key': orderRes['key'],
           'amount': orderRes['amount'], // in paise
           'name': orderRes['name'] ?? 'Rani Matrimonial',
-          'description': description,
+          'description': desc,
           'order_id': orderRes['order_id'],
           'prefill': orderRes['prefill'] ?? {
             'contact': candidate?['mobile'] ?? '',
@@ -142,7 +164,7 @@ class RaniRazorpayService {
         final topUpRes = await ApiService.instance.addMoney(
           amount: amount,
           paymentMethod: 'UPI',
-          customNote: 'Instant Recharge via UPI',
+          customNote: 'Instant Recharge via UPI (incl. 2% Platform Fee)',
         );
 
         if (!context.mounted) return;
@@ -438,7 +460,35 @@ class _RoyalRechargeSheetState extends State<_RoyalRechargeSheet> {
             },
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+
+          // 2% Platform Fee Transparency Banner
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFBF4E6),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF8D6200)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Recharge: ₹${_selectedAmount.toStringAsFixed(0)} + 2% Platform Fee: ₹${RaniRazorpayService.calculatePlatformFee(_selectedAmount).toStringAsFixed(2)} = Pay & Add ₹${RaniRazorpayService.calculateTotalPayable(_selectedAmount).toStringAsFixed(2)} to Wallet',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B450C),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
 
           // Razorpay Pay CTA Button
           SizedBox(
@@ -452,10 +502,14 @@ class _RoyalRechargeSheetState extends State<_RoyalRechargeSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               onPressed: () {
+                final total = RaniRazorpayService.calculateTotalPayable(_selectedAmount);
+                final fee = RaniRazorpayService.calculatePlatformFee(_selectedAmount);
                 RaniRazorpayService.instance.startCheckout(
                   context: context,
-                  amount: _selectedAmount,
-                  description: 'Royal Wallet Recharge (₹${_selectedAmount.toStringAsFixed(0)})',
+                  amount: total,
+                  baseAmount: _selectedAmount,
+                  platformFee: fee,
+                  description: 'Royal Wallet Top-up (₹${_selectedAmount.toStringAsFixed(0)} + 2% Platform Fee: ₹${fee.toStringAsFixed(2)})',
                   onSuccess: (amount) {
                     widget.onSuccess(amount);
                   },
@@ -467,7 +521,7 @@ class _RoyalRechargeSheetState extends State<_RoyalRechargeSheet> {
                   const Icon(CupertinoIcons.lock_shield_fill, color: Color(0xFFE5B842), size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    'Pay ₹${_selectedAmount.toStringAsFixed(0)} via Razorpay',
+                    'Pay ₹${RaniRazorpayService.calculateTotalPayable(_selectedAmount).toStringAsFixed(2)} via Razorpay',
                     style: GoogleFonts.outfit(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
