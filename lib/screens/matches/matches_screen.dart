@@ -1288,10 +1288,15 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                             height: 115,
                             child: RaniPrivacyPhotoWidget(
                               imageUrl: photo.toString(),
-                              isBlurred: RaniPhotoPrivacyHelper.shouldBlurProfilePhoto(c),
+                              candidate: c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map),
+                              isBlurred: RaniPhotoPrivacyHelper.shouldBlurCandidatePhoto(
+                                c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map),
+                                photoUrl: photo.toString(),
+                              ),
                               width: 95,
                               height: 115,
                               fit: BoxFit.cover,
+                              lockText: 'Photo Protected',
                             ),
                           ),
                         ),
@@ -1781,7 +1786,11 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               // 1. Full Image Background
               RaniPrivacyPhotoWidget(
                 imageUrl: photo.toString(),
-                isBlurred: RaniPhotoPrivacyHelper.shouldBlurProfilePhoto(c),
+                candidate: c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map),
+                isBlurred: RaniPhotoPrivacyHelper.shouldBlurCandidatePhoto(
+                  c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map),
+                  photoUrl: photo.toString(),
+                ),
                 fit: BoxFit.cover,
                 showLockBadge: true,
                 lockText: 'Photo Protected',

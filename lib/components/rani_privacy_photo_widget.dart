@@ -4,85 +4,120 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 
 class RaniPhotoPrivacyHelper {
-  /// Check if the primary profile photo should be blurred
-  static bool shouldBlurProfilePhoto(Map<String, dynamic>? candidate) {
+  /// Check if candidate photo should be blurred based on photo_privacy and album_privacy
+  static bool shouldBlurCandidatePhoto(
+    Map<String, dynamic>? candidate, {
+    String? photoUrl,
+    int photoIndex = 0,
+  }) {
     if (candidate == null) return false;
 
-    // If viewing own profile, never blur
+    // 1. If viewing own profile, never blur
     final currentCandidate = ApiService.instance.candidate;
     if (currentCandidate != null) {
-      final currentCode = currentCandidate['candidate_code'] ?? currentCandidate['profile_id'];
-      final candidateCode = candidate['candidate_code'] ?? candidate['profile_id'] ?? candidate['id'];
-      if (currentCode != null && candidateCode != null && currentCode.toString() == candidateCode.toString()) {
+      final myIds = [
+        currentCandidate['candidate_code']?.toString().trim().toLowerCase(),
+        currentCandidate['profile_id']?.toString().trim().toLowerCase(),
+        currentCandidate['id']?.toString().trim().toLowerCase(),
+        currentCandidate['numeric_id']?.toString().trim().toLowerCase(),
+      ].where((e) => e != null && e.isNotEmpty).toSet();
+
+      final theirIds = [
+        candidate['candidate_code']?.toString().trim().toLowerCase(),
+        candidate['profile_id']?.toString().trim().toLowerCase(),
+        candidate['id']?.toString().trim().toLowerCase(),
+        candidate['numeric_id']?.toString().trim().toLowerCase(),
+      ].where((e) => e != null && e.isNotEmpty).toSet();
+
+      if (myIds.isNotEmpty && theirIds.isNotEmpty && myIds.any((id) => theirIds.contains(id))) {
         return false;
       }
     }
 
-    final privacy = candidate['photo_privacy']?.toString() ?? 'Visible to all Members (Recommended)';
-    if (privacy == 'Visible to all Members (Recommended)') {
+    // 2. Check connection acceptance status
+    final isAccepted = candidate['is_accepted'] == true ||
+        candidate['is_accepted'] == 1 ||
+        candidate['is_accepted'] == '1' ||
+        candidate['is_accepted'] == 'true' ||
+        (candidate['request_type'] ?? '').toString().toLowerCase() == 'accepted' ||
+        (candidate['status'] ?? '').toString().toLowerCase() == 'accepted';
+
+    if (isAccepted) {
+      return false; // Mutual connection accepted -> fully visible
+    }
+
+    // 3. Check interest received status
+    final isReceived = candidate['is_interest_received'] == true ||
+        candidate['is_received_by_me'] == true ||
+        (candidate['request_type'] ?? '').toString().toLowerCase() == 'received';
+
+    // 4. Check premium / bluetick verified status of current viewer
+    final isViewerPremium = currentCandidate?['is_bluetick_verified'] == true ||
+        currentCandidate?['selfie_verified'] == true ||
+        (currentCandidate?['bluetick'] is Map && currentCandidate?['bluetick']?['is_accept'] == 1);
+
+    final rawPhotoPrivacy = (candidate['photo_privacy'] ?? '').toString().trim().toLowerCase();
+    final rawAlbumPrivacy = (candidate['album_privacy'] ?? '').toString().trim().toLowerCase();
+
+    // 5. If this is a gallery photo or index > 0, check album privacy
+    final isGalleryPhoto = photoIndex > 0 ||
+        (photoUrl != null && (photoUrl.contains('/gallery/') || photoUrl.contains('gallery_'))) ||
+        (candidate['profile_picture'] == null || candidate['profile_picture'].toString().trim().isEmpty);
+
+    if (photoIndex > 0 || isGalleryPhoto) {
+      if (rawAlbumPrivacy.contains('blur') || rawAlbumPrivacy.contains('request')) {
+        return true;
+      }
+      if (rawAlbumPrivacy.contains('members i like')) {
+        if (rawAlbumPrivacy.contains('premium')) {
+          if (!isReceived && !isViewerPremium) return true;
+        } else {
+          if (!isReceived) return true;
+        }
+      }
+    }
+
+    // 6. Check profile photo privacy
+    if (rawPhotoPrivacy.isEmpty ||
+        rawPhotoPrivacy.contains('visible to all members (recommended)') ||
+        rawPhotoPrivacy == 'visible to all members') {
+      // Photo is public, but if it is a gallery photo with strict album privacy, album privacy wins
+      if (isGalleryPhoto && (rawAlbumPrivacy.contains('blur') || rawAlbumPrivacy.contains('request'))) {
+        return true;
+      }
       return false;
     }
 
-    final isAccepted = candidate['is_accepted'] == true || candidate['request_type'] == 'accepted';
-    final isReceived = candidate['is_interest_received'] == true ||
-        candidate['is_received_by_me'] == true ||
-        candidate['request_type'] == 'received';
-
-    if (privacy == 'Visible only to Members I like') {
-      // Only visible if this member liked the current user (sent interest) or mutual connection is accepted
-      return !isAccepted && !isReceived;
+    if (rawPhotoPrivacy.contains('members i like')) {
+      if (rawPhotoPrivacy.contains('premium')) {
+        if (isReceived || isViewerPremium) return false;
+        return true;
+      } else {
+        // "Visible only to Members I like" or "Only visible to members I like"
+        if (isReceived) return false;
+        return true;
+      }
     }
 
-    if (privacy == 'Visible to Members I like and to all Premium Members') {
-      if (isAccepted || isReceived) return false;
-      final isPremium = currentCandidate?['is_bluetick_verified'] == true ||
-          currentCandidate?['selfie_verified'] == true;
-      return !isPremium;
+    if (rawPhotoPrivacy.contains('blur') || rawPhotoPrivacy.contains('private')) {
+      return true;
     }
 
     return false;
+  }
+
+  /// Check if the primary profile photo should be blurred
+  static bool shouldBlurProfilePhoto(Map<String, dynamic>? candidate, {String? photoUrl}) {
+    return shouldBlurCandidatePhoto(candidate, photoUrl: photoUrl, photoIndex: 0);
   }
 
   /// Check if a gallery album photo (photoIndex > 0) should be blurred
   static bool shouldBlurGalleryPhoto({
     required Map<String, dynamic>? candidate,
     required int photoIndex,
+    String? photoUrl,
   }) {
-    if (candidate == null) return false;
-
-    if (photoIndex == 0) {
-      return shouldBlurProfilePhoto(candidate);
-    }
-
-    // If viewing own gallery, never blur
-    final currentCandidate = ApiService.instance.candidate;
-    if (currentCandidate != null) {
-      final currentCode = currentCandidate['candidate_code'] ?? currentCandidate['profile_id'];
-      final candidateCode = candidate['candidate_code'] ?? candidate['profile_id'] ?? candidate['id'];
-      if (currentCode != null && candidateCode != null && currentCode.toString() == candidateCode.toString()) {
-        return false;
-      }
-    }
-
-    final privacy = candidate['album_privacy']?.toString() ?? 'Visible to all Members';
-    if (privacy == 'Visible to all Members') {
-      return false;
-    }
-
-    final isAccepted = candidate['is_accepted'] == true || candidate['request_type'] == 'accepted';
-
-    if (privacy == 'Blur until request accepted' || privacy == 'Visible to all with request') {
-      return !isAccepted;
-    }
-
-    if (privacy == 'Only visible to members I like') {
-      final isReceived = candidate['is_interest_received'] == true ||
-          candidate['is_received_by_me'] == true ||
-          candidate['request_type'] == 'received';
-      return !isAccepted && !isReceived;
-    }
-
-    return false;
+    return shouldBlurCandidatePhoto(candidate, photoUrl: photoUrl, photoIndex: photoIndex);
   }
 }
 
@@ -116,13 +151,11 @@ class RaniPrivacyPhotoWidget extends StatelessWidget {
 
   bool get _effectiveIsBlurred {
     if (isBlurred != null) return isBlurred!;
-    if (photoIndex != null && photoIndex! > 0) {
-      return RaniPhotoPrivacyHelper.shouldBlurGalleryPhoto(
-        candidate: candidate,
-        photoIndex: photoIndex!,
-      );
-    }
-    return RaniPhotoPrivacyHelper.shouldBlurProfilePhoto(candidate);
+    return RaniPhotoPrivacyHelper.shouldBlurCandidatePhoto(
+      candidate,
+      photoUrl: imageUrl,
+      photoIndex: photoIndex ?? 0,
+    );
   }
 
   @override
@@ -137,7 +170,7 @@ class RaniPrivacyPhotoWidget extends StatelessWidget {
         height: height,
         fit: fit,
         alignment: alignment,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (_, _, _) => Container(
           width: width,
           height: height,
           color: const Color(0xFF381212),
@@ -151,7 +184,7 @@ class RaniPrivacyPhotoWidget extends StatelessWidget {
         height: height,
         fit: fit,
         alignment: alignment,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (_, _, _) => Container(
           width: width,
           height: height,
           color: const Color(0xFF381212),
@@ -192,7 +225,7 @@ class RaniPrivacyPhotoWidget extends StatelessWidget {
                       const SizedBox(width: 5),
                       Flexible(
                         child: Text(
-                          lockText ?? 'Photo Private',
+                          lockText ?? 'Photo Protected',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.outfit(

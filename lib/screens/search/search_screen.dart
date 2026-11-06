@@ -1066,10 +1066,15 @@ class _RaniSearchScreenState extends State<RaniSearchScreen> {
                             color: const Color(0xFFF7F3EC),
                             child: RaniPrivacyPhotoWidget(
                               imageUrl: photo,
-                              isBlurred: RaniPhotoPrivacyHelper.shouldBlurProfilePhoto(c),
+                              candidate: c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map),
+                              isBlurred: RaniPhotoPrivacyHelper.shouldBlurCandidatePhoto(
+                                c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map),
+                                photoUrl: photo,
+                              ),
                               width: 100,
                               height: 120,
                               fit: BoxFit.cover,
+                              lockText: 'Photo Protected',
                             ),
                           ),
                         ),
