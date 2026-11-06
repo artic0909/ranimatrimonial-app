@@ -1,8 +1,17 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+}
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -17,21 +26,63 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.rani.matrimonial"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val keyAliasVal = keystoreProperties.getProperty("keyAlias")
+            val keyPasswordVal = keystoreProperties.getProperty("keyPassword")
+            val storeFileVal = keystoreProperties.getProperty("storeFile")
+            val storePasswordVal = keystoreProperties.getProperty("storePassword")
+
+            if (storeFileVal != null) {
+                val sFile = file(storeFileVal)
+                val rootSFile = rootProject.file(storeFileVal)
+                val appSFile = rootProject.file("app/$storeFileVal")
+                if (sFile.exists()) {
+                    storeFile = sFile
+                    keyAlias = keyAliasVal
+                    keyPassword = keyPasswordVal
+                    storePassword = storePasswordVal
+                } else if (rootSFile.exists()) {
+                    storeFile = rootSFile
+                    keyAlias = keyAliasVal
+                    keyPassword = keyPasswordVal
+                    storePassword = storePasswordVal
+                } else if (appSFile.exists()) {
+                    storeFile = appSFile
+                    keyAlias = keyAliasVal
+                    keyPassword = keyPasswordVal
+                    storePassword = storePasswordVal
+                }
+            } else if (file("upload-keystore.jks").exists()) {
+                storeFile = file("upload-keystore.jks")
+                keyAlias = keyAliasVal ?: "upload"
+                keyPassword = keyPasswordVal ?: "12345678"
+                storePassword = storePasswordVal ?: "12345678"
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null && releaseSigning.storeFile != null && releaseSigning.storeFile!!.exists()) {
+                signingConfig = releaseSigning
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

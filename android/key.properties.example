@@ -1,0 +1,7 @@
+# Keystore properties for Play Store production release signing
+# Store your actual key.properties in the android/ folder (already ignored by git)
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=../app/upload-keystore.jks
+
