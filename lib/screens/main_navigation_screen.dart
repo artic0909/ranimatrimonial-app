@@ -87,6 +87,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     }
     ApiService.instance.candidateNotifier.addListener(_onMainCandidateChanged);
     ApiService.instance.walletBalanceNotifier.addListener(_onMainWalletChanged);
+    ApiService.instance.sidebarCountsNotifier.addListener(_onSidebarCountsChanged);
     _loadDismissedNotifications();
     _fetchLiveMetrics();
     PushNotificationService.syncDeviceToken();
@@ -104,10 +105,23 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
     }
   }
 
+  void _onSidebarCountsChanged() {
+    if (mounted) {
+      final counts = ApiService.instance.sidebarCountsNotifier.value;
+      final mCount = counts['matches'] ?? _matchesCount;
+      if (mCount != _matchesCount) {
+        setState(() {
+          _matchesCount = mCount;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     ApiService.instance.candidateNotifier.removeListener(_onMainCandidateChanged);
     ApiService.instance.walletBalanceNotifier.removeListener(_onMainWalletChanged);
+    ApiService.instance.sidebarCountsNotifier.removeListener(_onSidebarCountsChanged);
     super.dispose();
   }
 
@@ -234,7 +248,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
           if (count == 0 && matchesRes['matches'] is List) {
             count = (matchesRes['matches'] as List).length;
           }
-          if (count > 0 && mounted) {
+          if (mounted) {
             setState(() {
               _matchesCount = count;
             });
@@ -826,7 +840,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             },
             onOpenNotifications: _openNotificationsSheet,
             onMatchesCountChanged: (count) {
-              if (mounted && count > 0) {
+              if (mounted) {
                 if (_matchesCount != count) {
                   setState(() => _matchesCount = count);
                 }

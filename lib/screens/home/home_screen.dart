@@ -86,52 +86,53 @@ class _RaniHomeScreenState extends State<RaniHomeScreen> {
     });
 
     try {
-      // 1. Fetch logged-in candidate profile data
-      final profileRes = await ApiService.instance.getMyProfile();
-      if (mounted && profileRes['success'] == true && profileRes['candidate'] != null) {
+      // Fetch profile, verification, dashboard, and matches concurrently in parallel
+      final results = await Future.wait([
+        ApiService.instance.getMyProfile(),
+        ApiService.instance.getBlueTickVerification(),
+        ApiService.instance.getDashboard(),
+        ApiService.instance.getMatches(tab: 'new'),
+      ]);
+
+      if (!mounted) return;
+
+      final profileRes = results[0];
+      final bluetickRes = results[1];
+      final dashRes = results[2];
+      final res = results[3];
+
+      if (profileRes['success'] == true && profileRes['candidate'] != null) {
         _candidate = profileRes['candidate'] as Map<String, dynamic>;
       } else {
         _candidate = ApiService.instance.candidate;
       }
 
-      // 2. Fetch Blue Tick Aadhaar verification status
-      try {
-        final bluetickRes = await ApiService.instance.getBlueTickVerification();
-        if (mounted && bluetickRes['success'] == true) {
-          _bluetick = bluetickRes['bluetick'] as Map<String, dynamic>?;
-        }
-      } catch (_) {}
+      if (bluetickRes['success'] == true) {
+        _bluetick = bluetickRes['bluetick'] as Map<String, dynamic>?;
+      }
 
-      // 3. Fetch dashboard for metrics (completion percentage, wallet status, bluetick backup)
-      try {
-        final dashRes = await ApiService.instance.getDashboard();
-        if (mounted && dashRes['success'] == true && dashRes['data'] != null) {
-          final data = dashRes['data'] as Map<String, dynamic>;
-          if (_bluetick == null && data['bluetick'] != null) {
-            _bluetick = data['bluetick'] as Map<String, dynamic>?;
-          }
+      if (dashRes['success'] == true && dashRes['data'] != null) {
+        final data = dashRes['data'] as Map<String, dynamic>;
+        if (_bluetick == null && data['bluetick'] != null) {
+          _bluetick = data['bluetick'] as Map<String, dynamic>?;
         }
-      } catch (_) {}
+      }
 
-      // 4. Fetch matches for recommended section
-      final res = await ApiService.instance.getMatches(tab: 'new');
-      if (mounted) {
-        if (res['success'] == true) {
-          setState(() {
-            _matches = res['matches'] ?? [];
-            _isLoading = false;
-          });
-        } else {
-          setState(() {
-            _errorMessage = res['message'] ?? 'Unable to load matches.';
-            _isLoading = false;
-          });
-        }
+      if (res['success'] == true) {
+        setState(() {
+          _matches = res['matches'] ?? [];
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = res['message'] ?? 'Unable to load matches.';
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Network error: $e';
+          _errorMessage = 'Network connection issue. Please check your internet.';
           _isLoading = false;
         });
       }

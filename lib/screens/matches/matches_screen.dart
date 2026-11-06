@@ -218,13 +218,6 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
         // Strictly exclude logged-in candidate from appearing in matches
         list = list.where((m) => !isMe(m)).toList();
 
-        // Calculate Near Me count from full pool of matches
-        final rawPool = res['matches'] is List
-            ? List.from(res['matches'])
-            : (res['matches'] is Map && res['matches']['data'] is List ? List.from(res['matches']['data']) : list);
-        final nearMePool = rawPool.where((m) => !isMe(m) && m['is_shortlisted'] != true && _isNearMe(m, myCity, myState)).toList();
-        _nearMeCount = nearMePool.length;
-
         // Strictly guarantee shortlisted candidates do NOT appear in the NEW and NEAR ME tabs
         if (_selectedTab == 'new') {
           list = list.where((m) => m['is_shortlisted'] != true).toList();
@@ -253,9 +246,6 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
             final todays = counts['new'] ?? counts['todays'] ?? counts['my_matches'];
             if (todays != null) {
               _newCount = todays is int ? todays : int.tryParse('$todays') ?? _newCount;
-            }
-            if (_selectedTab == 'new' && list.length > _newCount) {
-              _newCount = list.length;
             }
 
             final nearMe = counts['near_me'] ?? counts['nearme'];
@@ -289,9 +279,7 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               shortlisted: _shortlistedCount,
             );
           }
-          if (_newCount > 0) {
-            widget.onMatchesCountChanged?.call(_newCount);
-          }
+          widget.onMatchesCountChanged?.call(_newCount);
           _isLoading = false;
         });
       } else {
@@ -568,6 +556,11 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
               _shortlistedCount = _shortlistedCount > 0 ? _shortlistedCount - 1 : 0;
             }
           }
+          ApiService.instance.updateSidebarCounts(
+            matches: _newCount,
+            shortlisted: _shortlistedCount,
+          );
+          widget.onMatchesCountChanged?.call(_newCount);
         });
         RaniAlert.success(
           context,

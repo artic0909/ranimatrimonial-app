@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,12 @@ class ApiService {
 
   static const String _keyToken = 'auth_token';
   static const String _keyCandidate = 'candidate_data';
+
+  // Persistent shared HTTP client for Keep-Alive & HTTP connection pooling
+  final http.Client _client = http.Client();
+  DateTime? _lastPreloadTime;
+  Map<String, dynamic>? _cachedSearchOptions;
+  Map<String, dynamic>? _cachedRegistrationOptions;
 
   String? _token;
   Map<String, dynamic>? _candidate;
@@ -215,10 +222,15 @@ class ApiService {
 
   bool _isPreloadingConnections = false;
 
-  /// Preload received, sent, and accepted connection requests across all modules
-  Future<void> preloadAllConnections() async {
+  /// Preload received, sent, and accepted connection requests across all modules (throttled to avoid redundant calls)
+  Future<void> preloadAllConnections({bool force = false}) async {
     if (_isPreloadingConnections) return;
+    final now = DateTime.now();
+    if (!force && _lastPreloadTime != null && now.difference(_lastPreloadTime!).inSeconds < 45) {
+      return;
+    }
     _isPreloadingConnections = true;
+    _lastPreloadTime = now;
     try {
       await Future.wait([
         getInbox(tab: 'received'),
@@ -451,6 +463,75 @@ class ApiService {
     return headers;
   }
 
+  /// Unified safe GET request with persistent client, timeout, and robust exception handling
+  Future<Map<String, dynamic>> _safeGet(
+    Uri uri, {
+    Map<String, String>? headers,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    try {
+      final response = await _client.get(uri, headers: headers ?? _headers).timeout(timeout);
+      return _processResponse(response);
+    } on SocketException catch (_) {
+      return {
+        'success': false,
+        'message': 'Unable to connect to server. Please check your internet connection.',
+      };
+    } on TimeoutException catch (_) {
+      return {
+        'success': false,
+        'message': 'Connection timed out. Please try again.',
+      };
+    } on http.ClientException catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error: ${e.message}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error: $e',
+      };
+    }
+  }
+
+  /// Unified safe POST request with persistent client, timeout, and robust exception handling
+  Future<Map<String, dynamic>> _safePost(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    try {
+      final response = await _client.post(
+        uri,
+        headers: headers ?? _headers,
+        body: body,
+      ).timeout(timeout);
+      return _processResponse(response);
+    } on SocketException catch (_) {
+      return {
+        'success': false,
+        'message': 'Unable to connect to server. Please check your internet connection.',
+      };
+    } on TimeoutException catch (_) {
+      return {
+        'success': false,
+        'message': 'Connection timed out. Please try again.',
+      };
+    } on http.ClientException catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error: ${e.message}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error: $e',
+      };
+    }
+  }
+
   // ==========================================
   // AUTHENTICATION
   // ==========================================
@@ -459,31 +540,20 @@ class ApiService {
   Future<Map<String, dynamic>> sendOtp(String mobile) async {
     final cleanMobile = mobile.replaceAll(RegExp(r'[^0-9]'), '');
     final uri = Uri.parse('$baseUrl/send-otp');
-
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'mobile': cleanMobile}),
-    );
-
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({'mobile': cleanMobile}));
   }
 
   /// Verify OTP and Login
   Future<Map<String, dynamic>> verifyOtp(String mobile, String otp) async {
     final cleanMobile = mobile.replaceAll(RegExp(r'[^0-9]'), '');
     final uri = Uri.parse('$baseUrl/verify-otp');
-
-    final response = await http.post(
+    final data = await _safePost(
       uri,
-      headers: _headers,
       body: jsonEncode({
         'mobile': cleanMobile,
         'otp': otp,
       }),
     );
-
-    final data = _processResponse(response);
     if (data['success'] == true && data['token'] != null) {
       await saveSession(
         data['token'] as String,
@@ -498,7 +568,7 @@ class ApiService {
     try {
       if (isAuthenticated) {
         final uri = Uri.parse('$baseUrl/logout');
-        await http.post(uri, headers: _headers);
+        await _safePost(uri);
       }
     } catch (e) {
       debugPrint('[ApiService] Logout remote error: $e');
@@ -532,92 +602,57 @@ class ApiService {
       }
     }
 
-    final response = await http.post(uri, headers: _headers, body: jsonEncode(body));
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode(body));
   }
 
   /// Send WhatsApp OTP for Registration
   Future<Map<String, dynamic>> sendRegistrationOtp(String mobile) async {
     final cleanMobile = mobile.replaceAll(RegExp(r'[^0-9]'), '');
     final uri = Uri.parse('$baseUrl/send-registration-otp');
-
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'mobile': cleanMobile}),
-    );
-
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({'mobile': cleanMobile}));
   }
 
   /// Verify Registration OTP
   Future<Map<String, dynamic>> verifyRegistrationOtp(String mobile, String otp) async {
     final cleanMobile = mobile.replaceAll(RegExp(r'[^0-9]'), '');
     final uri = Uri.parse('$baseUrl/verify-registration-otp');
-
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({
-        'mobile': cleanMobile,
-        'otp': otp,
-      }),
-    );
-
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({
+      'mobile': cleanMobile,
+      'otp': otp,
+    }));
   }
 
   /// Send Selfie Link via WhatsApp
   Future<Map<String, dynamic>> sendSelfieLink(String mobile) async {
     final cleanMobile = mobile.replaceAll(RegExp(r'[^0-9]'), '');
     final uri = Uri.parse('$baseUrl/send-selfie-link');
-
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'mobile': cleanMobile}),
-    );
-
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({'mobile': cleanMobile}));
   }
 
   /// Save phone selfie to cache
   Future<Map<String, dynamic>> savePhoneSelfie(String mobile, String selfieData) async {
     final cleanMobile = mobile.replaceAll(RegExp(r'[^0-9]'), '');
     final uri = Uri.parse('$baseUrl/save-phone-selfie');
-
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({
-        'mobile': cleanMobile,
-        'selfie_data': selfieData,
-      }),
-    );
-
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({
+      'mobile': cleanMobile,
+      'selfie_data': selfieData,
+    }));
   }
 
   /// Check selfie verification polling status
   Future<Map<String, dynamic>> checkSelfieStatus(String mobile) async {
     final cleanMobile = mobile.replaceAll(RegExp(r'[^0-9]'), '');
     final uri = Uri.parse('$baseUrl/check-selfie-status?mobile=$cleanMobile');
-
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    return _safeGet(uri);
   }
 
-  Map<String, dynamic>? _cachedRegistrationOptions;
-  Map<String, dynamic>? get cachedRegistrationOptions => _cachedRegistrationOptions;
-
-  /// Fetch Master Dropdown Options for Registration & Profile screens
+  /// Fetch Master Dropdown Options for Registration & Profile screens (cached in memory)
   Future<Map<String, dynamic>> getRegistrationOptions() async {
     if (_cachedRegistrationOptions != null) {
       return {'success': true, 'data': _cachedRegistrationOptions};
     }
     final uri = Uri.parse('$baseUrl/registration-options');
-    final response = await http.get(uri, headers: _headers);
-    final data = _processResponse(response);
+    final data = await _safeGet(uri);
     if (data['success'] == true && data['data'] != null && data['data'] is Map) {
       _cachedRegistrationOptions = data['data'] as Map<String, dynamic>;
     }
@@ -637,16 +672,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/verify-gp-code').replace(
       queryParameters: {'code': cleanCode},
     );
-    try {
-      final response = await http.get(uri, headers: _headers);
-      return _processResponse(response);
-    } catch (e) {
-      return {
-        'success': false,
-        'valid': false,
-        'message': 'Unable to verify Ground Partner code: $e',
-      };
-    }
+    return _safeGet(uri);
   }
 
   /// Final Registration
@@ -731,8 +757,7 @@ class ApiService {
     await _ensureAuthLoaded();
     try {
       final uri = Uri.parse('$baseUrl/dashboard');
-      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
-      final data = _processResponse(response);
+      final data = await _safeGet(uri, timeout: const Duration(seconds: 10));
       if (data['success'] == true && data['data'] != null) {
         final d = data['data'];
         if (d['candidate'] != null) {
@@ -770,8 +795,7 @@ class ApiService {
   Future<Map<String, dynamic>> getMyProfile() async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/my-profile');
-    final response = await http.get(uri, headers: _headers);
-    final data = _processResponse(response);
+    final data = await _safeGet(uri);
     if (data['success'] == true && data['candidate'] != null) {
       await updateCachedCandidate(data['candidate'] as Map<String, dynamic>);
     }
@@ -787,13 +811,7 @@ class ApiService {
       body['section'] = section;
     }
 
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode(body),
-    );
-
-    final data = _processResponse(response);
+    final data = await _safePost(uri, body: jsonEncode(body));
     if (data['success'] == true && data['candidate'] != null) {
       await updateCachedCandidate(data['candidate'] as Map<String, dynamic>);
     }
@@ -837,14 +855,8 @@ class ApiService {
   /// Get candidate photos
   Future<Map<String, dynamic>> getMyPhotos() async {
     await _ensureAuthLoaded();
-    try {
-      final uri = Uri.parse('$baseUrl/my-photos');
-      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
-      return _processResponse(response);
-    } catch (e) {
-      debugPrint('[ApiService] getMyPhotos error: $e');
-      return {'success': false, 'message': 'Failed to load photos: $e'};
-    }
+    final uri = Uri.parse('$baseUrl/my-photos');
+    return _safeGet(uri, timeout: const Duration(seconds: 10));
   }
 
   /// Upload gallery photos
@@ -876,49 +888,29 @@ class ApiService {
   /// Set gallery photo as main profile photo
   Future<Map<String, dynamic>> setProfilePhoto(dynamic photoId) async {
     await _ensureAuthLoaded();
-    try {
-      final uri = Uri.parse('$baseUrl/set-profile-photo');
-      final response = await http.post(
-        uri,
-        headers: _headers,
-        body: jsonEncode({'photo_id': photoId}),
-      ).timeout(const Duration(seconds: 10));
-      final res = _processResponse(response);
-      if (res['success'] == true) {
-        if (res['candidate'] != null && res['candidate'] is Map<String, dynamic>) {
-          await updateCachedCandidate(Map<String, dynamic>.from(res['candidate']));
-        } else {
-          final newPic = res['profile_picture'] ?? res['profile_picture_url'] ?? res['image_url'] ?? res['url'] ?? res['photo'];
-          if (newPic != null && _candidate != null) {
-            final cand = Map<String, dynamic>.from(_candidate!);
-            cand['profile_picture'] = newPic.toString();
-            cand['profile_picture_url'] = newPic.toString();
-            await updateCachedCandidate(cand);
-          }
+    final uri = Uri.parse('$baseUrl/set-profile-photo');
+    final res = await _safePost(uri, body: jsonEncode({'photo_id': photoId}));
+    if (res['success'] == true) {
+      if (res['candidate'] != null && res['candidate'] is Map<String, dynamic>) {
+        await updateCachedCandidate(Map<String, dynamic>.from(res['candidate']));
+      } else {
+        final newPic = res['profile_picture'] ?? res['profile_picture_url'] ?? res['image_url'] ?? res['url'] ?? res['photo'];
+        if (newPic != null && _candidate != null) {
+          final cand = Map<String, dynamic>.from(_candidate!);
+          cand['profile_picture'] = newPic.toString();
+          cand['profile_picture_url'] = newPic.toString();
+          await updateCachedCandidate(cand);
         }
       }
-      return res;
-    } catch (e) {
-      debugPrint('[ApiService] setProfilePhoto error: $e');
-      return {'success': false, 'message': 'Failed to set profile photo: $e'};
     }
+    return res;
   }
 
   /// Delete photo from gallery
   Future<Map<String, dynamic>> deletePhoto(dynamic photoId) async {
     await _ensureAuthLoaded();
-    try {
-      final uri = Uri.parse('$baseUrl/delete-photo');
-      final response = await http.post(
-        uri,
-        headers: _headers,
-        body: jsonEncode({'photo_id': photoId}),
-      ).timeout(const Duration(seconds: 10));
-      return _processResponse(response);
-    } catch (e) {
-      debugPrint('[ApiService] deletePhoto error: $e');
-      return {'success': false, 'message': 'Failed to delete photo: $e'};
-    }
+    final uri = Uri.parse('$baseUrl/delete-photo');
+    return _safePost(uri, body: jsonEncode({'photo_id': photoId}));
   }
 
   /// Update Photo & Album privacy settings
@@ -927,21 +919,14 @@ class ApiService {
     required String albumPrivacy,
   }) async {
     await _ensureAuthLoaded();
-    try {
-      final uri = Uri.parse('$baseUrl/update-photo-settings');
-      final response = await http.post(
-        uri,
-        headers: _headers,
-        body: jsonEncode({
-          'photo_privacy': photoPrivacy,
-          'album_privacy': albumPrivacy,
-        }),
-      ).timeout(const Duration(seconds: 10));
-      return _processResponse(response);
-    } catch (e) {
-      debugPrint('[ApiService] updatePhotoSettings error: $e');
-      return {'success': false, 'message': 'Failed to update photo settings: $e'};
-    }
+    final uri = Uri.parse('$baseUrl/update-photo-settings');
+    return _safePost(
+      uri,
+      body: jsonEncode({
+        'photo_privacy': photoPrivacy,
+        'album_privacy': albumPrivacy,
+      }),
+    );
   }
 
   // ==========================================
@@ -951,8 +936,7 @@ class ApiService {
   /// Get Blue Tick Verification details
   Future<Map<String, dynamic>> getBlueTickVerification() async {
     final uri = Uri.parse('$baseUrl/bluetick-verification');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    return _safeGet(uri);
   }
 
   /// Alias for getBlueTickVerification
@@ -961,12 +945,7 @@ class ApiService {
   /// Validate Aadhaar number
   Future<Map<String, dynamic>> validateAadhar(String aadharNumber) async {
     final uri = Uri.parse('$baseUrl/validate-aadhar');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'aadhar_number': aadharNumber}),
-    );
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({'aadhar_number': aadharNumber}));
   }
 
   /// Submit Blue Tick Aadhaar documents
@@ -995,28 +974,21 @@ class ApiService {
   Future<Map<String, dynamic>> markNotificationRead(dynamic notificationId) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/notifications/$notificationId/read');
-    final response = await http.post(uri, headers: _headers);
-    return _processResponse(response);
+    return _safePost(uri);
   }
 
   /// Clear all notifications
   Future<Map<String, dynamic>> clearAllNotifications() async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/notifications/clear-all');
-    final response = await http.post(uri, headers: _headers);
-    return _processResponse(response);
+    return _safePost(uri);
   }
 
   /// Register Device FCM Token with backend for background OS push notifications
   Future<Map<String, dynamic>> saveFcmToken(String fcmToken) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/save-fcm-token');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'fcm_token': fcmToken}),
-    );
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({'fcm_token': fcmToken}));
   }
 
   // ==========================================
@@ -1027,8 +999,7 @@ class ApiService {
   Future<Map<String, dynamic>> getMatches({String tab = 'all', int page = 1}) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches?tab=$tab&page=$page');
-    final response = await http.get(uri, headers: _headers);
-    final data = _processResponse(response);
+    final data = await _safeGet(uri);
     if (data['success'] == true) {
       final rawMatches = data['matches'];
       List<dynamic> list = [];
@@ -1083,8 +1054,7 @@ class ApiService {
   Future<Map<String, dynamic>> getProfileDetails(dynamic id) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/profile/$id');
-    final response = await http.get(uri, headers: _headers);
-    final data = _processResponse(response);
+    final data = await _safeGet(uri);
     if (data['success'] == true) {
       final p = data['profile'] ?? data['candidate'] ?? {};
       final pid = (p['candidate_code'] ?? p['profile_id'] ?? p['id'] ?? id)?.toString() ?? id.toString();
@@ -1105,12 +1075,7 @@ class ApiService {
   Future<Map<String, dynamic>> sendInterest(String profileId) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/send-interest');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'profile_id': profileId}),
-    );
-    final data = _processResponse(response);
+    final data = await _safePost(uri, body: jsonEncode({'profile_id': profileId}));
     if (data['success'] == true) {
       registerConnectionStatus(profileId: profileId, status: 'sent');
     }
@@ -1121,15 +1086,13 @@ class ApiService {
   Future<Map<String, dynamic>> respondInterest(String profileId, String action) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/respond-interest');
-    final response = await http.post(
+    final data = await _safePost(
       uri,
-      headers: _headers,
       body: jsonEncode({
         'profile_id': profileId,
         'action': action,
       }),
     );
-    final data = _processResponse(response);
     if (data['success'] == true) {
       registerConnectionStatus(
         profileId: profileId,
@@ -1143,12 +1106,7 @@ class ApiService {
   Future<Map<String, dynamic>> toggleShortlist(String profileId, {String? secondaryId}) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/toggle-shortlist');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'profile_id': profileId}),
-    );
-    final data = _processResponse(response);
+    final data = await _safePost(uri, body: jsonEncode({'profile_id': profileId}));
     if (data['success'] == true) {
       final isShort = data['shortlisted'] == true || data['shortlisted'] == 1;
       markProfileShortlisted(profileId, isShort, secondaryId: secondaryId);
@@ -1160,27 +1118,20 @@ class ApiService {
   Future<Map<String, dynamic>> requestWhatsAppChat(String profileId) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/request-whatsapp-chat');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'profile_id': profileId}),
-    );
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({'profile_id': profileId}));
   }
 
   /// Respond to WhatsApp Chat unlock request (accept / decline)
   Future<Map<String, dynamic>> respondWhatsAppChat(String profileId, String action) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/matches/respond-whatsapp-chat');
-    final response = await http.post(
+    return _safePost(
       uri,
-      headers: _headers,
       body: jsonEncode({
         'profile_id': profileId,
         'action': action,
       }),
     );
-    return _processResponse(response);
   }
 
   // ==========================================
@@ -1192,8 +1143,7 @@ class ApiService {
     await _ensureAuthLoaded();
     try {
       final uri = Uri.parse('$baseUrl/inbox?tab=$tab');
-      final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
-      final data = _processResponse(response);
+      final data = await _safeGet(uri, timeout: const Duration(seconds: 10));
       if (data['success'] == true && data['counts'] is Map) {
         final c = data['counts'] as Map;
         final rec = int.tryParse(c['received']?.toString() ?? c['pending']?.toString() ?? '0') ?? 0;
@@ -1227,24 +1177,25 @@ class ApiService {
   // SEARCH & FILTERS
   // ==========================================
 
-  /// Get search filter master options
-  Future<Map<String, dynamic>> getSearchOptions() async {
+  /// Get search filter master options (cached in memory)
+  Future<Map<String, dynamic>> getSearchOptions({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedSearchOptions != null) {
+      return _cachedSearchOptions!;
+    }
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/search/options');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    final res = await _safeGet(uri);
+    if (res['success'] == true) {
+      _cachedSearchOptions = res;
+    }
+    return res;
   }
 
   /// Search candidate profiles dynamically
   Future<Map<String, dynamic>> searchProfiles(Map<String, dynamic> filters) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/search/filter');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode(filters),
-    );
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode(filters));
   }
 
   // ==========================================
@@ -1380,16 +1331,14 @@ class ApiService {
     String? customNote,
   }) async {
     final uri = Uri.parse('$baseUrl/wallet/add-money');
-    final response = await http.post(
+    return _safePost(
       uri,
-      headers: _headers,
       body: jsonEncode({
         'amount': amount,
         'payment_method': paymentMethod ?? 'UPI',
         'custom_note': customNote,
       }),
     );
-    return _processResponse(response);
   }
 
   /// Spend Money / Direct debit
@@ -1399,38 +1348,26 @@ class ApiService {
     String? referenceId,
   }) async {
     final uri = Uri.parse('$baseUrl/wallet/spend-money');
-    final response = await http.post(
+    return _safePost(
       uri,
-      headers: _headers,
       body: jsonEncode({
         'amount': amount,
         'purpose': purpose,
         'reference_id': referenceId,
       }),
     );
-    return _processResponse(response);
   }
 
   /// Create Razorpay Order
   Future<Map<String, dynamic>> createRazorpayOrder(double amount) async {
     final uri = Uri.parse('$baseUrl/wallet/razorpay/create-order');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'amount': amount}),
-    );
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode({'amount': amount}));
   }
 
   /// Verify Razorpay Payment Signature
   Future<Map<String, dynamic>> verifyRazorpayPayment(Map<String, dynamic> paymentData) async {
     final uri = Uri.parse('$baseUrl/wallet/razorpay/verify-payment');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode(paymentData),
-    );
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode(paymentData));
   }
 
   // ==========================================
@@ -1440,26 +1377,19 @@ class ApiService {
   /// Get Help Center FAQs and contact information
   Future<Map<String, dynamic>> getHelpCenter() async {
     final uri = Uri.parse('$baseUrl/help-center');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    return _safeGet(uri);
   }
 
   /// Submit Public Contact / Help Query
   Future<Map<String, dynamic>> submitHelpQuery(Map<String, dynamic> data) async {
     final uri = Uri.parse('$baseUrl/help-center/submit');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode(data),
-    );
-    return _processResponse(response);
+    return _safePost(uri, body: jsonEncode(data));
   }
 
   /// Get Candidate Support Tickets
   Future<Map<String, dynamic>> getSupportTickets({int page = 1}) async {
     final uri = Uri.parse('$baseUrl/support/tickets?page=$page');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    return _safeGet(uri);
   }
 
   /// Raise a new Support Ticket
@@ -1494,28 +1424,24 @@ class ApiService {
   /// Get Success Stories
   Future<Map<String, dynamic>> getSuccessStories({int page = 1}) async {
     final uri = Uri.parse('$baseUrl/success-stories?page=$page');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    return _safeGet(uri);
   }
 
   /// Get candidate's account deletion request status
   Future<Map<String, dynamic>> getDeleteAccountRequest() async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/account/delete-request');
-    final response = await http.get(uri, headers: _headers);
-    return _processResponse(response);
+    return _safeGet(uri);
   }
 
   /// Submit candidate's account deletion request
   Future<Map<String, dynamic>> submitDeleteAccountRequest(String reason) async {
     await _ensureAuthLoaded();
     final uri = Uri.parse('$baseUrl/account/delete-request');
-    final response = await http.post(
+    return _safePost(
       uri,
-      headers: _headers,
       body: jsonEncode({'reason': reason}),
     );
-    return _processResponse(response);
   }
 
   // ==========================================
