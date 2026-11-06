@@ -280,7 +280,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
           children: [
             Flexible(
               child: Text(
-                'Royal Recharge Packs',
+                'Recharge Packs',
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
@@ -978,15 +978,14 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
 
   Widget _buildRechargePlanCard(Map<String, dynamic> plan) {
     final amount = _toDouble(plan['amount']);
-    final label = plan['label'] as String;
     final isPopular = plan['popular'] == true;
 
     return InkWell(
       onTap: () => _startRecharge(amount),
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        constraints: const BoxConstraints(minHeight: 76),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        constraints: const BoxConstraints(minHeight: 58),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -1004,45 +1003,10 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF6B6B6B),
-                    ),
-                  ),
-                ),
-                if (isPopular)
-                  Container(
-                    margin: const EdgeInsets.only(left: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF750000),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'HOT',
-                      style: GoogleFonts.outfit(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 5),
             Text(
               '₹ ${amount.toInt()}',
               style: GoogleFonts.playfairDisplay(
@@ -1051,17 +1015,22 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                 color: const Color(0xFF750000),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              'Pay & Add ₹${RaniRazorpayService.calculateTotalPayable(amount).toInt()}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF2E7D32),
+            if (isPopular)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF750000),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'HOT',
+                  style: GoogleFonts.outfit(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -1074,7 +1043,6 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
     final customVal = double.tryParse(customText);
     final hasValidAmount = customVal != null && customVal >= 10;
     final totalPayable = hasValidAmount ? RaniRazorpayService.calculateTotalPayable(customVal) : 0.0;
-    final platformFee = hasValidAmount ? RaniRazorpayService.calculatePlatformFee(customVal) : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1159,7 +1127,7 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                   backgroundColor: const Color(0xFF750000),
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
@@ -1173,39 +1141,37 @@ class _RaniWalletScreenState extends State<RaniWalletScreen> {
                   _startRecharge(amt);
                 },
                 label: Text(
-                  hasValidAmount ? 'Pay ₹ ${totalPayable.toStringAsFixed(0)}' : 'Add Money',
+                  hasValidAmount ? 'Pay ₹${totalPayable.toStringAsFixed(2)}' : 'Add Money',
                   style: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
           ),
-          if (hasValidAmount) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7.5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFBF4E6),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.45)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF8D6200)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Recharge: ₹${customVal.toStringAsFixed(0)} + 2% Platform Fee: ₹${platformFee.toStringAsFixed(2)} = Pay & Add ₹${totalPayable.toStringAsFixed(2)} to Wallet',
-                      style: GoogleFonts.outfit(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF6B450C),
-                      ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7.5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFBF4E6),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE5B842).withValues(alpha: 0.45)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF8D6200)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '2% platform fee added, but whole amount will be credited to your wallet.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B450C),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
           const SizedBox(height: 10),
           // Quick amount chip helpers
           Wrap(
