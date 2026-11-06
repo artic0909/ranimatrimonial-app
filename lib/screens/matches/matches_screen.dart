@@ -646,8 +646,8 @@ class _RaniMatchesScreenState extends State<RaniMatchesScreen> {
                         ],
                       ),
                       child: const Icon(
-                        CupertinoIcons.slider_horizontal_3,
-                        size: 18,
+                        CupertinoIcons.search,
+                        size: 19,
                         color: Color(0xFF750000), // Brand Royal Burgundy
                       ),
                     ),
