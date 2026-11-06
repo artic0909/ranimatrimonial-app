@@ -153,6 +153,13 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
   final TextEditingController _referralCodeController = TextEditingController();
   final FocusNode _referralCodeFocus = FocusNode();
 
+  // Ground Partner (GP) Referral Verification State
+  bool _isCheckingGp = false;
+  bool? _isGpValid; // null = unverified/blank, true = valid, false = invalid
+  String? _gpVerificationMessage;
+  String? _lastCheckedGpCode;
+  Timer? _gpDebounceTimer;
+
   // Dropdown Lists
   final List<String> _profileForOptions = const [
     'Myself',
@@ -436,7 +443,27 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     _otp2Controller.addListener(_refreshState);
     _otp3Controller.addListener(_refreshState);
     _otp4Controller.addListener(_refreshState);
-    _referralCodeController.addListener(_refreshState);
+    _referralCodeController.addListener(() {
+      _refreshState();
+      final current = _referralCodeController.text.trim();
+      if (current.isEmpty) {
+        if (_isGpValid != null || _gpVerificationMessage != null) {
+          setState(() {
+            _isCheckingGp = false;
+            _isGpValid = null;
+            _gpVerificationMessage = null;
+            _lastCheckedGpCode = '';
+          });
+        }
+      } else if (current.toUpperCase() != (_lastCheckedGpCode ?? '').toUpperCase()) {
+        _gpDebounceTimer?.cancel();
+        _gpDebounceTimer = Timer(const Duration(milliseconds: 650), () {
+          if (_referralCodeController.text.trim().isNotEmpty) {
+            _verifyGpCode(showAlertOnInvalid: false);
+          }
+        });
+      }
+    });
 
     _firstNameFocus.addListener(_refreshState);
     _middleNameFocus.addListener(_refreshState);
@@ -464,7 +491,14 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     _otp2Focus.addListener(_refreshState);
     _otp3Focus.addListener(_refreshState);
     _otp4Focus.addListener(_refreshState);
-    _referralCodeFocus.addListener(_refreshState);
+    _referralCodeFocus.addListener(() {
+      _refreshState();
+      if (!_referralCodeFocus.hasFocus) {
+        if (_referralCodeController.text.trim().isNotEmpty) {
+          _verifyGpCode(showAlertOnInvalid: true);
+        }
+      }
+    });
 
     _fetchMasterDataFromDb();
   }
@@ -761,6 +795,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     _otp3Focus.dispose();
     _otp4Focus.dispose();
     _referralCodeFocus.dispose();
+    _gpDebounceTimer?.cancel();
     _selfiePollTimer?.cancel();
 
     super.dispose();
@@ -825,6 +860,71 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
 
   void _showWarning(String msg, [String title = 'Missing Information']) {
     RaniAlert.warning(context, msg, title: title);
+  }
+
+  /// Real-time Ground Partner (GP) Code Verification
+  Future<bool> _verifyGpCode({bool showAlertOnInvalid = false}) async {
+    final rawCode = _referralCodeController.text.trim();
+    if (rawCode.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isCheckingGp = false;
+          _isGpValid = null;
+          _gpVerificationMessage = null;
+          _lastCheckedGpCode = '';
+        });
+      }
+      return true;
+    }
+
+    if (rawCode.toUpperCase() == (_lastCheckedGpCode ?? '').toUpperCase() && _isGpValid != null) {
+      if (_isGpValid == false && showAlertOnInvalid && mounted) {
+        RaniAlert.showCustomDialog(
+          context,
+          title: 'Invalid GP Code',
+          message: 'You put a wrong GP code. Please enter a valid Ground Partner Code or leave it blank.',
+          type: RaniAlertType.error,
+          confirmText: 'OK',
+        );
+      }
+      return _isGpValid == true;
+    }
+
+    setState(() {
+      _isCheckingGp = true;
+    });
+
+    try {
+      final res = await ApiService.instance.verifyGpCode(rawCode);
+      if (!mounted) return false;
+
+      final bool isValid = res['valid'] == true;
+      final String msg = res['message'] ?? (isValid ? 'Valid Ground Partner' : 'You put a wrong GP code.');
+
+      setState(() {
+        _isCheckingGp = false;
+        _isGpValid = isValid;
+        _gpVerificationMessage = msg;
+        _lastCheckedGpCode = rawCode.toUpperCase();
+      });
+
+      if (!isValid && showAlertOnInvalid && mounted) {
+        RaniAlert.showCustomDialog(
+          context,
+          title: 'Invalid GP Code',
+          message: 'You put a wrong GP code. Please enter a valid Ground Partner Code or leave it blank.',
+          type: RaniAlertType.error,
+          confirmText: 'OK',
+        );
+      }
+      return isValid;
+    } catch (e) {
+      if (!mounted) return false;
+      setState(() {
+        _isCheckingGp = false;
+      });
+      return false;
+    }
   }
 
   Future<void> _nextStep() async {
@@ -1128,6 +1228,23 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
 
     // STEP 14: Final Submission
     if (_currentStep == 14) {
+      if (_selfieFile == null && _selfieData == null) {
+        RaniAlert.error(
+          context,
+          'Please complete live selfie or phone link verification before submitting.',
+          title: 'Selfie Required',
+        );
+        return;
+      }
+
+      // If GP referral code is entered, verify before completing registration
+      if (_referralCodeController.text.trim().isNotEmpty) {
+        final isValidGp = await _verifyGpCode(showAlertOnInvalid: true);
+        if (!isValidGp) {
+          return;
+        }
+      }
+
       setState(() => _isSubmitting = true);
       try {
         final candidateData = {
@@ -1184,12 +1301,25 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
             ),
           );
         } else {
-          final errorMsg = res['message'] ?? (res['errors'] != null ? res['errors'].toString() : 'Registration failed. Please check details.');
-          RaniAlert.error(
-            context,
-            errorMsg,
-            title: 'Registration Failed',
-          );
+          if (res['errors'] != null && res['errors'] is Map && (res['errors'] as Map).containsKey('referral_code')) {
+            final refErr = (res['errors']['referral_code'] is List && (res['errors']['referral_code'] as List).isNotEmpty)
+                ? res['errors']['referral_code'][0].toString()
+                : res['errors']['referral_code'].toString();
+            RaniAlert.showCustomDialog(
+              context,
+              title: 'Invalid GP Code',
+              message: refErr,
+              type: RaniAlertType.error,
+              confirmText: 'OK',
+            );
+          } else {
+            final errorMsg = res['message'] ?? (res['errors'] != null ? res['errors'].toString() : 'Registration failed. Please check details.');
+            RaniAlert.error(
+              context,
+              errorMsg,
+              title: 'Registration Failed',
+            );
+          }
         }
       } catch (e) {
         if (!mounted) return;
@@ -3554,24 +3684,58 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0x384E342E),
+            color: _isGpValid == true
+                ? const Color(0x221B5E20)
+                : (_isGpValid == false ? const Color(0x22B71C1C) : const Color(0x384E342E)),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.16),
-              width: 1.0,
+              color: _isGpValid == true
+                  ? const Color(0xFF4CAF50)
+                  : (_isGpValid == false
+                      ? const Color(0xFFEF5350)
+                      : Colors.white.withValues(alpha: 0.16)),
+              width: _isGpValid != null ? 1.5 : 1.0,
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Referral Code (Optional)',
-                style: GoogleFonts.outfit(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.95),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Referral Code (Optional)',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.95),
+                    ),
+                  ),
+                  if (_isCheckingGp)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE5A93C)),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Verifying...',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFFE5A93C),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -3589,30 +3753,90 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: const Color(0xFFD5CCC4),
-                    hintText: 'ENTER BRANCH CODE (E.G. BRM001)',
+                    hintText: 'ENTER GROUND PARTNER CODE (E.G. GP001)',
                     hintStyle: GoogleFonts.sourceCodePro(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF8C7972),
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     isDense: true,
+                    suffixIcon: _isCheckingGp
+                        ? null
+                        : (_isGpValid == true
+                            ? const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 20)
+                            : (_isGpValid == false
+                                ? const Icon(Icons.cancel, color: Color(0xFFC62828), size: 20)
+                                : null)),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: BorderSide(
+                        color: _isGpValid == true
+                            ? const Color(0xFF2E7D32)
+                            : (_isGpValid == false ? const Color(0xFFC62828) : Colors.transparent),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _isGpValid == true
+                            ? const Color(0xFF2E7D32)
+                            : (_isGpValid == false ? const Color(0xFFC62828) : Colors.transparent),
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                'If you were assisted or referred by a regional branch center, please enter their branch code.',
-                style: GoogleFonts.outfit(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.70),
-                  height: 1.3,
+              if (_isGpValid == true && _gpVerificationMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified, color: Color(0xFF81C784), size: 14),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          _gpVerificationMessage!,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFA5D6A7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (_isGpValid == false && _gpVerificationMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Color(0xFFEF9A9A), size: 14),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          _gpVerificationMessage!,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFFFCDD2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Text(
+                  'If you were assisted or referred by a Ground Partner (GP), please enter their partner code.',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.70),
+                    height: 1.3,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

@@ -605,6 +605,31 @@ class ApiService {
     return data;
   }
 
+  /// Verify Ground Partner (GP) referral code in real-time
+  Future<Map<String, dynamic>> verifyGpCode(String code) async {
+    final cleanCode = code.trim();
+    if (cleanCode.isEmpty) {
+      return {
+        'success': false,
+        'valid': false,
+        'message': 'Please enter a GP code.',
+      };
+    }
+    final uri = Uri.parse('$baseUrl/verify-gp-code').replace(
+      queryParameters: {'code': cleanCode},
+    );
+    try {
+      final response = await http.get(uri, headers: _headers);
+      return _processResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'valid': false,
+        'message': 'Unable to verify Ground Partner code: $e',
+      };
+    }
+  }
+
   /// Final Registration
   Future<Map<String, dynamic>> registerFinal(
     Map<String, dynamic> fields, {
