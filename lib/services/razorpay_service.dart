@@ -237,8 +237,8 @@ class _RoyalRechargeSheetState extends State<_RoyalRechargeSheet> {
   final List<Map<String, dynamic>> _packages = [
     {'amount': 100.0, 'label': '1 Connect', 'desc': 'Instant 1 Profile Connect', 'popular': false},
     {'amount': 500.0, 'label': '5 Connects', 'desc': 'Standard Starter Pack', 'popular': false},
-    {'amount': 1000.0, 'label': '10+1 Connects', 'desc': 'Popular • +₹100 Bonus', 'popular': true},
-    {'amount': 2500.0, 'label': '25+4 Connects', 'desc': 'Elite • +₹400 Bonus', 'popular': false},
+    {'amount': 1000.0, 'label': '10 Connects', 'desc': 'Popular • 10 Connects', 'popular': true},
+    {'amount': 2500.0, 'label': '25 Connects', 'desc': 'Elite • 25 Connects', 'popular': false},
   ];
 
   @override
