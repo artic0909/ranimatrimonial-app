@@ -902,8 +902,10 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
             ),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
+        child: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
           backgroundColor: Colors.white,
           selectedItemColor: const Color(0xFF750000), // Royal Burgundy Brand Theme
           unselectedItemColor: const Color(0xFF8E8E93),
@@ -960,6 +962,7 @@ class _RaniMainNavigationScreenState extends State<RaniMainNavigationScreen> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 }

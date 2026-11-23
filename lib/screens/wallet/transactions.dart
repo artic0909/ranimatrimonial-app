@@ -425,6 +425,7 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
@@ -434,15 +435,17 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
 
             return Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.88,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               decoration: const BoxDecoration(
                 color: Color(0xFFFAF7F2),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   // 1. Top Drag Handle & Title
                   Container(
                     padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
@@ -745,6 +748,7 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 16),
                           ],
                         ],
                       ),
@@ -752,11 +756,12 @@ class _RaniTransactionsScreenState extends State<RaniTransactionsScreen> {
                   ),
                 ],
               ),
-            );
-          },
-        );
-      },
-    );
+            ),
+          );
+        },
+      );
+    },
+  );
   }
 
   Widget _buildDetailRow({

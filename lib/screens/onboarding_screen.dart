@@ -69,6 +69,7 @@ class _RaniOnboardingScreenState extends State<RaniOnboardingScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _RaniLoginBottomSheetModal(
         onNavigateToRegister: () {
@@ -812,12 +813,19 @@ class _RaniLoginBottomSheetModalState extends State<_RaniLoginBottomSheetModal> 
           22,
           16,
           22,
-          MediaQuery.of(context).viewInsets.bottom + 24,
+          MediaQuery.of(context).viewInsets.bottom > 0
+              ? MediaQuery.of(context).viewInsets.bottom + 16
+              : (MediaQuery.of(context).viewPadding.bottom > 0
+                  ? MediaQuery.of(context).viewPadding.bottom + 16
+                  : 24),
         ),
-        child: SingleChildScrollView(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _otpSent ? _buildEyeCatchyOtpView() : _buildLoginEntryView(),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: _otpSent ? _buildEyeCatchyOtpView() : _buildLoginEntryView(),
+            ),
           ),
         ),
       ),

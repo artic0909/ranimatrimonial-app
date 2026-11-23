@@ -103,6 +103,7 @@ class _RaniHelpSupportScreenState extends State<RaniHelpSupportScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: const Color(0xFF200707),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -110,14 +111,20 @@ class _RaniHelpSupportScreenState extends State<RaniHelpSupportScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-                left: 20,
-                right: 20,
-                top: 24,
-              ),
-              child: SingleChildScrollView(
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom > 0
+                      ? MediaQuery.of(ctx).viewInsets.bottom + 16
+                      : (MediaQuery.of(ctx).viewPadding.bottom > 0
+                          ? MediaQuery.of(ctx).viewPadding.bottom + 16
+                          : 24),
+                  left: 20,
+                  right: 20,
+                  top: 24,
+                ),
+                child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,14 +272,16 @@ class _RaniHelpSupportScreenState extends State<RaniHelpSupportScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
+            ),
+          );
+        },
+      );
+    },
+  );
   }
 
   @override

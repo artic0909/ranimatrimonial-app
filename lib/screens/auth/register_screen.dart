@@ -4008,6 +4008,7 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         String searchQuery = '';
@@ -4020,14 +4021,16 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                         item.toLowerCase().contains(searchQuery.toLowerCase()))
                     .toList();
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.62,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFAF6F0),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Column(
+            return SafeArea(
+              top: false,
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.62,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFAF6F0),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                child: Column(
                 children: [
                   Center(
                     child: Container(
@@ -4159,10 +4162,11 @@ class _RaniRegisterScreenState extends State<RaniRegisterScreen> {
                   ),
                 ],
               ),
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      );
+    },
     );
   }
 

@@ -126,7 +126,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
 
             return Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
               ),
               decoration: const BoxDecoration(
                 color: Color(0xFFFAF7F2),
@@ -139,11 +139,13 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                   ),
                 ],
               ),
-              child: Padding(
-                padding: EdgeInsets.only(bottom: bottomInset),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: bottomInset),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     // Header Bar with Grab Handle
                     Container(
                       margin: const EdgeInsets.only(top: 10, bottom: 6),
@@ -438,6 +440,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 16),
                             ],
                           ),
                         ),
@@ -446,11 +449,12 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                   ],
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
+            ),
+          );
+        },
+      );
+    },
+  );
   }
 
   Widget _buildPriorityChip(String value, String label, Color color, String current, VoidCallback onTap) {
@@ -855,9 +859,11 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Grab Handle
               Container(
                 margin: const EdgeInsets.only(top: 10, bottom: 6),
@@ -1131,15 +1137,17 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildEmptyState() {

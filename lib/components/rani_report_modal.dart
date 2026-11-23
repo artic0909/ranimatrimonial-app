@@ -377,7 +377,14 @@ class _ReportModalContentState extends State<_ReportModalContent> {
               top: false,
               bottom: true,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  10,
+                  16,
+                  MediaQuery.of(context).viewPadding.bottom > 0
+                      ? MediaQuery.of(context).viewPadding.bottom + 8
+                      : 16,
+                ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   border: Border(top: BorderSide(color: Color(0xFFEADCCF), width: 0.8)),

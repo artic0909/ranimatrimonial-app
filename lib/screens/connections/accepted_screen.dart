@@ -81,23 +81,33 @@ class _RaniAcceptedConnectionsScreenState extends State<RaniAcceptedConnectionsS
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        decoration: const BoxDecoration(
-          color: Color(0xFFFAF7F2),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 20,
-              offset: Offset(0, -5),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            20,
+            24,
+            MediaQuery.of(context).viewPadding.bottom > 0
+                ? MediaQuery.of(context).viewPadding.bottom + 16
+                : 24,
+          ),
+          decoration: const BoxDecoration(
+            color: Color(0xFFFAF7F2),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 20,
+                offset: Offset(0, -5),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
               child: Container(
@@ -229,8 +239,9 @@ class _RaniAcceptedConnectionsScreenState extends State<RaniAcceptedConnectionsS
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildContactRow({
     required IconData icon,

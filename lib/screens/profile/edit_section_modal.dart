@@ -39,6 +39,7 @@ class RaniSectionEditModal extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => RaniSectionEditModal(
         section: section,
@@ -1060,6 +1061,7 @@ class _RaniSectionEditModalState extends State<RaniSectionEditModal> {
                                 ),
                         ),
                       ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),

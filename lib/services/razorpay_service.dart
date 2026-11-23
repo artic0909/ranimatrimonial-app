@@ -202,6 +202,7 @@ class RaniRazorpayService {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _RoyalRechargeSheet(
         defaultAmount: defaultAmount,
@@ -255,23 +256,34 @@ class _RoyalRechargeSheetState extends State<_RoyalRechargeSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 28),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFAF7F2),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 20,
-            offset: Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          MediaQuery.of(context).viewInsets.bottom > 0
+              ? MediaQuery.of(context).viewInsets.bottom + 16
+              : (MediaQuery.of(context).viewPadding.bottom > 0
+                  ? MediaQuery.of(context).viewPadding.bottom + 16
+                  : 28),
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFAF7F2),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Drag handle
           Center(
             child: Container(
@@ -553,7 +565,8 @@ class _RoyalRechargeSheetState extends State<_RoyalRechargeSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
