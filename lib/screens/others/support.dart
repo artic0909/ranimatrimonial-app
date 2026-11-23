@@ -223,7 +223,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  _buildPriorityChip('low', 'Low', const Color(0xFF1976D2), priority, () {
+                                  _buildPriorityChip('low', 'Normal', const Color(0xFF1976D2), priority, () {
                                     setModalState(() => priority = 'low');
                                   }),
                                   const SizedBox(width: 10),
@@ -231,7 +231,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                                     setModalState(() => priority = 'high');
                                   }),
                                   const SizedBox(width: 10),
-                                  _buildPriorityChip('urgent', 'Urgent', const Color(0xFFD32F2F), priority, () {
+                                  _buildPriorityChip('urgent', 'Urgent / Child Safety', const Color(0xFFD32F2F), priority, () {
                                     setModalState(() => priority = 'urgent');
                                   }),
                                 ],
@@ -251,7 +251,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                               TextFormField(
                                 controller: subjectCtrl,
                                 decoration: InputDecoration(
-                                  hintText: 'e.g. Wallet recharge inquiry, Photo blur',
+                                  hintText: 'e.g. Child safety concern, Profile report, App feedback, Wallet',
                                   hintStyle: GoogleFonts.outfit(fontSize: 13.5, color: const Color(0xFFAAAAAA)),
                                   filled: true,
                                   fillColor: Colors.white,

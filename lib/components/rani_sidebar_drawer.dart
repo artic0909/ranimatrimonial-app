@@ -346,6 +346,20 @@ class RaniSidebarDrawer extends StatelessWidget {
                         },
                       ),
 
+                      // In-App Feedback & Safety (Google Play Child Safety Compliance)
+                      _buildSidebarItem(
+                        icon: CupertinoIcons.shield_fill,
+                        title: 'In-App Feedback & Safety',
+                        isHighlighted: activeItem == 'safety_feedback',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const RaniSupportScreen(showAppBar: true)),
+                          );
+                        },
+                      ),
+
                       // j. Contact Us
                       _buildSidebarItem(
                         icon: CupertinoIcons.phone,

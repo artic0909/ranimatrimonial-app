@@ -9,6 +9,7 @@ import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_skeleton_loader.dart';
 import '../../components/rani_privacy_photo_widget.dart';
+import '../../components/rani_report_modal.dart';
 
 /// Screen: Candidate Details Screen (Matches Theme)
 /// Features:
@@ -748,6 +749,27 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                                     color: Colors.white,
                                     size: 19,
                                   ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+
+                              // In-App Safety & Report Profile Button (Google Play Child Safety Compliance)
+                              GestureDetector(
+                                onTap: () => RaniReportModal.show(
+                                  context,
+                                  candidateId: (d['id'] ?? widget.profileId).toString(),
+                                  candidateCode: profileCode,
+                                  candidateName: fullName,
+                                ),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.45),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Icon(CupertinoIcons.flag_fill, color: Colors.white, size: 16),
                                 ),
                               ),
                               const SizedBox(width: 8),

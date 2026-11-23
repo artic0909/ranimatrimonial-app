@@ -1421,6 +1421,23 @@ class ApiService {
     return _processResponse(response);
   }
 
+  /// In-App Report Profile & Child Safety Feedback (Google Play Policy Compliance)
+  Future<Map<String, dynamic>> reportCandidate({
+    required String candidateId,
+    required String reason,
+    String? details,
+  }) async {
+    final uri = Uri.parse('$baseUrl/report-candidate');
+    return _safePost(
+      uri,
+      body: jsonEncode({
+        'reported_candidate_id': candidateId,
+        'reason': reason,
+        'details': details ?? '',
+      }),
+    );
+  }
+
   /// Get Success Stories
   Future<Map<String, dynamic>> getSuccessStories({int page = 1}) async {
     final uri = Uri.parse('$baseUrl/success-stories?page=$page');

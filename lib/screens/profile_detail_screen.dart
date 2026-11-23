@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../components/rani_alert.dart';
 import '../components/rani_matrimonial_loader.dart';
 import '../components/rani_privacy_photo_widget.dart';
+import '../components/rani_report_modal.dart';
 import '../components/rani_skeleton_loader.dart';
 
 /// Screen: Candidate Profile Details (matching website profile_view.blade.php)
@@ -285,6 +286,27 @@ class _RaniProfileDetailScreenState extends State<RaniProfileDetailScreen> {
                   onPressed: () => Navigator.pop(context),
                 ),
                 actions: [
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.flag_outlined,
+                        color: Color(0xFFF3E5AB),
+                        size: 20,
+                      ),
+                    ),
+                    onPressed: () => RaniReportModal.show(
+                      context,
+                      candidateId: widget.profileId,
+                      candidateCode: profileCode,
+                      candidateName: name,
+                    ),
+                    tooltip: 'Report Profile',
+                  ),
                   IconButton(
                     icon: Container(
                       padding: const EdgeInsets.all(8),

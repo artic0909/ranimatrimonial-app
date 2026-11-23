@@ -8,6 +8,7 @@ import '../../services/razorpay_service.dart';
 import '../../components/rani_alert.dart';
 import '../../components/rani_matrimonial_loader.dart';
 import '../../components/rani_privacy_photo_widget.dart';
+import '../../components/rani_report_modal.dart';
 import '../../components/rani_skeleton_loader.dart';
 
 /// Screen: Candidate Details Screen (Matches Theme)
@@ -726,19 +727,45 @@ class _RaniMatchDetailsScreenState extends State<RaniMatchDetailsScreen> {
                             ),
                           ),
 
-                          // Full-screen zoom indicator
-                          GestureDetector(
-                            onTap: () => _openFullScreenViewer(photos, _activePhotoIndex),
-                            child: Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          // Right action buttons: Report & Full-screen
+                          Row(
+                            children: [
+                              // In-App Safety & Report Profile Button (Google Play Child Safety Compliance)
+                              GestureDetector(
+                                onTap: () => RaniReportModal.show(
+                                  context,
+                                  candidateId: (d['id'] ?? widget.profileId).toString(),
+                                  candidateCode: profileCode,
+                                  candidateName: fullName,
+                                ),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.45),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Icon(CupertinoIcons.flag_fill, color: Colors.white, size: 16),
+                                ),
                               ),
-                              child: const Icon(CupertinoIcons.fullscreen, color: Colors.white, size: 18),
-                            ),
+                              const SizedBox(width: 8),
+
+                              // Full-screen zoom indicator
+                              GestureDetector(
+                                onTap: () => _openFullScreenViewer(photos, _activePhotoIndex),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.45),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Icon(CupertinoIcons.fullscreen, color: Colors.white, size: 18),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
