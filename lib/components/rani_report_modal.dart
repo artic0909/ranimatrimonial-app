@@ -18,6 +18,7 @@ class RaniReportModal {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _ReportModalContent(
         candidateId: candidateId,
@@ -136,7 +137,7 @@ class _ReportModalContentState extends State<_ReportModalContent> {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.90,
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
       decoration: const BoxDecoration(
         color: Color(0xFFFAF7F2),
@@ -372,27 +373,31 @@ class _ReportModalContentState extends State<_ReportModalContent> {
             ),
 
             // Submit Button
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Color(0xFFEADCCF), width: 0.8)),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _submitReport,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF750000),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(CupertinoIcons.flag_fill, size: 18),
-                  label: Text(
-                    'Submit Safety Report',
-                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
+            SafeArea(
+              top: false,
+              bottom: true,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFEADCCF), width: 0.8)),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _isSubmitting ? null : _submitReport,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF750000),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(CupertinoIcons.flag_fill, size: 18),
+                    label: Text(
+                      'Submit Safety Report',
+                      style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
               ),

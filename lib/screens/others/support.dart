@@ -117,6 +117,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
@@ -836,6 +837,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
