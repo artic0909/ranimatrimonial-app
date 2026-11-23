@@ -224,20 +224,23 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  _buildPriorityChip('low', 'Normal', const Color(0xFF1976D2), priority, () {
-                                    setModalState(() => priority = 'low');
-                                  }),
-                                  const SizedBox(width: 10),
-                                  _buildPriorityChip('high', 'High', const Color(0xFFF57C00), priority, () {
-                                    setModalState(() => priority = 'high');
-                                  }),
-                                  const SizedBox(width: 10),
-                                  _buildPriorityChip('urgent', 'Urgent / Child Safety', const Color(0xFFD32F2F), priority, () {
-                                    setModalState(() => priority = 'urgent');
-                                  }),
-                                ],
+                              IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    _buildPriorityChip('low', 'Normal', const Color(0xFF1976D2), priority, () {
+                                      setModalState(() => priority = 'low');
+                                    }),
+                                    const SizedBox(width: 8),
+                                    _buildPriorityChip('high', 'High', const Color(0xFFF57C00), priority, () {
+                                      setModalState(() => priority = 'high');
+                                    }),
+                                    const SizedBox(width: 8),
+                                    _buildPriorityChip('urgent', 'Urgent / Child Safety', const Color(0xFFD32F2F), priority, () {
+                                      setModalState(() => priority = 'urgent');
+                                    }),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 18),
 
@@ -464,7 +467,7 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 6),
           decoration: BoxDecoration(
             color: isSel ? color : Colors.white,
             borderRadius: BorderRadius.circular(10),
@@ -476,10 +479,12 @@ class _RaniSupportScreenState extends State<RaniSupportScreen> {
           alignment: Alignment.center,
           child: Text(
             label,
+            textAlign: TextAlign.center,
             style: GoogleFonts.outfit(
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: isSel ? FontWeight.w700 : FontWeight.w600,
               color: isSel ? Colors.white : color,
+              height: 1.25,
             ),
           ),
         ),
